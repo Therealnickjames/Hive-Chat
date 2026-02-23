@@ -1,0 +1,40 @@
+# Development overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# Or: make dev
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    environment:
+      NODE_ENV: development
+    # Volume mount for hot reload in development
+    # Note: node_modules are NOT mounted (they live in the container)
+    volumes:
+      - ./packages/web/app:/app/packages/web/app
+      - ./packages/web/components:/app/packages/web/components
+      - ./packages/web/lib:/app/packages/web/lib
+      - ./packages/shared:/app/packages/shared
+      - ./prisma:/app/prisma
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    environment:
+      MIX_ENV: dev
+      SECRET_KEY_BASE: dev-secret-key-base-that-is-at-least-64-bytes-long-for-development-only
+
+  streaming:
+    environment:
+      LOG_LEVEL: debug
+
+  # Expose db and redis ports for local development tools
+  db:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"

@@ -1,0 +1,233 @@
+// HiveChat Database Schema
+// All IDs are ULIDs (26-char, time-sortable, globally unique)
+// Generated in application code, NOT by the database
+//
+// See docs/DECISIONS.md DEC-0004 for rationale on ULIDs
+// See docs/PROTOCOL.md for cross-service contracts
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTH MODELS (NextAuth.js)
+// ============================================================
+
+model Account {
+  id                String  @id @db.VarChar(26)
+  userId            String  @db.VarChar(26)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @db.VarChar(26)
+  sessionToken String   @unique
+  userId       String   @db.VarChar(26)
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================================
+// CORE MODELS
+// ============================================================
+
+model User {
+  id          String   @id @db.VarChar(26)
+  email       String   @unique
+  username    String   @unique
+  displayName String
+  avatarUrl   String?
+  password    String   // bcrypt hashed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  accounts     Account[]
+  sessions     Session[]
+  ownedServers Server[]  @relation("ServerOwner")
+  members      Member[]
+  messages     Message[]
+}
+
+model Server {
+  id        String   @id @db.VarChar(26)
+  name      String
+  iconUrl   String?
+  ownerId   String   @db.VarChar(26)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner    User      @relation("ServerOwner", fields: [ownerId], references: [id])
+  channels Channel[]
+  members  Member[]
+  roles    Role[]
+  bots     Bot[]
+
+  @@index([ownerId])
+}
+
+model Channel {
+  id           String      @id @db.VarChar(26)
+  serverId     String      @db.VarChar(26)
+  name         String
+  topic        String?
+  type         ChannelType @default(TEXT)
+  position     Int         @default(0)
+  defaultBotId String?     @db.VarChar(26)
+  lastSequence BigInt      @default(0) // tracks highest sequence for reconnection seed
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  server     Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  defaultBot Bot?      @relation("ChannelDefaultBot", fields: [defaultBotId], references: [id], onDelete: SetNull)
+  messages   Message[]
+
+  @@index([serverId, position])
+}
+
+model Message {
+  id              String        @id @db.VarChar(26) // ULID: time-sortable
+  channelId       String        @db.VarChar(26)
+  authorId        String        @db.VarChar(26) // User.id or Bot.id
+  authorType      AuthorType    @default(USER)
+  content         String        @db.Text
+  type            MessageType   @default(STANDARD)
+  streamingStatus StreamStatus?
+  sequence        BigInt        // per-channel sequence number (assigned via Redis INCR)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author  User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  // Primary query path: messages in a channel, sorted by time (ULID is time-sorted)
+  @@index([channelId, id])
+  // Reconnection sync: find messages after a given sequence number
+  @@index([channelId, sequence])
+}
+
+model Role {
+  id          String   @id @db.VarChar(26)
+  serverId    String   @db.VarChar(26)
+  name        String
+  color       String?  // hex color code e.g. "#FF5733"
+  permissions BigInt   @default(0) // bitfield
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  server  Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  members Member[]
+
+  @@index([serverId, position])
+}
+
+model Member {
+  id       String   @id @db.VarChar(26)
+  userId   String   @db.VarChar(26)
+  serverId String   @db.VarChar(26)
+  nickname String?
+  joinedAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  roles  Role[]
+
+  @@unique([userId, serverId])
+  @@index([serverId])
+}
+
+// ============================================================
+// AI / BOT MODELS
+// ============================================================
+
+model Bot {
+  id              String      @id @db.VarChar(26)
+  name            String
+  avatarUrl       String?
+  serverId        String      @db.VarChar(26)
+  llmProvider     String      // "anthropic" | "openai" | "ollama" | "openrouter" | "custom"
+  llmModel        String      // "claude-sonnet-4-20250514" | "gpt-4" | "llama3" | etc.
+  apiEndpoint     String      // full URL to the API endpoint
+  apiKeyEncrypted String      @db.Text // encrypted at rest in application layer
+  systemPrompt    String      @db.Text
+  temperature     Float       @default(0.7)
+  maxTokens       Int         @default(4096)
+  isActive        Boolean     @default(true)
+  triggerMode     TriggerMode @default(MENTION)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  server          Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  defaultChannels Channel[] @relation("ChannelDefaultBot")
+
+  @@index([serverId])
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum ChannelType {
+  TEXT
+  ANNOUNCEMENT
+}
+
+enum MessageType {
+  STANDARD
+  STREAMING
+  SYSTEM
+}
+
+enum StreamStatus {
+  ACTIVE
+  COMPLETE
+  ERROR
+}
+
+enum AuthorType {
+  USER
+  BOT
+  SYSTEM
+}
+
+enum TriggerMode {
+  ALWAYS
+  MENTION
+  KEYWORD
+}

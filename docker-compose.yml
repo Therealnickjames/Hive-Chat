@@ -1,0 +1,149 @@
+# HiveChat — Docker Compose configuration
+# Starts all services with one command: docker-compose up --build
+#
+# Service startup order (enforced via depends_on + healthchecks):
+# 1. db (PostgreSQL) + redis — no dependencies
+# 2. web (Next.js) — depends on db, redis
+# 3. gateway (Elixir/Phoenix) — depends on redis, web
+# 4. streaming (Go) — depends on redis
+#
+# See docs/OPERATIONS.md "Service Startup Order" for details.
+
+services:
+  # ============================================================
+  # INFRASTRUCTURE
+  # ============================================================
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hivechat
+      POSTGRES_PASSWORD: hivechat
+      POSTGRES_DB: hivechat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hivechat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hivechat-net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hivechat-net
+
+  # ============================================================
+  # APPLICATION SERVICES
+  # ============================================================
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://hivechat:hivechat@db:5432/hivechat
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-change-in-production}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-internal-api-secret}
+      NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-ws://localhost:4001/socket}
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks:
+      - hivechat-net
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    environment:
+      GATEWAY_PORT: "4001"
+      GATEWAY_JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      GATEWAY_REDIS_URL: redis://redis:6379
+      GATEWAY_WEB_URL: http://web:3000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-internal-api-secret}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dev-secret-key-base-that-is-at-least-64-bytes-long-for-development-only}
+      PHX_SERVER: "true"
+      MIX_ENV: prod
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4001/api/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - hivechat-net
+
+  streaming:
+    build:
+      context: ./streaming
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Port 4002 is internal only — not exposed to host
+    environment:
+      STREAMING_PORT: "4002"
+      STREAMING_REDIS_URL: redis://redis:6379
+      STREAMING_WEB_URL: http://web:3000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-internal-api-secret}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4002/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - hivechat-net
+
+# ============================================================
+# VOLUMES & NETWORKS
+# ============================================================
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  hivechat-net:
+    driver: bridge

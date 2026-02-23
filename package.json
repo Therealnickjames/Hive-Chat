@@ -1,0 +1,20 @@
+{
+  "name": "hivechat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-native self-hostable chat platform",
+  "license": "MIT",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint",
+    "typecheck": "pnpm --filter web typecheck",
+    "db:migrate": "pnpm --filter web db:migrate",
+    "db:studio": "pnpm --filter web db:studio",
+    "db:seed": "pnpm --filter web db:seed"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
