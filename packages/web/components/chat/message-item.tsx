@@ -54,7 +54,7 @@ export function MessageItem({ message, isGrouped }: MessageItemProps) {
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-semibold text-background-floating">
+          <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${message.authorType === "BOT" ? "bg-emerald-600 text-white" : "bg-brand text-background-floating"}`}>
             {message.authorName?.charAt(0)?.toUpperCase() || "?"}
           </div>
         )}
@@ -63,9 +63,14 @@ export function MessageItem({ message, isGrouped }: MessageItemProps) {
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-brand">
+          <span className={`text-sm font-semibold ${message.authorType === "BOT" ? "text-emerald-400" : "text-brand"}`}>
             {message.authorName}
           </span>
+          {message.authorType === "BOT" && (
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-600/20 text-emerald-400">
+              BOT
+            </span>
+          )}
           <span className="text-xs text-text-muted">
             {formatTime(message.createdAt)}
           </span>

@@ -26,6 +26,9 @@ defmodule HiveGateway.Application do
       # Presence tracking
       HiveGatewayWeb.Presence,
 
+      # Stream listener — Redis pub/sub → Phoenix Channel bridge
+      HiveGateway.StreamListener,
+
       # HTTP + WebSocket endpoint
       HiveGatewayWeb.Endpoint
     ]

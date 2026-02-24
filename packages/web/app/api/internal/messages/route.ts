@@ -174,20 +174,55 @@ export async function GET(request: NextRequest) {
       messages.reverse();
     }
 
+    // Batch-load bot authors for BOT messages
+    const botAuthorIds = [
+      ...new Set(
+        messages
+          .filter((m) => m.authorType === "BOT")
+          .map((m) => m.authorId)
+      ),
+    ];
+    const botMap = new Map<string, { name: string; avatarUrl: string | null }>();
+    if (botAuthorIds.length > 0) {
+      const bots = await prisma.bot.findMany({
+        where: { id: { in: botAuthorIds } },
+        select: { id: true, name: true, avatarUrl: true },
+      });
+      for (const bot of bots) {
+        botMap.set(bot.id, { name: bot.name, avatarUrl: bot.avatarUrl });
+      }
+    }
+
     // Map to MessagePayload shape
-    const payload = messages.map((m) => ({
-      id: m.id,
-      channelId: m.channelId,
-      authorId: m.authorId,
-      authorType: m.authorType,
-      authorName: m.author?.displayName || "Unknown",
-      authorAvatarUrl: m.author?.avatarUrl || null,
-      content: m.content,
-      type: m.type,
-      streamingStatus: m.streamingStatus,
-      sequence: Number(m.sequence),
-      createdAt: m.createdAt.toISOString(),
-    }));
+    const payload = messages.map((m) => {
+      let authorName = "Unknown";
+      let authorAvatarUrl: string | null = null;
+
+      if (m.authorType === "BOT") {
+        const bot = botMap.get(m.authorId);
+        if (bot) {
+          authorName = bot.name;
+          authorAvatarUrl = bot.avatarUrl;
+        }
+      } else {
+        authorName = m.author?.displayName || "Unknown";
+        authorAvatarUrl = m.author?.avatarUrl || null;
+      }
+
+      return {
+        id: m.id,
+        channelId: m.channelId,
+        authorId: m.authorId,
+        authorType: m.authorType,
+        authorName,
+        authorAvatarUrl,
+        content: m.content,
+        type: m.type,
+        streamingStatus: m.streamingStatus,
+        sequence: Number(m.sequence),
+        createdAt: m.createdAt.toISOString(),
+      };
+    });
 
     return NextResponse.json({
       messages: payload,

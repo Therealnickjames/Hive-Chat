@@ -73,7 +73,7 @@ Server CRUD, channel CRUD, real-time messaging through Elixir gateway, message p
 
 ## TASK-0004: Implement Token Streaming (Phase 3)
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: P0 — Differentiator
 **Assignee**: Builder
 
@@ -81,13 +81,13 @@ Server CRUD, channel CRUD, real-time messaging through Elixir gateway, message p
 Bot creation with LLM config, Go proxy streaming, smooth token rendering in the UI.
 
 ### Acceptance Criteria
-- [ ] Server admin can create a bot with LLM provider/model/key/prompt config
-- [ ] Channel can have a default bot assigned
-- [ ] Bot triggers on configured mode (always, mention, keyword)
-- [ ] Go proxy opens SSE stream to LLM API
-- [ ] Tokens flow through Redis → Gateway → WebSocket → browser
-- [ ] Client renders tokens smoothly as they arrive
-- [ ] Visual indicator for active vs complete streams
-- [ ] Error state rendered when stream fails
-- [ ] Support for any OpenAI-compatible API endpoint
-- [ ] Streaming lifecycle follows PROTOCOL.md invariants exactly
+- [x] Server admin can create a bot with LLM provider/model/key/prompt config
+- [x] Channel can have a default bot assigned
+- [x] Bot triggers on configured mode (always, mention, keyword)
+- [x] Go proxy opens SSE stream to LLM API
+- [x] Tokens flow through Redis → Gateway → WebSocket → browser
+- [x] Client renders tokens smoothly as they arrive
+- [x] Visual indicator for active vs complete streams
+- [x] Error state rendered when stream fails
+- [x] Support for any OpenAI-compatible API endpoint
+- [x] Streaming lifecycle follows PROTOCOL.md invariants exactly

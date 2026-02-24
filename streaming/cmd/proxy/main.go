@@ -21,7 +21,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hivechat/streaming/internal/config"
+	"github.com/hivechat/streaming/internal/gateway"
 	"github.com/hivechat/streaming/internal/health"
+	"github.com/hivechat/streaming/internal/provider"
+	"github.com/hivechat/streaming/internal/stream"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -35,6 +39,8 @@ func main() {
 	// Configuration from environment
 	port := getEnv("STREAMING_PORT", "4002")
 	redisURL := getEnv("STREAMING_REDIS_URL", getEnv("REDIS_URL", "redis://localhost:6379"))
+	webURL := getEnv("STREAMING_WEB_URL", getEnv("WEB_INTERNAL_URL", "http://web:3000"))
+	internalSecret := getEnv("INTERNAL_API_SECRET", "dev-internal-secret")
 
 	// Connect to Redis
 	redisOpts, err := redis.ParseURL(redisURL)
@@ -53,6 +59,26 @@ func main() {
 	}
 	slog.Info("Connected to Redis", "url", redisURL)
 
+	// Create gateway client (Redis pub/sub for communication with Elixir Gateway)
+	gwClient := gateway.NewClient(rdb)
+
+	// Create config loader (HTTP client for Next.js internal API)
+	loader := config.NewLoader(webURL, internalSecret)
+
+	// Create provider registry
+	registry := provider.NewRegistry()
+
+	// Create stream manager
+	manager := stream.NewManager(logger, gwClient, loader, registry)
+
+	// Start stream manager in background
+	managerCtx, managerCancel := context.WithCancel(ctx)
+	go func() {
+		if err := manager.Start(managerCtx); err != nil && err != context.Canceled {
+			slog.Error("Stream manager error", "error", err)
+		}
+	}()
+
 	// HTTP server for health checks
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", health.Handler)
@@ -61,9 +87,10 @@ func main() {
 	mux.HandleFunc("GET /info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"service": "streaming",
-			"version": "0.1.0",
-			"redis":   "connected",
+			"service":       "streaming",
+			"version":       "0.1.0",
+			"redis":         "connected",
+			"activeStreams": manager.ActiveCount(),
 		})
 	})
 
@@ -90,6 +117,9 @@ func main() {
 	sig := <-quit
 
 	slog.Info("Shutting down", "signal", sig.String())
+
+	// Stop stream manager first (cancel context drains active streams)
+	managerCancel()
 
 	// Drain timeout: 30 seconds
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

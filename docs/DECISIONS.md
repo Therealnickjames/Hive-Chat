@@ -158,3 +158,36 @@
 **Decision**: Integrate presence tracking directly into `useChannel` hook, which returns a `presenceMap` alongside messages and typing indicators.
 **Rationale**: Presence is scoped to a channel — when you join a channel, you get presence for that channel. Keeping it in one hook means one subscription lifecycle, one cleanup, one source of truth. The channel page component passes `presenceMap` to the MemberList component.
 **Consequences**: `useChannel` returns more data but has a single lifecycle. MemberList receives presenceMap as a prop and splits members into online/offline groups.
+
+---
+
+## DEC-0013 — AES-256-GCM for bot API key encryption at rest
+
+**Date**: 2026-02-23
+**Status**: Accepted
+**Context**: Bot API keys must be stored securely in the database. Options: plaintext (bad), hashing (can't recover for API calls), symmetric encryption.
+**Decision**: AES-256-GCM encryption using Node.js built-in `crypto` module. Stored as `iv:authTag:ciphertext` (hex-encoded). Key from `ENCRYPTION_KEY` env var (64 hex chars = 32 bytes).
+**Rationale**: AES-256-GCM provides both confidentiality and authenticity. GCM mode means tampered ciphertext is detected on decryption. Node.js crypto is built-in (no extra dependencies). Keys are only decrypted in internal API responses (never in user-facing APIs).
+**Consequences**: `ENCRYPTION_KEY` required in environment. Key rotation requires re-encrypting all bot keys. Internal API endpoints (`/api/internal/bots/{id}`, `/api/internal/channels/{id}/bot`) return decrypted keys over the Docker internal network only.
+
+---
+
+## DEC-0014 — requestAnimationFrame batching for token rendering
+
+**Date**: 2026-02-23
+**Status**: Accepted
+**Context**: LLM APIs can send tokens at 50-100+ per second. Naively updating React state on every token causes excessive re-renders and UI jank.
+**Decision**: Accumulate incoming tokens in a ref-based buffer and flush to React state via `requestAnimationFrame`. This caps UI updates at 60fps regardless of token rate.
+**Rationale**: rAF naturally aligns with the browser's paint cycle. Tokens arrive faster than the eye can perceive them individually, so batching 2-5 tokens into a single render is visually imperceptible. This eliminates the performance cliff that occurs at high token rates.
+**Consequences**: Token buffer stored in a `Map<messageId, string>` ref. Each rAF frame flushes accumulated tokens for all active streams. No visible latency even at 100+ tokens/second.
+
+---
+
+## DEC-0015 — Go stdlib for HTTP and SSE parsing
+
+**Date**: 2026-02-23
+**Status**: Accepted
+**Context**: The Go streaming proxy needs to make HTTP requests to LLM APIs and parse SSE responses. Options: third-party libraries (go-sse, etc.) or stdlib.
+**Decision**: Use Go stdlib only (`net/http`, `bufio`, `encoding/json`). Custom SSE parser in `internal/sse/parser.go`.
+**Rationale**: SSE is a simple line-based protocol — parsing it is ~70 lines of code. Using stdlib means zero external dependencies beyond `go-redis`. The Go binary stays small (~8MB). No dependency supply chain risk for a security-critical component (it handles API keys).
+**Consequences**: SSE parser handles both OpenAI format (`data: [DONE]` termination) and Anthropic format (`event: content_block_delta`). Provider registry maps `llmProvider` to the correct parser. Only dependency: `github.com/redis/go-redis/v9`.

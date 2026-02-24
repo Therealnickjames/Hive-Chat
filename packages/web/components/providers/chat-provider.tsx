@@ -24,6 +24,7 @@ interface ChannelData {
   type: string;
   topic: string | null;
   position: number;
+  defaultBotId: string | null;
 }
 
 interface MemberData {

@@ -41,6 +41,33 @@ defmodule HiveGateway.WebClient do
   end
 
   @doc """
+  Get the default bot config for a channel.
+  Returns {:ok, bot_config} or {:ok, nil} (no bot) or {:error, reason}.
+  """
+  def get_channel_bot(channel_id) do
+    url = "#{web_url()}/api/internal/channels/#{channel_id}/bot"
+
+    case Req.get(url,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: 404}} ->
+        {:ok, nil}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("get_channel_bot failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("get_channel_bot request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Fetch messages via GET /api/internal/messages.
   Params: %{channelId: string, afterSequence?: int, before?: string, limit?: int}
   Returns {:ok, %{messages: [...], hasMore: bool}} or {:error, reason}.

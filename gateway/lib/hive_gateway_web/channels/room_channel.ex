@@ -81,6 +81,38 @@ defmodule HiveGatewayWeb.RoomChannel do
   end
 
   @impl true
+  def handle_info({:check_bot_trigger, trigger_message_id, content}, socket) do
+    channel_id = socket.assigns.channel_id
+
+    case WebClient.get_channel_bot(channel_id) do
+      {:ok, nil} ->
+        # No default bot for this channel
+        {:noreply, socket}
+
+      {:ok, bot_config} ->
+        trigger_mode = Map.get(bot_config, "triggerMode", "ALWAYS")
+        bot_name = Map.get(bot_config, "name", "")
+
+        should_trigger =
+          case trigger_mode do
+            "ALWAYS" -> true
+            "MENTION" -> String.contains?(content, "@#{bot_name}")
+            _ -> false
+          end
+
+        if should_trigger do
+          handle_bot_trigger(socket, bot_config, trigger_message_id)
+        else
+          {:noreply, socket}
+        end
+
+      {:error, reason} ->
+        Logger.error("Failed to fetch channel bot: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_in("new_message", %{"content" => content}, socket) do
     channel_id = socket.assigns.channel_id
     user_id = socket.assigns.user_id
@@ -125,7 +157,10 @@ defmodule HiveGatewayWeb.RoomChannel do
             # 6. Broadcast to all clients in channel
             broadcast!(socket, "message_new", message_payload)
 
-            # 7. Reply to sender with message id and sequence
+            # 7. Check for bot trigger (async — don't delay the reply)
+            send(self(), {:check_bot_trigger, message_id, content})
+
+            # 8. Reply to sender with message id and sequence
             {:reply, {:ok, %{id: message_id, sequence: sequence}}, socket}
 
           {:error, reason} ->
@@ -190,5 +225,103 @@ defmodule HiveGatewayWeb.RoomChannel do
     end
 
     {:noreply, socket}
+  end
+
+  # ---------- Bot trigger helpers ----------
+
+  defp handle_bot_trigger(socket, bot_config, trigger_message_id) do
+    channel_id = socket.assigns.channel_id
+    bot_id = Map.get(bot_config, "id")
+    bot_name = Map.get(bot_config, "name")
+    bot_avatar_url = Map.get(bot_config, "avatarUrl")
+
+    # 1. Generate ULID for the streaming placeholder
+    message_id = Ulid.generate()
+
+    # 2. Get next sequence number
+    case Redix.command(:redix, ["INCR", "hive:channel:#{channel_id}:seq"]) do
+      {:ok, sequence} ->
+        # 3. Persist placeholder (type=STREAMING, status=ACTIVE, content="")
+        placeholder = %{
+          id: message_id,
+          channelId: channel_id,
+          authorId: bot_id,
+          authorType: "BOT",
+          content: "",
+          type: "STREAMING",
+          streamingStatus: "ACTIVE",
+          sequence: sequence
+        }
+
+        case WebClient.post_message(placeholder) do
+          {:ok, _response} ->
+            # 4. Broadcast stream_start to all clients
+            broadcast!(socket, "stream_start", %{
+              messageId: message_id,
+              botId: bot_id,
+              botName: bot_name,
+              botAvatarUrl: bot_avatar_url,
+              sequence: sequence
+            })
+
+            # 5. Build context messages for the LLM
+            context_messages = fetch_context_messages(channel_id)
+
+            # 6. Publish stream request to Redis for Go Proxy
+            stream_request =
+              Jason.encode!(%{
+                channelId: channel_id,
+                messageId: message_id,
+                botId: bot_id,
+                triggerMessageId: trigger_message_id,
+                contextMessages: context_messages
+              })
+
+            case Redix.command(:redix, ["PUBLISH", "hive:stream:request", stream_request]) do
+              {:ok, _} ->
+                Logger.info(
+                  "Stream request published: channel=#{channel_id} message=#{message_id} bot=#{bot_id}"
+                )
+
+              {:error, reason} ->
+                Logger.error("Failed to publish stream request: #{inspect(reason)}")
+            end
+
+            {:noreply, socket}
+
+          {:error, reason} ->
+            Logger.error("Failed to persist streaming placeholder: #{inspect(reason)}")
+            {:noreply, socket}
+        end
+
+      {:error, reason} ->
+        Logger.error("Redis INCR failed for streaming message: #{inspect(reason)}")
+        {:noreply, socket}
+    end
+  end
+
+  defp fetch_context_messages(channel_id) do
+    case WebClient.get_messages(%{channelId: channel_id, limit: 20}) do
+      {:ok, %{"messages" => messages}} ->
+        messages
+        |> Enum.filter(fn m ->
+          # Include standard messages and completed streaming messages
+          Map.get(m, "type") == "STANDARD" or
+            (Map.get(m, "type") == "STREAMING" and
+               Map.get(m, "streamingStatus") == "COMPLETE")
+        end)
+        |> Enum.map(fn m ->
+          role =
+            case Map.get(m, "authorType") do
+              "BOT" -> "assistant"
+              _ -> "user"
+            end
+
+          %{"role" => role, "content" => Map.get(m, "content")}
+        end)
+
+      {:error, _reason} ->
+        []
+    end
   end
 end

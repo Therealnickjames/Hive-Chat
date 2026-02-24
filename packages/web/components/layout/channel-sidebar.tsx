@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { CreateChannelModal } from "@/components/modals/create-channel-modal";
+import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
+import { ChannelSettingsModal } from "@/components/modals/channel-settings-modal";
 
 export function ChannelSidebar() {
   const { data: session } = useSession();
@@ -17,6 +19,12 @@ export function ChannelSidebar() {
   } = useChatContext();
   const router = useRouter();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showManageBots, setShowManageBots] = useState(false);
+  const [channelSettingsTarget, setChannelSettingsTarget] = useState<{
+    id: string;
+    name: string;
+    defaultBotId: string | null;
+  } | null>(null);
 
   const isOwner = session?.user?.id === currentServerOwnerId;
   const displayName = session?.user?.displayName || "User";
@@ -64,25 +72,99 @@ export function ChannelSidebar() {
 
           {channels.map((channel) => {
             const isActive = currentChannelId === channel.id;
+            const hasBot = !!channel.defaultBotId;
             return (
-              <button
+              <div
                 key={channel.id}
-                onClick={() =>
-                  router.push(
-                    `/servers/${currentServerId}/channels/${channel.id}`
-                  )
-                }
-                className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 transition ${
+                className={`group flex w-full items-center gap-1.5 rounded px-2 py-1.5 transition ${
                   isActive
                     ? "bg-background-primary text-text-primary"
                     : "text-text-secondary hover:bg-background-primary hover:text-text-primary"
                 }`}
               >
-                <span className="text-lg text-text-muted">#</span>
-                <span className="truncate text-sm">{channel.name}</span>
-              </button>
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/servers/${currentServerId}/channels/${channel.id}`
+                    )
+                  }
+                  className="flex min-w-0 flex-1 items-center gap-1.5"
+                >
+                  <span className="text-lg text-text-muted">#</span>
+                  <span className="truncate text-sm">{channel.name}</span>
+                  {hasBot && (
+                    <span
+                      className="flex-shrink-0 text-emerald-400"
+                      title="Bot assigned"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                      >
+                        <path d="M8 1a2 2 0 012 2v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h2V3a2 2 0 012-2zm-2 7a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2z" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+                {isOwner && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChannelSettingsTarget({
+                        id: channel.id,
+                        name: channel.name,
+                        defaultBotId: channel.defaultBotId,
+                      });
+                    }}
+                    title="Channel settings"
+                    className="hidden flex-shrink-0 text-text-muted transition hover:text-text-primary group-hover:block"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
             );
           })}
+
+          {/* Manage Bots button — owners only */}
+          {isOwner && currentServerId && (
+            <div className="mt-4 px-1">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-text-muted">
+                  AI Bots
+                </span>
+              </div>
+              <button
+                onClick={() => setShowManageBots(true)}
+                className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
+              >
+                <span className="text-emerald-400">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                  >
+                    <path d="M8 1a2 2 0 012 2v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h2V3a2 2 0 012-2zm-2 7a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2z" />
+                  </svg>
+                </span>
+                <span className="text-sm">Manage Bots</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* User panel */}
@@ -125,6 +207,21 @@ export function ChannelSidebar() {
         isOpen={showCreateChannel}
         onClose={() => setShowCreateChannel(false)}
       />
+
+      <ManageBotsModal
+        isOpen={showManageBots}
+        onClose={() => setShowManageBots(false)}
+      />
+
+      {channelSettingsTarget && (
+        <ChannelSettingsModal
+          isOpen={true}
+          onClose={() => setChannelSettingsTarget(null)}
+          channelId={channelSettingsTarget.id}
+          channelName={channelSettingsTarget.name}
+          currentDefaultBotId={channelSettingsTarget.defaultBotId}
+        />
+      )}
     </>
   );
 }

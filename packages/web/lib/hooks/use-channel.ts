@@ -64,6 +64,10 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const lastTypingSentRef = useRef<number>(0);
   const loadingHistoryRef = useRef(false);
 
+  // Streaming: accumulate tokens and flush via rAF for smooth 60fps rendering
+  const streamBufferRef = useRef<Map<string, string>>(new Map());
+  const rafRef = useRef<number | null>(null);
+
   // Add messages with deduplication
   const addMessages = useCallback(
     (newMessages: MessagePayload[], prepend = false) => {
@@ -88,6 +92,31 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     },
     []
   );
+
+  // Flush accumulated stream tokens into message state (max 60fps via rAF)
+  const flushStreamBuffer = useCallback(() => {
+    if (rafRef.current !== null) return; // already scheduled
+
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const buffer = streamBufferRef.current;
+      if (buffer.size === 0) return;
+
+      // Snapshot and clear
+      const updates = new Map(buffer);
+      buffer.clear();
+
+      setMessages((prev) =>
+        prev.map((m) => {
+          const newContent = updates.get(m.id);
+          if (newContent !== undefined) {
+            return { ...m, content: m.content + newContent };
+          }
+          return m;
+        })
+      );
+    });
+  }, []);
 
   // Connect and join channel
   useEffect(() => {
@@ -195,6 +224,101 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         );
       });
 
+      // ---- Streaming events ----
+
+      // stream_start: add placeholder message for the bot
+      channel.on("stream_start", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          messageId: string;
+          botId: string;
+          botName: string;
+          botAvatarUrl: string | null;
+          sequence: number;
+        };
+
+        const placeholder: MessagePayload = {
+          id: payload.messageId,
+          channelId: channelId!,
+          authorId: payload.botId,
+          authorType: "BOT",
+          authorName: payload.botName,
+          authorAvatarUrl: payload.botAvatarUrl,
+          content: "",
+          type: "STREAMING",
+          streamingStatus: "ACTIVE",
+          sequence: payload.sequence,
+          createdAt: new Date().toISOString(),
+        };
+
+        addMessages([placeholder]);
+      });
+
+      // stream_token: accumulate in buffer, flush via rAF
+      channel.on("stream_token", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          messageId: string;
+          token: string;
+          index: number;
+        };
+
+        const existing = streamBufferRef.current.get(payload.messageId) || "";
+        streamBufferRef.current.set(payload.messageId, existing + payload.token);
+        flushStreamBuffer();
+      });
+
+      // stream_complete: set final content and mark COMPLETE
+      channel.on("stream_complete", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          messageId: string;
+          finalContent: string;
+        };
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.messageId
+              ? {
+                  ...m,
+                  content: payload.finalContent,
+                  streamingStatus: "COMPLETE",
+                  type: "STREAMING",
+                }
+              : m
+          )
+        );
+
+        // Clear any buffered tokens for this message
+        streamBufferRef.current.delete(payload.messageId);
+      });
+
+      // stream_error: set partial content and mark ERROR
+      channel.on("stream_error", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          messageId: string;
+          error: string;
+          partialContent: string | null;
+        };
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.messageId
+              ? {
+                  ...m,
+                  content:
+                    payload.partialContent || m.content || "[Error: " + payload.error + "]",
+                  streamingStatus: "ERROR",
+                }
+              : m
+          )
+        );
+
+        // Clear any buffered tokens for this message
+        streamBufferRef.current.delete(payload.messageId);
+      });
+
       channel
         .join()
         .receive("ok", () => {
@@ -223,8 +347,14 @@ export function useChannel(channelId: string | null): UseChannelReturn {
       // Clear typing timers
       typingTimersRef.current.forEach((timer) => clearTimeout(timer));
       typingTimersRef.current.clear();
+      // Clear stream buffer and cancel rAF
+      streamBufferRef.current.clear();
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
-  }, [channelId, addMessages]);
+  }, [channelId, addMessages, flushStreamBuffer]);
 
   // Send a message
   const sendMessage = useCallback(

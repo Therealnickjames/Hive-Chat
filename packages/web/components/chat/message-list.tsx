@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { MessagePayload } from "@/lib/hooks/use-channel";
 import { MessageItem } from "./message-item";
+import { StreamingMessage } from "./streaming-message";
 
 interface MessageListProps {
   messages: MessagePayload[];
@@ -34,7 +35,7 @@ export function MessageList({
     }
   }, [hasMoreHistory, onLoadHistory]);
 
-  // Auto-scroll to bottom on new messages (only if user was at bottom)
+  // Auto-scroll to bottom on new messages or streaming content updates
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -42,7 +43,12 @@ export function MessageList({
     const isNewMessage = messages.length > prevMessageCountRef.current;
     prevMessageCountRef.current = messages.length;
 
-    if (isNewMessage && isAtBottomRef.current) {
+    // Scroll on new message or if there's an active streaming message
+    const hasActiveStream = messages.some(
+      (m) => m.streamingStatus === "ACTIVE"
+    );
+
+    if ((isNewMessage || hasActiveStream) && isAtBottomRef.current) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
@@ -96,6 +102,17 @@ export function MessageList({
           new Date(message.createdAt).getTime() -
             new Date(prevMessage.createdAt).getTime() <
             5 * 60 * 1000;
+
+        // Use StreamingMessage for active/recently-completed streaming messages
+        if (message.type === "STREAMING") {
+          return (
+            <StreamingMessage
+              key={message.id}
+              message={message}
+              isGrouped={isGrouped}
+            />
+          );
+        }
 
         return (
           <MessageItem

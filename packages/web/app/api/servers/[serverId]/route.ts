@@ -43,6 +43,7 @@ export async function GET(
             type: true,
             topic: true,
             position: true,
+            defaultBotId: true,
           },
         },
         _count: { select: { members: true } },
