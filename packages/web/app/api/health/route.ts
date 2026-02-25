@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Socket } from "net";
 import { prisma } from "@/lib/db";
+import { getRedisHealthStatus } from "@/lib/api-safety";
 
 export async function GET() {
   const checks: Record<string, { status: "ok" | "unhealthy" }> = {
@@ -15,10 +16,10 @@ export async function GET() {
     checks.database.status = "unhealthy";
   }
 
-  if (process.env.REDIS_URL) {
-    const redisHealthy = await checkRedisHealth(process.env.REDIS_URL);
-    checks.redis.status = redisHealthy ? "ok" : "unhealthy";
-  }
+  checks.redis.status = await getRedisHealthStatus(
+    process.env.REDIS_URL,
+    checkRedisHealth
+  );
 
   const isHealthy = Object.values(checks).every(
     (check) => check.status === "ok"

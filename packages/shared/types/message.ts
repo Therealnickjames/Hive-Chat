@@ -12,7 +12,7 @@ export interface Message {
   content: string;
   type: MessageType;
   streamingStatus: StreamStatus | null;
-  sequence: number; // per-channel sequence number
+  sequence: string; // per-channel sequence number (BigInt-safe string)
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 }
@@ -28,6 +28,6 @@ export interface MessagePayload {
   content: string;
   type: MessageType;
   streamingStatus: StreamStatus | null;
-  sequence: number;
+  sequence: string;
   createdAt: string;
 }

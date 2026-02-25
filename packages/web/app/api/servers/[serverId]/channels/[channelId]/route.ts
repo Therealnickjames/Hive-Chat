@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canMutateServerScopedResource } from "@/lib/api-safety";
 
 /**
  * PATCH /api/servers/{serverId}/channels/{channelId}
@@ -24,6 +25,20 @@ export async function PATCH(
   const server = await prisma.server.findUnique({ where: { id: serverId } });
   if (!server || server.ownerId !== session.user.id) {
     return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  }
+
+  const existingChannel = await prisma.channel.findUnique({
+    where: { id: channelId },
+    select: { serverId: true },
+  });
+  if (
+    !existingChannel ||
+    !canMutateServerScopedResource(serverId, existingChannel.serverId)
+  ) {
+    return NextResponse.json(
+      { error: "Channel not found in this server" },
+      { status: 404 }
+    );
   }
 
   const body = await request.json();

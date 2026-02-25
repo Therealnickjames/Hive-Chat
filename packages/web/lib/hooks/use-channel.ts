@@ -15,8 +15,15 @@ export interface MessagePayload {
   content: string;
   type: string;
   streamingStatus: string | null;
-  sequence: number;
+  sequence: string;
   createdAt: string;
+}
+
+function compareSequences(a: string, b: string): number {
+  const aBigInt = BigInt(a);
+  const bBigInt = BigInt(b);
+  if (aBigInt === bBigInt) return 0;
+  return aBigInt > bBigInt ? 1 : -1;
 }
 
 export interface TypingUser {
@@ -58,7 +65,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
   const channelRef = useRef<Channel | null>(null);
   const socketRef = useRef<Socket | null>(null);
-  const lastSequenceRef = useRef<number>(0);
+  const lastSequenceRef = useRef<string>("0");
   const messageIdsRef = useRef<Set<string>>(new Set());
   const typingTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
@@ -81,13 +88,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
         // Update lastSequence
         for (const m of uniqueNew) {
-          if (m.sequence > lastSequenceRef.current) {
+          if (compareSequences(m.sequence, lastSequenceRef.current) > 0) {
             lastSequenceRef.current = m.sequence;
           }
         }
 
         const merged = prepend ? [...uniqueNew, ...prev] : [...prev, ...uniqueNew];
-        return merged.sort((a, b) => a.sequence - b.sequence);
+        return merged.sort((a, b) => compareSequences(a.sequence, b.sequence));
       });
     },
     []
@@ -131,7 +138,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     setTypingUsers([]);
     setPresenceMap(new Map());
     messageIdsRef.current = new Set();
-    lastSequenceRef.current = 0;
+    lastSequenceRef.current = "0";
     loadingHistoryRef.current = false;
 
     async function joinChannel() {
@@ -146,7 +153,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
       // Join new channel with lastSequence for reconnection sync
       const channel = socket.channel(`room:${channelId}`, {
-        lastSequence: lastSequenceRef.current || undefined,
+        lastSequence:
+          lastSequenceRef.current !== "0" ? lastSequenceRef.current : undefined,
       });
 
       // Set up presence
@@ -234,7 +242,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           botId: string;
           botName: string;
           botAvatarUrl: string | null;
-          sequence: number;
+          sequence: string;
         };
 
         const placeholder: MessagePayload = {
@@ -327,7 +335,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           channelRef.current = channel;
 
           // Load initial history if no sync was triggered
-          if (lastSequenceRef.current === 0) {
+          if (lastSequenceRef.current === "0") {
             channel.push("history", { limit: 50 });
           }
         })

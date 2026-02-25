@@ -121,7 +121,7 @@ defmodule HiveGateway.WebClient do
 
   @doc """
   Fetch messages via GET /api/internal/messages.
-  Params: %{channelId: string, afterSequence?: int, before?: string, limit?: int}
+  Params: %{channelId: string, afterSequence?: string | int, before?: string, limit?: int}
   Returns {:ok, %{messages: [...], hasMore: bool}} or {:error, reason}.
   """
   def get_messages(params) do

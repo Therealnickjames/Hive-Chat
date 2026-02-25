@@ -16,7 +16,7 @@ export interface NewMessageEvent {
 
 /** Client requests sync after reconnect */
 export interface SyncEvent {
-  lastSequence: number;
+  lastSequence: string;
 }
 
 /** Client requests older message history */
@@ -27,7 +27,7 @@ export interface HistoryEvent {
 
 /** Channel join params (sent with phx_join) */
 export interface JoinParams {
-  lastSequence?: number; // for reconnection sync
+  lastSequence?: string; // for reconnection sync
 }
 
 // --- Server → Client ---
@@ -41,7 +41,7 @@ export interface StreamStartEvent {
   botId: string;
   botName: string;
   botAvatarUrl: string | null;
-  sequence: number;
+  sequence: string;
 }
 
 /** Server broadcasts a streaming token */
@@ -130,13 +130,13 @@ export interface PersistMessageRequest {
   content: string;
   type: "STANDARD" | "STREAMING" | "SYSTEM";
   streamingStatus: StreamStatus | null;
-  sequence: number;
+  sequence: string;
 }
 
 /** GET /api/internal/messages — query params */
 export interface FetchMessagesQuery {
   channelId: string;
-  afterSequence?: number;
+  afterSequence?: string;
   before?: string; // ULID cursor
   limit?: number; // default 50, max 100
 }

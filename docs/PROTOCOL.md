@@ -66,10 +66,10 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 
 | Event | Payload | Description |
 |---|---|---|
-| `phx_join` | `{lastSequence?: int}` | Join channel, optionally with last seen sequence for sync |
+| `phx_join` | `{lastSequence?: string}` | Join channel, optionally with last seen sequence for sync |
 | `new_message` | `{content: string}` | User sends a chat message |
 | `typing` | `{}` | User is typing (debounced client-side, 3s cooldown) |
-| `sync` | `{lastSequence: int}` | Request missed messages since sequence N |
+| `sync` | `{lastSequence: string}` | Request missed messages since sequence N |
 | `history` | `{before?: string, limit?: int}` | Request older messages (before = ULID cursor, limit default 50, max 100) |
 
 #### Server → Client (Broadcast to all in channel)
@@ -106,7 +106,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
   "content": "Hello world",
   "type": "STANDARD",        // "STANDARD" | "STREAMING" | "SYSTEM"
   "streamingStatus": null,   // null | "ACTIVE" | "COMPLETE" | "ERROR"
-  "sequence": 42,            // per-channel sequence number
+  "sequence": "42",          // per-channel sequence number (BigInt-safe decimal string)
   "createdAt": "2026-02-23T12:00:00.000Z"
 }
 ```
@@ -118,7 +118,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
   "botId": "01HXY...",
   "botName": "Claude Assistant",
   "botAvatarUrl": null,
-  "sequence": 43
+  "sequence": "43"
 }
 ```
 
@@ -264,7 +264,7 @@ Persist a new message.
   "content": "Hello world",
   "type": "STANDARD",
   "streamingStatus": null,
-  "sequence": 42
+  "sequence": "42"
 }
 ```
 
@@ -275,7 +275,7 @@ Fetch messages for reconnection sync or history.
 
 **Query params:**
 - `channelId` (required): ULID
-- `afterSequence` (optional): return messages with sequence > N
+- `afterSequence` (optional): decimal string; return messages with sequence > N
 - `before` (optional): return messages with id < ULID (cursor pagination)
 - `limit` (optional): max results (default 50, max 100)
 
@@ -327,7 +327,7 @@ Persist a completed or errored streaming message.
   "content": "Hello! How can I help you today?",
   "type": "STREAMING",
   "streamingStatus": "COMPLETE",
-  "sequence": 43
+  "sequence": "43"
 }
 ```
 

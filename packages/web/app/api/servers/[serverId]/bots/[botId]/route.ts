@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encrypt } from "@/lib/encryption";
+import { canMutateServerScopedResource } from "@/lib/api-safety";
 
 /**
  * GET /api/servers/{serverId}/bots/{botId} — Get bot details (no key)
@@ -44,14 +45,16 @@ export async function GET(
       isActive: true,
       triggerMode: true,
       createdAt: true,
+      serverId: true,
     },
   });
 
-  if (!bot) {
-    return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+  if (!bot || !canMutateServerScopedResource(serverId, bot.serverId)) {
+    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
   }
 
-  return NextResponse.json(bot);
+  const { serverId: _serverId, ...safeBot } = bot;
+  return NextResponse.json(safeBot);
 }
 
 export async function PATCH(
@@ -69,6 +72,14 @@ export async function PATCH(
   const server = await prisma.server.findUnique({ where: { id: serverId } });
   if (!server || server.ownerId !== session.user.id) {
     return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  }
+
+  const existingBot = await prisma.bot.findUnique({
+    where: { id: botId },
+    select: { serverId: true },
+  });
+  if (!existingBot || !canMutateServerScopedResource(serverId, existingBot.serverId)) {
+    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
   }
 
   const body = await request.json();
@@ -125,6 +136,14 @@ export async function DELETE(
   const server = await prisma.server.findUnique({ where: { id: serverId } });
   if (!server || server.ownerId !== session.user.id) {
     return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  }
+
+  const existingBot = await prisma.bot.findUnique({
+    where: { id: botId },
+    select: { serverId: true },
+  });
+  if (!existingBot || !canMutateServerScopedResource(serverId, existingBot.serverId)) {
+    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
   }
 
   await prisma.bot.delete({ where: { id: botId } });

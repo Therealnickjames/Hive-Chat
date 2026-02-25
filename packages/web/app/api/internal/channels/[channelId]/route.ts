@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { serializeSequence } from "@/lib/api-safety";
 
 /**
  * GET /api/internal/channels/{channelId}
@@ -40,12 +41,12 @@ export async function GET(
     const response: {
       channelId: string;
       serverId: string;
-      lastSequence: number | string;
+      lastSequence: string;
       isMember?: boolean;
     } = {
       channelId: channel.id,
       serverId: channel.serverId,
-      lastSequence: Number(channel.lastSequence),
+      lastSequence: serializeSequence(channel.lastSequence),
     };
 
     if (userId) {

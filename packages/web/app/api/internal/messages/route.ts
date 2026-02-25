@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseAfterSequence, parseLimit } from "@/lib/validation";
+import { serializeSequence } from "@/lib/api-safety";
 
 // Internal API secret validation
 function validateInternalSecret(request: NextRequest): boolean {
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
         content: message.content,
         type: message.type,
         streamingStatus: message.streamingStatus,
-        sequence: Number(message.sequence),
+        sequence: serializeSequence(message.sequence),
         createdAt: message.createdAt.toISOString(),
       },
       { status: 201 }
@@ -234,7 +235,7 @@ export async function GET(request: NextRequest) {
         content: m.content,
         type: m.type,
         streamingStatus: m.streamingStatus,
-        sequence: Number(m.sequence),
+        sequence: serializeSequence(m.sequence),
         createdAt: m.createdAt.toISOString(),
       };
     });

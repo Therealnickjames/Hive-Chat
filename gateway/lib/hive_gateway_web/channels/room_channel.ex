@@ -173,7 +173,7 @@ defmodule HiveGatewayWeb.RoomChannel do
           content: content,
           type: "STANDARD",
           streamingStatus: nil,
-          sequence: sequence
+          sequence: Integer.to_string(sequence)
         }
 
         # 4. Persist via internal API
@@ -190,7 +190,7 @@ defmodule HiveGatewayWeb.RoomChannel do
               content: content,
               type: "STANDARD",
               streamingStatus: nil,
-              sequence: sequence,
+              sequence: Integer.to_string(sequence),
               createdAt: DateTime.utc_now() |> DateTime.to_iso8601()
             }
 
@@ -201,7 +201,7 @@ defmodule HiveGatewayWeb.RoomChannel do
             send(self(), {:check_bot_trigger, message_id, content})
 
             # 8. Reply to sender with message id and sequence
-            {:reply, {:ok, %{id: message_id, sequence: sequence}}, socket}
+            {:reply, {:ok, %{id: message_id, sequence: Integer.to_string(sequence)}}, socket}
 
           {:error, reason} ->
             Logger.error(
@@ -337,7 +337,7 @@ defmodule HiveGatewayWeb.RoomChannel do
           content: "",
           type: "STREAMING",
           streamingStatus: "ACTIVE",
-          sequence: sequence
+          sequence: Integer.to_string(sequence)
         }
 
         case WebClient.post_message(placeholder) do
@@ -348,7 +348,7 @@ defmodule HiveGatewayWeb.RoomChannel do
               botId: bot_id,
               botName: bot_name,
               botAvatarUrl: bot_avatar_url,
-              sequence: sequence
+              sequence: Integer.to_string(sequence)
             })
 
             # 5. Build context messages for the LLM
