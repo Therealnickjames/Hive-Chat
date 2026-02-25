@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseAfterSequence, parseLimit } from "@/lib/validation";
-import { serializeSequence } from "@/lib/api-safety";
+import {
+  serializeSequence,
+} from "@/lib/api-safety";
+import { createInternalMessagesPostHandler } from "@/lib/route-handlers";
 
 // Internal API secret validation
 function validateInternalSecret(request: NextRequest): boolean {
@@ -14,101 +17,7 @@ function validateInternalSecret(request: NextRequest): boolean {
  * Called by Gateway (for user messages) and Go Proxy (for completed streaming messages)
  * See docs/PROTOCOL.md §3
  */
-export async function POST(request: NextRequest) {
-  if (!validateInternalSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await request.json();
-
-    const {
-      id,
-      channelId,
-      authorId,
-      authorType,
-      content,
-      type,
-      streamingStatus,
-      sequence,
-    } = body;
-
-    // Validate required fields
-    if (!id || !channelId || !authorId || !authorType || content === undefined || !type || !sequence) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Persist message and update channel lastSequence in a transaction
-    const [message] = await prisma.$transaction([
-      prisma.message.create({
-        data: {
-          id,
-          channelId,
-          authorId,
-          authorType,
-          content,
-          type,
-          streamingStatus: streamingStatus || null,
-          sequence: BigInt(sequence),
-        },
-      }),
-      prisma.channel.update({
-        where: { id: channelId },
-        data: { lastSequence: BigInt(sequence) },
-      }),
-    ]);
-
-    // Fetch author info for the response payload
-    let authorName = "Unknown";
-    let authorAvatarUrl: string | null = null;
-
-    if (authorType === "USER") {
-      const user = await prisma.user.findUnique({
-        where: { id: authorId },
-        select: { displayName: true, avatarUrl: true },
-      });
-      if (user) {
-        authorName = user.displayName;
-        authorAvatarUrl = user.avatarUrl;
-      }
-    } else if (authorType === "BOT") {
-      const bot = await prisma.bot.findUnique({
-        where: { id: authorId },
-        select: { name: true, avatarUrl: true },
-      });
-      if (bot) {
-        authorName = bot.name;
-        authorAvatarUrl = bot.avatarUrl;
-      }
-    }
-
-    return NextResponse.json(
-      {
-        id: message.id,
-        channelId: message.channelId,
-        authorId: message.authorId,
-        authorType: message.authorType,
-        authorName,
-        authorAvatarUrl,
-        content: message.content,
-        type: message.type,
-        streamingStatus: message.streamingStatus,
-        sequence: serializeSequence(message.sequence),
-        createdAt: message.createdAt.toISOString(),
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Failed to persist message:", error);
-    return NextResponse.json(
-      { error: "Failed to persist message" },
-      { status: 500 }
-    );
-  }
-}
+export const POST = createInternalMessagesPostHandler({ prismaClient: prisma });
 
 /**
  * GET /api/internal/messages — Fetch messages for sync or history

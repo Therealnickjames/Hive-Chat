@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encrypt } from "@/lib/encryption";
-import { canMutateServerScopedResource } from "@/lib/api-safety";
+import {
+  canMutateServerScopedResource,
+} from "@/lib/api-safety";
+import { createServerBotPatchHandler } from "@/lib/route-handlers";
 
 /**
  * GET /api/servers/{serverId}/bots/{botId} — Get bot details (no key)
@@ -57,69 +60,12 @@ export async function GET(
   return NextResponse.json(safeBot);
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; botId: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { serverId, botId } = await params;
-
-  // Verify ownership
-  const server = await prisma.server.findUnique({ where: { id: serverId } });
-  if (!server || server.ownerId !== session.user.id) {
-    return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
-  }
-
-  const existingBot = await prisma.bot.findUnique({
-    where: { id: botId },
-    select: { serverId: true },
-  });
-  if (!existingBot || !canMutateServerScopedResource(serverId, existingBot.serverId)) {
-    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
-  }
-
-  const body = await request.json();
-  const updateData: Record<string, unknown> = {};
-
-  // Only update provided fields
-  const allowedFields = [
-    "name", "llmProvider", "llmModel", "apiEndpoint",
-    "systemPrompt", "temperature", "maxTokens", "isActive", "triggerMode",
-  ];
-  for (const field of allowedFields) {
-    if (body[field] !== undefined) {
-      updateData[field] = body[field];
-    }
-  }
-
-  // Re-encrypt API key if provided
-  if (body.apiKey) {
-    updateData.apiKeyEncrypted = encrypt(body.apiKey);
-  }
-
-  const bot = await prisma.bot.update({
-    where: { id: botId },
-    data: updateData,
-    select: {
-      id: true,
-      name: true,
-      llmProvider: true,
-      llmModel: true,
-      apiEndpoint: true,
-      systemPrompt: true,
-      temperature: true,
-      maxTokens: true,
-      isActive: true,
-      triggerMode: true,
-    },
-  });
-
-  return NextResponse.json(bot);
-}
+export const PATCH = createServerBotPatchHandler({
+  getServerSession,
+  authOptions,
+  prismaClient: prisma,
+  encrypt,
+});
 
 export async function DELETE(
   request: NextRequest,
