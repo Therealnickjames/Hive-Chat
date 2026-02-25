@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -75,7 +77,11 @@ func checkRedisConnection(ctx context.Context) string {
 }
 
 func checkWebHealth(ctx context.Context) string {
-	url := "http://localhost:3000/api/health"
+	baseURL := os.Getenv("STREAMING_WEB_URL")
+	if baseURL == "" {
+		baseURL = "http://web:3000"
+	}
+	url := strings.TrimRight(baseURL, "/") + "/api/health"
 	reqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 

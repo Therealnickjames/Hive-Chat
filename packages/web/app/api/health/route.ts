@@ -5,7 +5,6 @@ import { prisma } from "@/lib/db";
 export async function GET() {
   const checks: Record<string, { status: "ok" | "unhealthy" }> = {
     database: { status: "ok" },
-    gateway: { status: "ok" },
     redis: { status: "ok" },
   };
 
@@ -15,11 +14,6 @@ export async function GET() {
     console.error("Health check failed: database", error);
     checks.database.status = "unhealthy";
   }
-
-  const gatewayResult = await checkEndpointHealth(
-    process.env.GATEWAY_URL || "http://gateway:4001/api/health"
-  );
-  checks.gateway.status = gatewayResult ? "ok" : "unhealthy";
 
   if (process.env.REDIS_URL) {
     const redisHealthy = await checkRedisHealth(process.env.REDIS_URL);
@@ -40,16 +34,6 @@ export async function GET() {
   return NextResponse.json(response, {
     status: isHealthy ? 200 : 503,
   });
-}
-
-async function checkEndpointHealth(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url, { method: "GET", cache: "no-store" });
-    return response.ok;
-  } catch (error) {
-    console.error("Health check failed: endpoint", error);
-    return false;
-  }
 }
 
 function checkRedisHealth(url: string): Promise<boolean> {
