@@ -26,6 +26,7 @@ If a payload shape is not defined here, it does not exist.
 ### Wire Format
 
 Phoenix Channels V2 JSON transport:
+
 ```
 [join_ref, ref, topic, event, payload]
 ```
@@ -45,6 +46,7 @@ Phoenix Channels V2 JSON transport:
 ### Authentication
 
 On WebSocket connect, the client sends a JWT token as a query parameter:
+
 ```
 ws://localhost:4001/socket/websocket?token=<JWT>
 ```
@@ -56,7 +58,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 ### Topics
 
 | Topic Pattern | Description | Lifecycle |
-|---|---|---|
+| --- | --- | --- |
 | `room:{channelId}` | Per-channel real-time events | Joined on channel view, left on navigate away |
 | `user:{userId}` | User-specific events (future) | Joined on app load, persists across navigation |
 
@@ -65,7 +67,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 #### Client → Server
 
 | Event | Payload | Description |
-|---|---|---|
+| --- | --- | --- |
 | `phx_join` | `{lastSequence?: string}` | Join channel, optionally with last seen sequence for sync |
 | `new_message` | `{content: string}` | User sends a chat message |
 | `typing` | `{}` | User is typing (debounced client-side, 3s cooldown) |
@@ -75,7 +77,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 #### Server → Client (Broadcast to all in channel)
 
 | Event | Payload | Description |
-|---|---|---|
+| --- | --- | --- |
 | `message_new` | [MessagePayload](#messagepayload) | New message (human or bot, non-streaming) |
 | `stream_start` | [StreamStartPayload](#streamstartpayload) | AI streaming response begins |
 | `stream_token` | [StreamTokenPayload](#streamtokenpayload) | Single token from LLM |
@@ -88,13 +90,14 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 #### Server → Client (Direct reply)
 
 | Event | Payload | Description |
-|---|---|---|
+| --- | --- | --- |
 | `sync_response` | `{messages: MessagePayload[], hasMore: boolean}` | Missed messages after reconnect |
 | `history_response` | `{messages: MessagePayload[], hasMore: boolean}` | Older message history page |
 
 ### Payload Schemas
 
 #### MessagePayload
+
 ```json
 {
   "id": "01HXY...",           // ULID
@@ -112,6 +115,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 ```
 
 #### StreamStartPayload
+
 ```json
 {
   "messageId": "01HXY...",       // ULID of the placeholder message
@@ -123,6 +127,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 ```
 
 #### StreamTokenPayload
+
 ```json
 {
   "messageId": "01HXY...",
@@ -132,6 +137,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 ```
 
 #### StreamCompletePayload
+
 ```json
 {
   "messageId": "01HXY...",
@@ -140,6 +146,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 ```
 
 #### StreamErrorPayload
+
 ```json
 {
   "messageId": "01HXY...",
@@ -149,6 +156,7 @@ On failure: socket connection rejected with `{reason: "unauthorized"}`.
 ```
 
 #### TypingPayload
+
 ```json
 {
   "userId": "01HXY...",
@@ -166,7 +174,7 @@ All Redis messages are JSON-encoded strings.
 ### Channel Patterns
 
 | Redis Channel | Publisher | Subscriber | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `hive:channel:{channelId}:messages` | Gateway | (future: indexer, analytics) | New persisted message notification |
 | `hive:stream:request` | Gateway | Go Proxy | Request AI response for a message |
 | `hive:stream:tokens:{channelId}:{messageId}` | Go Proxy | Gateway | Individual tokens from LLM |
@@ -175,6 +183,7 @@ All Redis messages are JSON-encoded strings.
 ### Stream Request Payload
 
 Published by Gateway when a message triggers an AI response:
+
 ```json
 {
   "channelId": "01HXY...",
@@ -192,6 +201,7 @@ Published by Gateway when a message triggers an AI response:
 ### Stream Token Payload
 
 Published by Go Proxy for each token received from LLM:
+
 ```json
 {
   "messageId": "01HXY...",
@@ -203,6 +213,7 @@ Published by Go Proxy for each token received from LLM:
 ### Stream Status Payload
 
 Published by Go Proxy on stream completion or error:
+
 ```json
 {
   "messageId": "01HXY...",
@@ -215,6 +226,7 @@ Published by Go Proxy on stream completion or error:
 ```
 
 For errors:
+
 ```json
 {
   "messageId": "01HXY...",
@@ -230,6 +242,7 @@ For errors:
 ### Sequence Number Assignment
 
 Per-channel sequence numbers are assigned via Redis atomic increment:
+
 ```
 INCR hive:channel:{channelId}:seq
 ```
@@ -241,7 +254,8 @@ This returns the next sequence number. Used by Gateway before persisting any mes
 ## 3. HTTP Internal APIs
 
 All internal APIs require the header:
-```
+
+```http
 X-Internal-Secret: {INTERNAL_API_SECRET}
 ```
 
@@ -252,9 +266,11 @@ Requests missing this header or with an invalid secret receive `401 Unauthorized
 Base URL: `http://web:3000` (Docker internal network)
 
 #### POST /api/internal/messages
+
 Persist a new message.
 
 **Request body:**
+
 ```json
 {
   "id": "01HXY...",
@@ -271,15 +287,18 @@ Persist a new message.
 **Response:** `201 Created` with the persisted message.
 
 #### GET /api/internal/messages
+
 Fetch messages for reconnection sync or history.
 
 **Query params:**
+
 - `channelId` (required): ULID
 - `afterSequence` (optional): decimal string; return messages with sequence > N
 - `before` (optional): return messages with id < ULID (cursor pagination)
 - `limit` (optional): max results (default 50, max 100)
 
 **Response:** `200 OK`
+
 ```json
 {
   "messages": [MessagePayload, ...],
@@ -288,9 +307,11 @@ Fetch messages for reconnection sync or history.
 ```
 
 #### GET /api/internal/channels/{channelId}/bot
+
 Get the default bot configuration for a channel.
 
 **Response:** `200 OK` with bot config, or `404` if no default bot.
+
 ```json
 {
   "id": "01HXY...",
@@ -310,14 +331,17 @@ Note: `apiKeyEncrypted` is decrypted server-side and included as `apiKey` in thi
 ### Go Proxy → Next.js (Web)
 
 #### GET /api/internal/bots/{botId}
+
 Full bot configuration including decrypted API key.
 
 **Response:** Same as channel bot endpoint above.
 
 #### POST /api/internal/messages
+
 Persist a completed or errored streaming message.
 
 **Request body:**
+
 ```json
 {
   "id": "01HXY...",
@@ -452,5 +476,5 @@ In production, these endpoints are not exposed to the public internet.
 ## Changelog
 
 | Date | Version | Change |
-|---|---|---|
+| --- | --- | --- |
 | 2026-02-23 | v1 | Initial protocol definition |
