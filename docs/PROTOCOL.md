@@ -47,7 +47,7 @@ Phoenix Channels V2 JSON transport:
 
 On WebSocket connect, the client sends a JWT token as a query parameter:
 
-```
+```text
 ws://localhost:4001/socket/websocket?token=<JWT>
 ```
 
