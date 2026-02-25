@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { parseAfterSequence, parseLimit } from "@/lib/validation";
 
 // Internal API secret validation
 function validateInternalSecret(request: NextRequest): boolean {
@@ -131,17 +132,31 @@ export async function GET(request: NextRequest) {
   try {
     const afterSequence = searchParams.get("afterSequence");
     const before = searchParams.get("before");
-    const limit = Math.min(
-      parseInt(searchParams.get("limit") || "50", 10),
-      100
-    );
+    let limit = 50;
+    try {
+      limit = parseLimit(searchParams.get("limit"));
+    } catch (error) {
+      return NextResponse.json(
+        { error: (error as Error).message },
+        { status: 400 }
+      );
+    }
+
+    let parsedAfterSequence: string | null = null;
+    if (afterSequence !== null) {
+      try {
+        parsedAfterSequence = parseAfterSequence(afterSequence);
+      } catch (error) {
+        return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+      }
+    }
 
     // Build where clause
     const where: Record<string, unknown> = { channelId };
 
-    if (afterSequence) {
+    if (parsedAfterSequence) {
       // Reconnection sync: messages with sequence > N
-      where.sequence = { gt: BigInt(afterSequence) };
+      where.sequence = { gt: BigInt(parsedAfterSequence) };
     } else if (before) {
       // History cursor: messages with id < ULID (older messages)
       where.id = { lt: before };
@@ -236,3 +251,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

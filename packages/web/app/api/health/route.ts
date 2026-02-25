@@ -1,12 +1,56 @@
 import { NextResponse } from "next/server";
-import type { HealthResponse } from "@hivechat/shared";
+import { Socket } from "net";
+import { prisma } from "@/lib/db";
 
 export async function GET() {
-  const response: HealthResponse = {
-    status: "ok",
-    service: "web",
-    timestamp: new Date().toISOString(),
+  const checks: Record<string, { status: "ok" | "unhealthy" }> = {
+    database: { status: "ok" },
+    redis: { status: "ok" },
   };
 
-  return NextResponse.json(response);
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    console.error("Health check failed: database", error);
+    checks.database.status = "unhealthy";
+  }
+
+  if (process.env.REDIS_URL) {
+    const redisHealthy = await checkRedisHealth(process.env.REDIS_URL);
+    checks.redis.status = redisHealthy ? "ok" : "unhealthy";
+  }
+
+  const isHealthy = Object.values(checks).every(
+    (check) => check.status === "ok"
+  );
+
+  const response = {
+    status: isHealthy ? "ok" : "degraded",
+    service: "web",
+    timestamp: new Date().toISOString(),
+    checks,
+  } as const;
+
+  return NextResponse.json(response, {
+    status: isHealthy ? 200 : 503,
+  });
+}
+
+function checkRedisHealth(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const parsed = new URL(url);
+    const socket = new Socket();
+
+    socket.setTimeout(1000);
+    const finish = (ok: boolean) => {
+      socket.destroy();
+      resolve(ok);
+    };
+
+    socket.on("connect", () => finish(true));
+    socket.on("error", () => finish(false));
+    socket.on("timeout", () => finish(false));
+
+    socket.connect(Number(parsed.port || 6379), parsed.hostname || "localhost");
+  });
 }

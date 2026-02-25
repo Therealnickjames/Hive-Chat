@@ -2,7 +2,7 @@
 # Run `make help` to see all available commands.
 
 .PHONY: help dev up down logs logs-web logs-gateway logs-stream \
-        db-migrate db-studio db-seed clean health build
+        db-migrate db-studio db-seed clean health build regression-harness
 
 # Default target
 help: ## Show this help
@@ -27,6 +27,13 @@ down: ## Stop all services
 
 build: ## Build all Docker images without starting
 	docker-compose build
+
+# ============================================================
+# REGRESSION HARNESS
+# ============================================================
+
+regression-harness: ## Run scripted regression checks for K-001, K-002, K-003, K-005
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/regression-harness.ps1 -StartServicesIfDown
 
 # ============================================================
 # LOGS

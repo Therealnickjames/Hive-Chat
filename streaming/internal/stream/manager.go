@@ -40,16 +40,25 @@ type Manager struct {
 	gwClient *gateway.Client
 	loader   *config.Loader
 	registry *provider.Registry
+	// maxConcurrentStreams caps active stream workers.
+	maxConcurrentStreams int
+	semaphore           chan struct{}
 }
 
 // NewManager creates a new stream manager.
-func NewManager(logger *slog.Logger, gwClient *gateway.Client, loader *config.Loader, registry *provider.Registry) *Manager {
+func NewManager(logger *slog.Logger, gwClient *gateway.Client, loader *config.Loader, registry *provider.Registry, maxConcurrentStreams int) *Manager {
+	if maxConcurrentStreams <= 0 {
+		maxConcurrentStreams = 32
+	}
+
 	return &Manager{
-		active:   make(map[string]struct{}),
-		logger:   logger,
-		gwClient: gwClient,
-		loader:   loader,
-		registry: registry,
+		active:               make(map[string]struct{}),
+		logger:               logger,
+		gwClient:             gwClient,
+		loader:               loader,
+		registry:             registry,
+		maxConcurrentStreams: maxConcurrentStreams,
+		semaphore:           make(chan struct{}, maxConcurrentStreams),
 	}
 }
 
@@ -94,9 +103,39 @@ func (m *Manager) Start(ctx context.Context) error {
 				"botId", req.BotID,
 			)
 
-			// Spawn a goroutine for this stream
-			go m.handleStream(ctx, req)
+			if m.tryAcquireSlot() {
+				// Spawn a goroutine for this stream within the concurrency cap.
+				go func(req streamRequest) {
+					defer m.releaseSlot()
+					m.handleStream(ctx, req)
+				}(req)
+			} else {
+				m.logger.Warn("Stream request rejected: concurrency limit reached",
+					"channelId", req.ChannelID,
+					"messageId", req.MessageID,
+					"botId", req.BotID,
+					"activeStreams", m.ActiveCount(),
+					"maxStreams", m.maxConcurrentStreams,
+				)
+				m.publishError(ctx, req, "", "Stream concurrency limit reached", 0, time.Now())
+			}
 		}
+	}
+}
+
+func (m *Manager) tryAcquireSlot() bool {
+	select {
+	case m.semaphore <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *Manager) releaseSlot() {
+	select {
+	case <-m.semaphore:
+	default:
 	}
 }
 

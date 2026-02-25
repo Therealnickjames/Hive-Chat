@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -50,6 +51,7 @@ func main() {
 	}
 
 	rdb := redis.NewClient(redisOpts)
+	health.SetRedisClient(rdb)
 
 	// Verify Redis connection
 	ctx := context.Background()
@@ -69,7 +71,8 @@ func main() {
 	registry := provider.NewRegistry()
 
 	// Create stream manager
-	manager := stream.NewManager(logger, gwClient, loader, registry)
+	maxConcurrentStreams := getEnvInt("STREAMING_MAX_CONCURRENT_STREAMS", 32)
+	manager := stream.NewManager(logger, gwClient, loader, registry, maxConcurrentStreams)
 
 	// Start stream manager in background
 	managerCtx, managerCancel := context.WithCancel(ctx)
@@ -143,4 +146,18 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	decodeValue, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return decodeValue
 }

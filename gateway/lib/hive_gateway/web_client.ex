@@ -68,6 +68,58 @@ defmodule HiveGateway.WebClient do
   end
 
   @doc """
+  Fetch channel metadata for authorization and sequence fallback.
+  Returns {:ok, %{serverId: ..., lastSequence: ..., isMember: ...}} or {:error, reason}.
+  """
+  def get_channel_info(channel_id) do
+    url = "#{web_url()}/api/internal/channels/#{channel_id}"
+
+    case Req.get(url,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("get_channel_info failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("get_channel_info request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Check whether a user is a member of a channel's parent server.
+  Query params include `userId`.
+  Returns {:ok, %{isMember: bool}} or {:error, reason}.
+  """
+  def check_channel_membership(channel_id, user_id) do
+    url = "#{web_url()}/api/internal/channels/#{channel_id}"
+
+    case Req.get(url,
+           params: [{"userId", user_id}],
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error(
+          "check_channel_membership failed: channel=#{channel_id} status=#{status} body=#{inspect(response_body)}"
+        )
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("check_channel_membership request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Fetch messages via GET /api/internal/messages.
   Params: %{channelId: string, afterSequence?: int, before?: string, limit?: int}
   Returns {:ok, %{messages: [...], hasMore: bool}} or {:error, reason}.

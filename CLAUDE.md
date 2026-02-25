@@ -40,7 +40,7 @@ make down
 
 ## Project Structure
 
-```
+```text
 Hive-Chat/
 ├── docs/                     # All documentation
 ├── packages/
