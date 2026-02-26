@@ -53,7 +53,7 @@ ws://localhost:4001/socket/websocket?token=<JWT>
 
 The Gateway validates the JWT signature using `JWT_SECRET`. No round-trip to Next.js.
 On success: socket assigns `user_id`, `username`, `display_name` from JWT claims.
-On failure: socket connection rejected with `{reason: "unauthorized"}`.
+On failure: socket connection is rejected by Phoenix transport (WebSocket close, no structured payload).
 
 ### Topics
 

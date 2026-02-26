@@ -46,7 +46,8 @@ defmodule HiveGatewayWeb.UserSocket do
   def id(socket), do: "user_socket:#{socket.assigns.user_id}"
 
   # Verify JWT token using shared secret
-  defp verify_token(token) do
+  @doc false
+  def verify_token(token) do
     jwt_secret = Application.get_env(:hive_gateway, :jwt_secret, "dev-jwt-secret")
 
     signer = Joken.Signer.create("HS256", jwt_secret)
@@ -63,8 +64,7 @@ defmodule HiveGatewayWeb.UserSocket do
             end
 
           _ ->
-            # No expiry claim — accept for dev convenience
-            {:ok, claims}
+            {:error, :missing_exp}
         end
 
       {:error, reason} ->

@@ -79,14 +79,6 @@ export async function GET(request: NextRequest) {
         ? { sequence: "asc" }  // sync: oldest first
         : { id: "desc" },      // history: newest first (we'll reverse)
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
     });
 
     const hasMore = messages.length > limit;
@@ -99,7 +91,25 @@ export async function GET(request: NextRequest) {
       messages.reverse();
     }
 
-    // Batch-load bot authors for BOT messages
+    // Batch-load user and bot authors for polymorphic authorId values
+    const userAuthorIds = [
+      ...new Set(
+        messages
+          .filter((m) => m.authorType === "USER")
+          .map((m) => m.authorId)
+      ),
+    ];
+    const userMap = new Map<string, { displayName: string; avatarUrl: string | null }>();
+    if (userAuthorIds.length > 0) {
+      const users = await prisma.user.findMany({
+        where: { id: { in: userAuthorIds } },
+        select: { id: true, displayName: true, avatarUrl: true },
+      });
+      for (const user of users) {
+        userMap.set(user.id, { displayName: user.displayName, avatarUrl: user.avatarUrl });
+      }
+    }
+
     const botAuthorIds = [
       ...new Set(
         messages
@@ -129,9 +139,12 @@ export async function GET(request: NextRequest) {
           authorName = bot.name;
           authorAvatarUrl = bot.avatarUrl;
         }
-      } else {
-        authorName = m.author?.displayName || "Unknown";
-        authorAvatarUrl = m.author?.avatarUrl || null;
+      } else if (m.authorType === "USER") {
+        const user = userMap.get(m.authorId);
+        if (user) {
+          authorName = user.displayName;
+          authorAvatarUrl = user.avatarUrl;
+        }
       }
 
       return {

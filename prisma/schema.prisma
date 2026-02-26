@@ -76,7 +76,6 @@ model User {
   sessions     Session[]
   ownedServers Server[]  @relation("ServerOwner")
   members      Member[]
-  messages     Message[]
 }
 
 model Server {
@@ -131,7 +130,6 @@ model Message {
 
   // Relations
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  author  User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   // Primary query path: messages in a channel, sorted by time (ULID is time-sorted)
   @@index([channelId, id])

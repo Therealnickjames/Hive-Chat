@@ -30,4 +30,29 @@ defmodule HiveGatewayWeb.RoomChannelTest do
       assert RoomChannel.parse_limit(:bad) == {:error, :invalid_limit}
     end
   end
+
+  describe "new_message content validation" do
+    test "rejects empty string content before sequence allocation" do
+      socket = %Phoenix.Socket{}
+
+      assert RoomChannel.handle_in("new_message", %{"content" => ""}, socket) ==
+               {:reply, {:error, %{reason: "empty_content"}}, socket}
+    end
+
+    test "rejects whitespace-only content before sequence allocation" do
+      socket = %Phoenix.Socket{}
+
+      assert RoomChannel.handle_in("new_message", %{"content" => "   "}, socket) ==
+               {:reply, {:error, %{reason: "empty_content"}}, socket}
+    end
+
+    test "accepts content with surrounding whitespace" do
+      socket = %Phoenix.Socket{
+        assigns: %{channel_id: "channel-1", user_id: "user-1", display_name: "User 1"}
+      }
+
+      result = RoomChannel.handle_in("new_message", %{"content" => "  hello  "}, socket)
+      refute match?({:reply, {:error, %{reason: "empty_content"}}, _}, result)
+    end
+  end
 end
