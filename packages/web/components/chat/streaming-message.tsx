@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useChatContext } from "@/components/providers/chat-provider";
-import type { MessagePayload } from "@/lib/hooks/use-channel";
+import type { MessagePayload, ReactionData } from "@/lib/hooks/use-channel";
 import { MarkdownContent } from "./markdown-content";
+import { ReactionBar } from "./reaction-bar";
 
 interface StreamingMessageProps {
   message: MessagePayload;
   isGrouped: boolean;
+  onReactionsChange?: (messageId: string, reactions: ReactionData[]) => void;
 }
 
 function formatTime(dateStr: string): string {
@@ -39,11 +41,21 @@ function formatTime(dateStr: string): string {
  * - Error indicator on ERROR state
  * - Normal rendering when COMPLETE
  */
-export function StreamingMessage({ message, isGrouped }: StreamingMessageProps) {
+export function StreamingMessage({
+  message,
+  isGrouped,
+  onReactionsChange,
+}: StreamingMessageProps) {
   const { members, bots } = useChatContext();
   const mentionNames = useMemo(
     () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
     [members, bots]
+  );
+  const handleReactionsChange = useCallback(
+    (reactions: ReactionData[]) => {
+      onReactionsChange?.(message.id, reactions);
+    },
+    [message.id, onReactionsChange]
   );
   const isActive = message.streamingStatus === "ACTIVE";
   const isError = message.streamingStatus === "ERROR";
@@ -61,6 +73,13 @@ export function StreamingMessage({ message, isGrouped }: StreamingMessageProps) 
             <p className="text-xs text-status-danger mt-1">
               Stream ended with an error
             </p>
+          )}
+          {!isActive && (
+            <ReactionBar
+              messageId={message.id}
+              reactions={message.reactions || []}
+              onReactionsChange={handleReactionsChange}
+            />
           )}
         </div>
       </div>
@@ -110,6 +129,13 @@ export function StreamingMessage({ message, isGrouped }: StreamingMessageProps) 
           <p className="text-xs text-status-danger mt-1">
             Stream ended with an error
           </p>
+        )}
+        {!isActive && (
+          <ReactionBar
+            messageId={message.id}
+            reactions={message.reactions || []}
+            onReactionsChange={handleReactionsChange}
+          />
         )}
       </div>
     </div>

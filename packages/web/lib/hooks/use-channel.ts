@@ -5,6 +5,12 @@ import type { Channel, Socket } from "phoenix";
 import { Presence } from "phoenix";
 import { getSocket } from "@/lib/socket";
 
+export interface ReactionData {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
 export interface MessagePayload {
   id: string;
   channelId: string;
@@ -17,6 +23,7 @@ export interface MessagePayload {
   streamingStatus: string | null;
   sequence: string;
   createdAt: string;
+  reactions: ReactionData[];
 }
 
 function compareSequences(a: string, b: string): number {
@@ -43,6 +50,7 @@ interface UseChannelReturn {
   messages: MessagePayload[];
   sendMessage: (content: string) => void;
   loadHistory: () => void;
+  updateReactions: (messageId: string, reactions: ReactionData[]) => void;
   hasMoreHistory: boolean;
   isConnected: boolean;
   typingUsers: TypingUser[];
@@ -79,9 +87,11 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const addMessages = useCallback(
     (newMessages: MessagePayload[], prepend = false) => {
       setMessages((prev) => {
-        const uniqueNew = newMessages.filter(
-          (m) => !messageIdsRef.current.has(m.id)
-        );
+        const normalizedNew = newMessages.map((message) => ({
+          ...message,
+          reactions: message.reactions || [],
+        }));
+        const uniqueNew = normalizedNew.filter((m) => !messageIdsRef.current.has(m.id));
         if (uniqueNew.length === 0) return prev;
 
         uniqueNew.forEach((m) => messageIdsRef.current.add(m.id));
@@ -257,6 +267,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           streamingStatus: "ACTIVE",
           sequence: payload.sequence,
           createdAt: new Date().toISOString(),
+          reactions: [],
         };
 
         addMessages([placeholder]);
@@ -390,6 +401,17 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     });
   }, [hasMoreHistory, messages]);
 
+  const updateReactions = useCallback(
+    (messageId: string, reactions: ReactionData[]) => {
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId ? { ...message, reactions } : message
+        )
+      );
+    },
+    []
+  );
+
   // Send typing indicator (debounced, 3s cooldown)
   const sendTyping = useCallback(() => {
     if (!channelRef.current) return;
@@ -403,6 +425,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     messages,
     sendMessage,
     loadHistory,
+    updateReactions,
     hasMoreHistory,
     isConnected,
     typingUsers,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
-import type { MessagePayload } from "@/lib/hooks/use-channel";
+import type { MessagePayload, ReactionData } from "@/lib/hooks/use-channel";
 import { MessageItem } from "./message-item";
 import { StreamingMessage } from "./streaming-message";
 
@@ -9,12 +9,14 @@ interface MessageListProps {
   messages: MessagePayload[];
   hasMoreHistory: boolean;
   onLoadHistory: () => void;
+  onReactionsChange: (messageId: string, reactions: ReactionData[]) => void;
 }
 
 export function MessageList({
   messages,
   hasMoreHistory,
   onLoadHistory,
+  onReactionsChange,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -113,6 +115,7 @@ export function MessageList({
               key={message.id}
               message={message}
               isGrouped={isGrouped}
+              onReactionsChange={onReactionsChange}
             />
           );
         }
@@ -122,6 +125,7 @@ export function MessageList({
             key={message.id}
             message={message}
             isGrouped={isGrouped}
+            onReactionsChange={onReactionsChange}
           />
         );
       })}

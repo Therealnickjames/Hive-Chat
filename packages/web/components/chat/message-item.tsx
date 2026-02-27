@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useChatContext } from "@/components/providers/chat-provider";
-import type { MessagePayload } from "@/lib/hooks/use-channel";
+import type { MessagePayload, ReactionData } from "@/lib/hooks/use-channel";
 import { MarkdownContent } from "./markdown-content";
+import { ReactionBar } from "./reaction-bar";
 
 interface MessageItemProps {
   message: MessagePayload;
   isGrouped: boolean;
+  onReactionsChange?: (messageId: string, reactions: ReactionData[]) => void;
 }
 
 function formatTime(dateStr: string): string {
@@ -32,11 +34,21 @@ function formatTime(dateStr: string): string {
   }
 }
 
-export function MessageItem({ message, isGrouped }: MessageItemProps) {
+export function MessageItem({
+  message,
+  isGrouped,
+  onReactionsChange,
+}: MessageItemProps) {
   const { members, bots } = useChatContext();
   const mentionNames = useMemo(
     () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
     [members, bots]
+  );
+  const handleReactionsChange = useCallback(
+    (reactions: ReactionData[]) => {
+      onReactionsChange?.(message.id, reactions);
+    },
+    [message.id, onReactionsChange]
   );
 
   if (isGrouped) {
@@ -45,6 +57,11 @@ export function MessageItem({ message, isGrouped }: MessageItemProps) {
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
+          <ReactionBar
+            messageId={message.id}
+            reactions={message.reactions || []}
+            onReactionsChange={handleReactionsChange}
+          />
         </div>
       </div>
     );
@@ -83,6 +100,11 @@ export function MessageItem({ message, isGrouped }: MessageItemProps) {
           </span>
         </div>
         <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
+        <ReactionBar
+          messageId={message.id}
+          reactions={message.reactions || []}
+          onReactionsChange={handleReactionsChange}
+        />
       </div>
     </div>
   );

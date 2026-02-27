@@ -75,6 +75,11 @@ export async function GET(request: NextRequest) {
     // Fetch one extra to determine hasMore
     const messages = await prisma.message.findMany({
       where,
+      include: {
+        reactions: {
+          select: { emoji: true, userId: true },
+        },
+      },
       orderBy: afterSequence
         ? { sequence: "asc" }  // sync: oldest first
         : { id: "desc" },      // history: newest first (we'll reverse)
@@ -147,6 +152,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const reactionMap = new Map<string, string[]>();
+      for (const reaction of m.reactions) {
+        const existing = reactionMap.get(reaction.emoji) || [];
+        existing.push(reaction.userId);
+        reactionMap.set(reaction.emoji, existing);
+      }
+      const reactions = Array.from(reactionMap.entries()).map(
+        ([emoji, userIds]) => ({
+          emoji,
+          count: userIds.length,
+          userIds,
+        })
+      );
+
       return {
         id: m.id,
         channelId: m.channelId,
@@ -159,6 +178,7 @@ export async function GET(request: NextRequest) {
         streamingStatus: m.streamingStatus,
         sequence: serializeSequence(m.sequence),
         createdAt: m.createdAt.toISOString(),
+        reactions,
       };
     });
 

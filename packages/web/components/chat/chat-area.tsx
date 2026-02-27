@@ -28,6 +28,7 @@ export function ChatArea({
     messages,
     sendMessage,
     loadHistory,
+    updateReactions,
     hasMoreHistory,
     isConnected,
     typingUsers,
@@ -74,6 +75,7 @@ export function ChatArea({
         messages={messages}
         hasMoreHistory={hasMoreHistory}
         onLoadHistory={loadHistory}
+        onReactionsChange={updateReactions}
       />
       <TypingIndicator typingUsers={typingUsers} />
       <MessageInput

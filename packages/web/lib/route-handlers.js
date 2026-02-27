@@ -132,6 +132,7 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
           streamingStatus: message.streamingStatus,
           sequence: serializeSequence(message.sequence),
           createdAt: message.createdAt.toISOString(),
+          reactions: [],
         },
         { status: 201 }
       );

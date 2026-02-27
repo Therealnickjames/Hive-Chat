@@ -77,6 +77,7 @@ model User {
   ownedServers   Server[]  @relation("ServerOwner")
   members        Member[]
   createdInvites Invite[]  @relation("InviteCreator")
+  reactions      Reaction[]
 }
 
 model Server {
@@ -131,12 +132,28 @@ model Message {
   updatedAt       DateTime      @updatedAt
 
   // Relations
-  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel   Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
 
   // Primary query path: messages in a channel, sorted by time (ULID is time-sorted)
   @@index([channelId, id])
   // Reconnection sync: find messages after a given sequence number
   @@index([channelId, sequence])
+}
+
+model Reaction {
+  id        String   @id @db.VarChar(26)
+  messageId String   @db.VarChar(26)
+  userId    String   @db.VarChar(26)
+  emoji     String   @db.VarChar(32) // Unicode emoji or shortcode
+  createdAt DateTime @default(now())
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model Role {
