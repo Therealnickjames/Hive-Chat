@@ -67,15 +67,16 @@ model User {
   username    String   @unique
   displayName String
   avatarUrl   String?
-  password    String   // bcrypt hashed
+  password    String // bcrypt hashed
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  accounts     Account[]
-  sessions     Session[]
-  ownedServers Server[]  @relation("ServerOwner")
-  members      Member[]
+  accounts       Account[]
+  sessions       Session[]
+  ownedServers   Server[]  @relation("ServerOwner")
+  members        Member[]
+  createdInvites Invite[]  @relation("InviteCreator")
 }
 
 model Server {
@@ -90,6 +91,7 @@ model Server {
   owner    User      @relation("ServerOwner", fields: [ownerId], references: [id])
   channels Channel[]
   members  Member[]
+  invites  Invite[]
   roles    Role[]
   bots     Bot[]
 
@@ -124,7 +126,7 @@ model Message {
   content         String        @db.Text
   type            MessageType   @default(STANDARD)
   streamingStatus StreamStatus?
-  sequence        BigInt        // per-channel sequence number (assigned via Redis INCR)
+  sequence        BigInt // per-channel sequence number (assigned via Redis INCR)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -141,7 +143,7 @@ model Role {
   id          String   @id @db.VarChar(26)
   serverId    String   @db.VarChar(26)
   name        String
-  color       String?  // hex color code e.g. "#FF5733"
+  color       String? // hex color code e.g. "#FF5733"
   permissions BigInt   @default(0) // bitfield
   position    Int      @default(0)
   createdAt   DateTime @default(now())
@@ -169,6 +171,24 @@ model Member {
   @@index([serverId])
 }
 
+model Invite {
+  id        String    @id @db.VarChar(26)
+  serverId  String    @db.VarChar(26)
+  creatorId String    @db.VarChar(26)
+  code      String    @unique @db.VarChar(8)
+  maxUses   Int?
+  uses      Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  server  Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creator User   @relation("InviteCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+  @@index([code])
+}
+
 // ============================================================
 // AI / BOT MODELS
 // ============================================================
@@ -178,9 +198,9 @@ model Bot {
   name            String
   avatarUrl       String?
   serverId        String      @db.VarChar(26)
-  llmProvider     String      // "anthropic" | "openai" | "ollama" | "openrouter" | "custom"
-  llmModel        String      // "claude-sonnet-4-20250514" | "gpt-4" | "llama3" | etc.
-  apiEndpoint     String      // full URL to the API endpoint
+  llmProvider     String // "anthropic" | "openai" | "ollama" | "openrouter" | "custom"
+  llmModel        String // "claude-sonnet-4-20250514" | "gpt-4" | "llama3" | etc.
+  apiEndpoint     String // full URL to the API endpoint
   apiKeyEncrypted String      @db.Text // encrypted at rest in application layer
   systemPrompt    String      @db.Text
   temperature     Float       @default(0.7)

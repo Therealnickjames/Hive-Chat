@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { useChatContext } from "@/components/providers/chat-provider";
 import { useChannel } from "@/lib/hooks/use-channel";
 import { ChannelHeader } from "./channel-header";
 import { MessageList } from "./message-list";
@@ -20,6 +22,7 @@ export function ChatArea({
   channelTopic,
   onPresenceChange,
 }: ChatAreaProps) {
+  const { refreshMembers } = useChatContext();
   const {
     messages,
     sendMessage,
@@ -31,13 +34,21 @@ export function ChatArea({
     presenceMap,
   } = useChannel(channelId);
 
-  // Expose presence to parent when it changes
-  // Using a ref to avoid render loops
-  if (onPresenceChange) {
-    // We call this synchronously — ChatArea re-renders when presenceMap changes
-    // and the parent picks up the new value
-    onPresenceChange(presenceMap);
-  }
+  // Expose presence to parent when it changes.
+  useEffect(() => {
+    if (onPresenceChange) {
+      onPresenceChange(presenceMap);
+    }
+  }, [presenceMap, onPresenceChange]);
+
+  // Refresh member list when presence grows (e.g. someone joins via invite).
+  const prevPresenceSize = useRef(0);
+  useEffect(() => {
+    if (presenceMap.size > prevPresenceSize.current) {
+      void refreshMembers();
+    }
+    prevPresenceSize.current = presenceMap.size;
+  }, [presenceMap.size, refreshMembers]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

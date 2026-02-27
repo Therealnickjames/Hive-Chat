@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -14,6 +16,13 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Persist redirect target across auth flow (survives page reloads)
+  useEffect(() => {
+    if (redirectTo !== "/") {
+      sessionStorage.setItem("authRedirect", redirectTo);
+    }
+  }, [redirectTo]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,7 +71,12 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/");
+      const finalRedirect =
+        redirectTo !== "/"
+          ? redirectTo
+          : sessionStorage.getItem("authRedirect") || "/";
+      sessionStorage.removeItem("authRedirect");
+      router.push(finalRedirect);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -184,11 +198,22 @@ export default function RegisterPage() {
 
         <p className="text-sm text-text-muted">
           Already have an account?{" "}
-          <Link href="/login" className="text-text-link hover:underline">
+          <Link
+            href={`/login${redirectTo !== "/" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
+            className="text-text-link hover:underline"
+          >
             Log In
           </Link>
         </p>
       </form>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

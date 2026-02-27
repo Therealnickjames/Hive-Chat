@@ -48,7 +48,10 @@ export function MessageList({
       (m) => m.streamingStatus === "ACTIVE"
     );
 
-    if ((isNewMessage || hasActiveStream) && isAtBottomRef.current) {
+    if (isNewMessage && isAtBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    } else if (hasActiveStream) {
+      // Always follow active streams — don't let token growth outrun the viewport
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);

@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Persist redirect target across auth flow (survives page reloads)
+  useEffect(() => {
+    if (redirectTo !== "/") {
+      sessionStorage.setItem("authRedirect", redirectTo);
+    }
+  }, [redirectTo]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,7 +36,12 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Invalid email or password");
       } else {
-        router.push("/");
+        const finalRedirect =
+          redirectTo !== "/"
+            ? redirectTo
+            : sessionStorage.getItem("authRedirect") || "/";
+        sessionStorage.removeItem("authRedirect");
+        router.push(finalRedirect);
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -96,11 +110,22 @@ export default function LoginPage() {
 
         <p className="text-sm text-text-muted">
           Need an account?{" "}
-          <Link href="/register" className="text-text-link hover:underline">
+          <Link
+            href={`/register${redirectTo !== "/" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
+            className="text-text-link hover:underline"
+          >
             Register
           </Link>
         </p>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

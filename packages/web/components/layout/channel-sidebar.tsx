@@ -7,6 +7,7 @@ import { useChatContext } from "@/components/providers/chat-provider";
 import { CreateChannelModal } from "@/components/modals/create-channel-modal";
 import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
 import { ChannelSettingsModal } from "@/components/modals/channel-settings-modal";
+import { InviteModal } from "@/components/modals/invite-modal";
 
 export function ChannelSidebar() {
   const { data: session } = useSession();
@@ -20,6 +21,7 @@ export function ChannelSidebar() {
   const router = useRouter();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showManageBots, setShowManageBots] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [channelSettingsTarget, setChannelSettingsTarget] = useState<{
     id: string;
     name: string;
@@ -34,10 +36,21 @@ export function ChannelSidebar() {
     <>
       <div className="flex w-60 flex-col bg-background-secondary">
         {/* Server name header */}
-        <div className="flex h-12 items-center border-b border-background-tertiary px-4">
+        <div className="flex h-12 items-center justify-between border-b border-background-tertiary px-4">
           <h2 className="truncate text-base font-bold text-text-primary">
             {currentServerName || "HiveChat"}
           </h2>
+          {isOwner && currentServerId && (
+            <button
+              onClick={() => setShowInvite(true)}
+              title="Create invite"
+              className="flex-shrink-0 text-text-muted transition hover:text-text-primary"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Channel list */}
@@ -212,6 +225,8 @@ export function ChannelSidebar() {
         isOpen={showManageBots}
         onClose={() => setShowManageBots(false)}
       />
+
+      <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} />
 
       {channelSettingsTarget && (
         <ChannelSettingsModal
