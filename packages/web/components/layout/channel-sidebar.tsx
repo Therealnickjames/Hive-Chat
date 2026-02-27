@@ -6,8 +6,10 @@ import { signOut, useSession } from "next-auth/react";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { CreateChannelModal } from "@/components/modals/create-channel-modal";
 import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
+import { RoleManagementModal } from "@/components/modals/role-management-modal";
 import { ChannelSettingsModal } from "@/components/modals/channel-settings-modal";
 import { InviteModal } from "@/components/modals/invite-modal";
+import { Permissions } from "@/lib/permissions";
 
 export function ChannelSidebar() {
   const { data: session } = useSession();
@@ -15,12 +17,13 @@ export function ChannelSidebar() {
     currentServerId,
     currentChannelId,
     currentServerName,
-    currentServerOwnerId,
     channels,
+    hasPermission,
   } = useChatContext();
   const router = useRouter();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showManageBots, setShowManageBots] = useState(false);
+  const [showRoles, setShowRoles] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [channelSettingsTarget, setChannelSettingsTarget] = useState<{
     id: string;
@@ -28,7 +31,6 @@ export function ChannelSidebar() {
     defaultBotId: string | null;
   } | null>(null);
 
-  const isOwner = session?.user?.id === currentServerOwnerId;
   const displayName = session?.user?.displayName || "User";
   const username = session?.user?.username || "username";
 
@@ -40,7 +42,7 @@ export function ChannelSidebar() {
           <h2 className="truncate text-base font-bold text-text-primary">
             {currentServerName || "HiveChat"}
           </h2>
-          {isOwner && currentServerId && (
+          {hasPermission(Permissions.CREATE_INVITE) && currentServerId && (
             <button
               onClick={() => setShowInvite(true)}
               title="Create invite"
@@ -59,7 +61,7 @@ export function ChannelSidebar() {
             <span className="text-xs font-bold uppercase text-text-muted">
               Text Channels
             </span>
-            {isOwner && currentServerId && (
+            {hasPermission(Permissions.MANAGE_CHANNELS) && currentServerId && (
               <button
                 onClick={() => setShowCreateChannel(true)}
                 title="Create channel"
@@ -121,7 +123,7 @@ export function ChannelSidebar() {
                     </span>
                   )}
                 </button>
-                {isOwner && (
+                {hasPermission(Permissions.MANAGE_CHANNELS) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -152,8 +154,7 @@ export function ChannelSidebar() {
             );
           })}
 
-          {/* Manage Bots button — owners only */}
-          {isOwner && currentServerId && (
+          {hasPermission(Permissions.MANAGE_BOTS) && currentServerId && (
             <div className="mt-4 px-1">
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-xs font-bold uppercase text-text-muted">
@@ -175,6 +176,27 @@ export function ChannelSidebar() {
                   </svg>
                 </span>
                 <span className="text-sm">Manage Bots</span>
+              </button>
+            </div>
+          )}
+
+          {hasPermission(Permissions.MANAGE_ROLES) && currentServerId && (
+            <div className="mt-2 px-1">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-text-muted">
+                  Roles
+                </span>
+              </div>
+              <button
+                onClick={() => setShowRoles(true)}
+                className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
+              >
+                <span className="text-blue-400">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  </svg>
+                </span>
+                <span className="text-sm">Manage Roles</span>
               </button>
             </div>
           )}
@@ -227,6 +249,11 @@ export function ChannelSidebar() {
       />
 
       <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} />
+
+      <RoleManagementModal
+        isOpen={showRoles}
+        onClose={() => setShowRoles(false)}
+      />
 
       {channelSettingsTarget && (
         <ChannelSettingsModal

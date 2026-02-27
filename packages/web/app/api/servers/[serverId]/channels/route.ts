@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateId } from "@/lib/ulid";
+import { checkMemberPermission } from "@/lib/check-member-permission";
+import { Permissions } from "@/lib/permissions";
 
 /**
  * GET /api/servers/[serverId]/channels — List channels for a server
@@ -52,7 +54,7 @@ export async function GET(
 /**
  * POST /api/servers/[serverId]/channels — Create a new channel
  * Body: { name: string }
- * Only the server owner can create channels (for MVP)
+ * Requires MANAGE_CHANNELS permission
  */
 export async function POST(
   request: NextRequest,
@@ -66,19 +68,14 @@ export async function POST(
   const { serverId } = await params;
 
   try {
-    // Verify server exists and user is the owner
-    const server = await prisma.server.findUnique({
-      where: { id: serverId },
-      select: { ownerId: true },
-    });
-
-    if (!server) {
-      return NextResponse.json({ error: "Server not found" }, { status: 404 });
-    }
-
-    if (server.ownerId !== session.user.id) {
+    const check = await checkMemberPermission(
+      session.user.id,
+      serverId,
+      Permissions.MANAGE_CHANNELS
+    );
+    if (!check.allowed) {
       return NextResponse.json(
-        { error: "Only the server owner can create channels" },
+        { error: "Missing permission: Manage Channels" },
         { status: 403 }
       );
     }

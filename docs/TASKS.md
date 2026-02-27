@@ -128,3 +128,35 @@ Implement server invite links so users can join servers via shareable invite URL
 - [ ] Invite resolution endpoint validates invite and returns join target metadata
 - [ ] Authenticated users can join a server via valid invite
 - [ ] Invalid, expired, or exhausted invites show clear error states
+
+---
+
+## TASK-0008: Roles & Permissions
+
+**Status**: DONE
+**Priority**: P1 — Core Collaboration
+**Assignee**: Builder
+
+### Description
+Add role-based permissions so server owners can define roles, assign permissions, assign roles to members, and have API/UI behavior enforce permissions instead of owner-only gates.
+
+### Acceptance Criteria
+- [x] Permission bitfield utility added and shared across server/client
+- [x] Reusable server-side permission check helper implemented
+- [x] `@everyone` role auto-created on new servers and assigned on member join
+- [x] Role CRUD + member-role assignment API routes implemented
+- [x] Existing owner-only routes migrated to permission checks
+- [x] Frontend provider/sidebar updated to use effective permissions
+- [x] Role management modal added
+- [x] Backfill script added and run for existing servers
+
+---
+
+## TASK-0009: Reactions
+
+**Status**: TODO
+**Priority**: P1 — Polish
+**Assignee**: Builder
+
+### Description
+Add message reactions so members can add/remove emoji reactions and see reaction counts update in real time.

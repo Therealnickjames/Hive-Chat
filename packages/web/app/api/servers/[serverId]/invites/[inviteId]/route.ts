@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkMemberPermission } from "@/lib/check-member-permission";
+import { Permissions } from "@/lib/permissions";
 
 /**
  * DELETE /api/servers/[serverId]/invites/[inviteId] — Revoke an invite
- * Auth: server owner only
+ * Auth: MANAGE_SERVER permission
  */
 export async function DELETE(
   _request: NextRequest,
@@ -17,13 +19,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const server = await prisma.server.findUnique({
-    where: { id: serverId },
-    select: { ownerId: true },
-  });
-
-  if (!server || server.ownerId !== session.user.id) {
-    return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  const check = await checkMemberPermission(
+    session.user.id,
+    serverId,
+    Permissions.MANAGE_SERVER
+  );
+  if (!check.allowed) {
+    return NextResponse.json(
+      { error: "Missing permission: Manage Server" },
+      { status: 403 }
+    );
   }
 
   const invite = await prisma.invite.findUnique({

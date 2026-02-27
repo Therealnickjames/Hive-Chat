@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import { hasPermission as hasPermissionBit } from "@/lib/permissions";
 
 interface ServerData {
   id: string;
@@ -54,6 +55,9 @@ interface ChatContextValue {
   refreshChannels: () => Promise<void>;
   refreshMembers: () => Promise<void>;
   refreshBots: () => Promise<void>;
+  userPermissions: bigint;
+  isOwner: boolean;
+  hasPermission: (permission: bigint) => boolean;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -94,6 +98,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [currentServerOwnerId, setCurrentServerOwnerId] = useState<
     string | null
   >(null);
+  const [userPermissions, setUserPermissions] = useState<bigint>(BigInt(0));
+  const [isOwner, setIsOwner] = useState(false);
 
   const refreshServers = useCallback(async () => {
     try {
@@ -160,6 +166,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [serverId]);
 
+  const refreshPermissions = useCallback(async () => {
+    if (!serverId) {
+      setUserPermissions(BigInt(0));
+      setIsOwner(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/servers/${serverId}/permissions`);
+      if (res.ok) {
+        const data = await res.json();
+        setUserPermissions(BigInt(data.permissions || "0"));
+        setIsOwner(!!data.isOwner);
+      } else {
+        setUserPermissions(BigInt(0));
+        setIsOwner(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch permissions:", error);
+      setUserPermissions(BigInt(0));
+      setIsOwner(false);
+    }
+  }, [serverId]);
+
+  const hasPermission = useCallback(
+    (permission: bigint) => {
+      if (isOwner) return true;
+      return hasPermissionBit(userPermissions, permission);
+    },
+    [userPermissions, isOwner]
+  );
+
   // Fetch servers on mount
   useEffect(() => {
     refreshServers();
@@ -170,7 +208,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     refreshChannels();
     refreshMembers();
     refreshBots();
-  }, [refreshChannels, refreshMembers, refreshBots]);
+    refreshPermissions();
+  }, [refreshChannels, refreshMembers, refreshBots, refreshPermissions]);
 
   return (
     <ChatContext.Provider
@@ -187,6 +226,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         refreshChannels,
         refreshMembers,
         refreshBots,
+        userPermissions,
+        isOwner,
+        hasPermission,
       }}
     >
       {children}

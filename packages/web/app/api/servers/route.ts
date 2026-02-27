@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateId } from "@/lib/ulid";
+import { DEFAULT_PERMISSIONS } from "@/lib/permissions";
 
 /**
  * GET /api/servers — List servers the current user is a member of
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
     const serverId = generateId();
     const channelId = generateId();
     const memberId = generateId();
+    const everyoneRoleId = generateId();
 
     const [server] = await prisma.$transaction([
       prisma.server.create({
@@ -92,7 +94,23 @@ export async function POST(request: NextRequest) {
           serverId,
         },
       }),
+      prisma.role.create({
+        data: {
+          id: everyoneRoleId,
+          serverId,
+          name: "@everyone",
+          permissions: DEFAULT_PERMISSIONS,
+          position: 0,
+        },
+      }),
     ]);
+
+    await prisma.member.update({
+      where: { id: memberId },
+      data: {
+        roles: { connect: { id: everyoneRoleId } },
+      },
+    });
 
     return NextResponse.json(
       {

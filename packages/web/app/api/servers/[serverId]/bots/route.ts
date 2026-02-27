@@ -4,10 +4,12 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encrypt } from "@/lib/encryption";
 import { ulid } from "ulid";
+import { checkMemberPermission } from "@/lib/check-member-permission";
+import { Permissions } from "@/lib/permissions";
 
 /**
  * GET /api/servers/{serverId}/bots — List all bots for a server
- * POST /api/servers/{serverId}/bots — Create a new bot (owner only)
+ * POST /api/servers/{serverId}/bots — Create a new bot (MANAGE_BOTS)
  */
 
 export async function GET(
@@ -63,10 +65,16 @@ export async function POST(
 
   const { serverId } = await params;
 
-  // Verify ownership
-  const server = await prisma.server.findUnique({ where: { id: serverId } });
-  if (!server || server.ownerId !== session.user.id) {
-    return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  const check = await checkMemberPermission(
+    session.user.id,
+    serverId,
+    Permissions.MANAGE_BOTS
+  );
+  if (!check.allowed) {
+    return NextResponse.json(
+      { error: "Missing permission: Manage Bots" },
+      { status: 403 }
+    );
   }
 
   const body = await request.json();

@@ -66,5 +66,24 @@ export async function POST(
     }),
   ]);
 
+  const everyoneRole = await prisma.role.findFirst({
+    where: { serverId: invite.serverId, name: "@everyone" },
+    select: { id: true },
+  });
+
+  if (everyoneRole) {
+    await prisma.member.update({
+      where: {
+        userId_serverId: {
+          userId: session.user.id,
+          serverId: invite.serverId,
+        },
+      },
+      data: {
+        roles: { connect: { id: everyoneRole.id } },
+      },
+    });
+  }
+
   return NextResponse.json({ serverId: invite.serverId }, { status: 201 });
 }

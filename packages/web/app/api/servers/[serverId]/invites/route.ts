@@ -4,10 +4,12 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateId } from "@/lib/ulid";
 import { generateInviteCode } from "@/lib/invite-code";
+import { checkMemberPermission } from "@/lib/check-member-permission";
+import { Permissions } from "@/lib/permissions";
 
 /**
  * GET /api/servers/[serverId]/invites — List active invites for a server
- * Auth: server owner only
+ * Auth: MANAGE_SERVER permission
  */
 export async function GET(
   _request: NextRequest,
@@ -19,13 +21,16 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const server = await prisma.server.findUnique({
-    where: { id: serverId },
-    select: { ownerId: true },
-  });
-
-  if (!server || server.ownerId !== session.user.id) {
-    return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  const check = await checkMemberPermission(
+    session.user.id,
+    serverId,
+    Permissions.MANAGE_SERVER
+  );
+  if (!check.allowed) {
+    return NextResponse.json(
+      { error: "Missing permission: Manage Server" },
+      { status: 403 }
+    );
   }
 
   const invites = await prisma.invite.findMany({
@@ -60,7 +65,7 @@ export async function GET(
 
 /**
  * POST /api/servers/[serverId]/invites — Create a new invite
- * Auth: server owner only
+ * Auth: CREATE_INVITE permission
  * Body: { maxUses?: number, expiresInHours?: number }
  * Default expiry: 7 days (168 hours)
  */
@@ -74,13 +79,16 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const server = await prisma.server.findUnique({
-    where: { id: serverId },
-    select: { ownerId: true },
-  });
-
-  if (!server || server.ownerId !== session.user.id) {
-    return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+  const check = await checkMemberPermission(
+    session.user.id,
+    serverId,
+    Permissions.CREATE_INVITE
+  );
+  if (!check.allowed) {
+    return NextResponse.json(
+      { error: "Missing permission: Create Invites" },
+      { status: 403 }
+    );
   }
 
   let maxUses: number | null = null;
