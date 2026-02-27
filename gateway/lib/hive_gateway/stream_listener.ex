@@ -11,8 +11,6 @@ defmodule HiveGateway.StreamListener do
   """
   use GenServer
 
-  alias HiveGateway.StreamWatchdog
-
   require Logger
 
   # ---------- Public API ----------
@@ -110,12 +108,10 @@ defmodule HiveGateway.StreamListener do
         case Jason.decode(payload) do
           {:ok, %{"status" => "complete"} = data} ->
             HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_complete", data)
-            StreamWatchdog.deregister_stream(message_id)
             Logger.info("[StreamListener] Broadcast stream_complete: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}")
 
           {:ok, %{"status" => "error"} = data} ->
             HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_error", data)
-            StreamWatchdog.deregister_stream(message_id)
             Logger.info("[StreamListener] Broadcast stream_error: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}")
 
           {:ok, data} ->

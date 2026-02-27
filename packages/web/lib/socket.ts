@@ -32,10 +32,12 @@ export async function getSocket(): Promise<Socket | null> {
   if (!token) return null;
   currentToken = token;
 
-  const gatewayUrl =
+  const configuredGatewayUrl =
     process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:4001/socket";
+  // Phoenix Socket appends "/websocket" internally.
+  const gatewayUrl = configuredGatewayUrl.replace(/\/websocket\/?$/, "");
 
-  socket = new Socket(`${gatewayUrl}/websocket`, {
+  socket = new Socket(gatewayUrl, {
     params: () => ({ token: currentToken }),
     reconnectAfterMs: (tries: number) =>
       [1000, 2000, 5000, 10000][Math.min(tries - 1, 3)],

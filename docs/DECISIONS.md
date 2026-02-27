@@ -221,3 +221,31 @@ message brokers.
 **Consequences**: Adds one GenServer to the Gateway supervision tree. Worst case adds
 one internal API call per stream (only when Redis delivery fails). Does not affect
 happy-path latency.
+
+---
+
+## DEC-0018 — Two-layer terminal state convergence
+
+**Date**: 2026-02-26
+**Status**: Accepted
+**Context**: Infrastructure failure testing (F-02, F-05, F-06) revealed that streaming
+messages could stay ACTIVE in the database indefinitely. The Go Proxy publishes
+terminal status to Redis (clients see it via WebSocket), then persists to DB via
+HTTP. If the HTTP call fails, clients see the response but it vanishes on page
+refresh. The watchdog only handled COMPLETE/ERROR states from DB and would retry
+forever on ACTIVE.
+**Decision**: Implement two-layer convergence:
+
+1. Go Proxy retries FinalizeMessage 3 times with exponential backoff (1s/2s/4s).
+   Catches transient web outages lasting up to ~7 seconds.
+2. Gateway watchdog tracks retry count per stream. After 5 consecutive ACTIVE
+   checks (225 seconds at 45s intervals), forces DB to ERROR via PUT and
+   broadcasts synthetic stream_error. Catches prolonged outages and dead proxies.
+
+**Consequences:**
+
+- No streaming message can stay ACTIVE indefinitely - guaranteed convergence.
+- Worst case recovery time: ~4 minutes (5 watchdog cycles). Acceptable for an
+  infrastructure failure scenario.
+- The watchdog now makes write calls (PUT) to the web service, not just reads.
+  This is a new dependency direction but justified by the safety-net role.

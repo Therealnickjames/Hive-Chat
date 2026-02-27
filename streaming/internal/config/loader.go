@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -95,4 +96,52 @@ func (l *Loader) FinalizeMessage(messageID, content, streamingStatus string) err
 	}
 
 	return nil
+}
+
+// FinalizeMessageWithRetry attempts FinalizeMessage up to maxRetries times
+// with exponential backoff (1s, 2s, 4s). This closes the window where a
+// transient web outage causes terminal status to be published to Redis
+// (clients see completion) but the DB is never updated.
+//
+// See docs/DECISIONS.md DEC-0018.
+func (l *Loader) FinalizeMessageWithRetry(messageID, content, streamingStatus string, logger *slog.Logger) error {
+	const maxRetries = 3
+	backoffs := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second}
+
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			wait := backoffs[attempt-1]
+			logger.Warn("Retrying FinalizeMessage",
+				"messageId", messageID,
+				"attempt", attempt,
+				"backoff", wait.String(),
+				"lastError", lastErr.Error(),
+			)
+			time.Sleep(wait)
+		}
+
+		lastErr = l.FinalizeMessage(messageID, content, streamingStatus)
+		if lastErr == nil {
+			if attempt > 0 {
+				logger.Info("FinalizeMessage succeeded on retry",
+					"messageId", messageID,
+					"attempt", attempt,
+				)
+			}
+			return nil
+		}
+	}
+
+	logger.Error("FinalizeMessage failed after all retries",
+		"messageId", messageID,
+		"status", streamingStatus,
+		"attempts", maxRetries+1,
+		"lastError", lastErr.Error(),
+	)
+	return lastErr
 }

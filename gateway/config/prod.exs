@@ -8,5 +8,5 @@ config :logger, level: :info,
   backends: [:console]
 
 config :logger, :console,
-  format: {Jason, :encode!},
+  format: {HiveGateway.LogFormatter, :format},
   metadata: [:request_id, :user_id, :channel_id]

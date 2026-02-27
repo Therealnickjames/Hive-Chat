@@ -1,0 +1,191 @@
+﻿{
+    "generatedAt":  "2026-02-26T18:10:18.6627592-05:00",
+    "testPrefix":  "st0226180513",
+    "scenarios":  [
+                      {
+                          "id":  "M-01",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  217
+                      },
+                      {
+                          "id":  "M-02",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  55
+                      },
+                      {
+                          "id":  "M-03",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  288
+                      },
+                      {
+                          "id":  "M-04",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  43
+                      },
+                      {
+                          "id":  "M-05",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  36
+                      },
+                      {
+                          "id":  "A-01",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  2665
+                      },
+                      {
+                          "id":  "A-02",
+                          "status":  "not_tested",
+                          "details":  "Redis request-body context inspection disabled in simplified timed harness",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "A-03",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  3048
+                      },
+                      {
+                          "id":  "A-04",
+                          "status":  "skipped",
+                          "details":  "Concurrency-limit saturation (35+) not executed in this timed run",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "A-05",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  1686
+                      },
+                      {
+                          "id":  "A-06",
+                          "status":  "not_tested",
+                          "details":  "Per-endpoint routing proof disabled in simplified timed harness",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "S-11",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  85
+                      },
+                      {
+                          "id":  "S-12",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  52
+                      },
+                      {
+                          "id":  "L-01",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  52
+                      },
+                      {
+                          "id":  "L-02",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  112
+                      },
+                      {
+                          "id":  "L-06",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  1276
+                      },
+                      {
+                          "id":  "F-01",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  2225
+                      },
+                      {
+                          "id":  "S-09",
+                          "status":  "not_tested",
+                          "details":  "Not executed in this timed pass",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "S-10",
+                          "status":  "not_tested",
+                          "details":  "Not executed in this timed pass",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "L-03",
+                          "status":  "not_tested",
+                          "details":  "Verbose 10k-token stream not executed in this timed pass",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "L-04",
+                          "status":  "not_tested",
+                          "details":  "Large 20x10KB context not executed in this timed pass",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "L-05",
+                          "status":  "not_tested",
+                          "details":  "1,000-history pagination not executed in this timed pass",
+                          "durationMs":  0
+                      },
+                      {
+                          "id":  "F-02",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  85226
+                      },
+                      {
+                          "id":  "F-03",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  63506
+                      },
+                      {
+                          "id":  "F-04",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  13950
+                      },
+                      {
+                          "id":  "F-05",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  79102
+                      },
+                      {
+                          "id":  "F-06",
+                          "status":  "passed",
+                          "details":  "",
+                          "durationMs":  4870
+                      }
+                  ],
+    "metrics":  [
+                    {
+                        "metric":  "Message broadcast latency (M-01 max)",
+                        "target":  "\u003c20ms",
+                        "observed":  "40ms",
+                        "status":  "fail"
+                    },
+                    {
+                        "metric":  "Rapid throughput (L-06)",
+                        "target":  "100 msgs / 10s",
+                        "observed":  "100 msgs / 1093ms (91.49 msg/s)",
+                        "status":  "pass"
+                    }
+                ],
+    "notes":  [
+                  "S-12 presence metas for user A: 3",
+                  "F-02 messageId=01KJE372SHTKT088516PG1TRDW terminalEvent=stream_error streamingStatus=ERROR",
+                  "F-03 messageId=01KJE39P0RVB5N4W5PD0CF8GCE streamingStatusAfter60s=ERROR",
+                  "F-04 duringSendStatus=exception:Timed out waiting for phx_reply ref 782690110 duringPersisted=0",
+                  "F-05 messageId=01KJE3C2DFQWPQX0MKS63NSX0V terminalEvent=stream_error dbStatus=ACTIVE contentPreview=",
+                  "F-06 messageId=01KJE3EGAMC7Y9WMNDGRQ3WG5B streamingStatusAfterGatewayRestart=ACTIVE",
+                  "STREAMING_MAX_CONCURRENT_STREAMS=unset"
+              ]
+}

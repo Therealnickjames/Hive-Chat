@@ -6,7 +6,19 @@ defmodule HiveGateway.StreamWatchdogTest do
   defmodule WebClientStub do
     def get_message(message_id) do
       Agent.get(:stream_watchdog_test_state, fn state ->
-        Map.get(state, message_id, {:error, :not_found})
+        state
+        |> Map.get(:messages, %{})
+        |> Map.get(message_id, {:error, :not_found})
+      end)
+    end
+
+    def update_message(message_id, update_body) do
+      Agent.get_and_update(:stream_watchdog_test_state, fn state ->
+        update_call = %{message_id: message_id, body: update_body}
+        update_calls = [update_call | Map.get(state, :update_calls, [])]
+        result = Map.get(state, :update_result, {:ok, %{}})
+
+        {result, Map.put(state, :update_calls, update_calls)}
       end)
     end
   end
@@ -14,7 +26,14 @@ defmodule HiveGateway.StreamWatchdogTest do
   setup do
     {:ok, _agent} =
       start_supervised(
-        {Agent, fn -> %{} end, name: :stream_watchdog_test_state}
+        {Agent,
+         fn ->
+           %{
+             messages: %{},
+             update_calls: [],
+             update_result: {:ok, %{}}
+           }
+         end, name: :stream_watchdog_test_state}
       )
 
     server = :"stream_watchdog_test_#{System.unique_integer([:positive])}"
@@ -88,6 +107,71 @@ defmodule HiveGateway.StreamWatchdogTest do
     assert payload["finalContent"] == "done later"
   end
 
+  test "forces ERROR after max retries of ACTIVE", %{server: server} do
+    put_message("message-force-error", %{
+      "id" => "message-force-error",
+      "streamingStatus" => "ACTIVE",
+      "content" => ""
+    })
+
+    set_update_result({:ok, %{}})
+    StreamWatchdog.register_stream("channel-e", "message-force-error", server)
+
+    assert_receive {:broadcast, "room:channel-e", "stream_error", payload}, 500
+    assert payload["messageId"] == "message-force-error"
+    assert payload["status"] == "error"
+    assert payload["error"] == "Stream timed out — no completion received"
+
+    [update_call | _] = update_calls()
+    assert update_call.message_id == "message-force-error"
+    assert update_call.body["streamingStatus"] == "ERROR"
+  end
+
+  test "resets retry count when stream is re-registered", %{server: server} do
+    put_message("message-reregister", %{
+      "id" => "message-reregister",
+      "streamingStatus" => "ACTIVE",
+      "content" => ""
+    })
+
+    StreamWatchdog.register_stream("channel-f", "message-reregister", server)
+    Process.sleep(70)
+
+    state_before = :sys.get_state(server)
+    entry_before = get_in(state_before, [:active, "message-reregister"])
+    assert entry_before != nil
+    assert Map.get(entry_before, :retries, 0) > 0
+
+    StreamWatchdog.deregister_stream("message-reregister", server)
+    StreamWatchdog.register_stream("channel-f", "message-reregister", server)
+    Process.sleep(25)
+
+    state_after = :sys.get_state(server)
+    entry_after = get_in(state_after, [:active, "message-reregister"])
+    assert entry_after != nil
+    assert Map.get(entry_after, :retries, -1) == 0
+  end
+
+  test "force-update failure still broadcasts stream_error", %{server: server} do
+    put_message("message-force-failure", %{
+      "id" => "message-force-failure",
+      "streamingStatus" => "ACTIVE",
+      "content" => ""
+    })
+
+    set_update_result({:error, :nxdomain})
+    StreamWatchdog.register_stream("channel-g", "message-force-failure", server)
+
+    assert_receive {:broadcast, "room:channel-g", "stream_error", payload}, 500
+    assert payload["messageId"] == "message-force-failure"
+    assert payload["status"] == "error"
+    assert payload["error"] == "Stream timed out — no completion received"
+    assert payload["partialContent"] == nil
+
+    [update_call | _] = update_calls()
+    assert update_call.message_id == "message-force-failure"
+  end
+
   test "deregistered streams do not emit fallback events", %{server: server} do
     put_message("message-deregistered", %{
       "id" => "message-deregistered",
@@ -103,7 +187,22 @@ defmodule HiveGateway.StreamWatchdogTest do
 
   defp put_message(message_id, message) do
     Agent.update(:stream_watchdog_test_state, fn state ->
-      Map.put(state, message_id, {:ok, message})
+      messages = Map.put(Map.get(state, :messages, %{}), message_id, {:ok, message})
+      Map.put(state, :messages, messages)
+    end)
+  end
+
+  defp set_update_result(result) do
+    Agent.update(:stream_watchdog_test_state, fn state ->
+      Map.put(state, :update_result, result)
+    end)
+  end
+
+  defp update_calls do
+    Agent.get(:stream_watchdog_test_state, fn state ->
+      state
+      |> Map.get(:update_calls, [])
+      |> Enum.reverse()
     end)
   end
 end

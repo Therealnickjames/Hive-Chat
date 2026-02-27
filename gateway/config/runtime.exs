@@ -33,3 +33,6 @@ config :hive_gateway, :web_url,
 # Internal API secret
 config :hive_gateway, :internal_api_secret,
   System.get_env("INTERNAL_API_SECRET") || "dev-internal-secret"
+
+config :hive_gateway, :stream_watchdog_timeout_ms,
+  String.to_integer(System.get_env("STREAM_WATCHDOG_TIMEOUT_MS") || "45000")

@@ -291,9 +291,9 @@ streamDone:
 		)
 	}
 
-	// 8. Persist final message content
-	if err := m.loader.FinalizeMessage(req.MessageID, finalContent, "COMPLETE"); err != nil {
-		m.logger.Error("Failed to finalize message",
+	// 8. Persist final message content (with retry for transient web outages — DEC-0018)
+	if err := m.loader.FinalizeMessageWithRetry(req.MessageID, finalContent, "COMPLETE", m.logger); err != nil {
+		m.logger.Error("FinalizeMessage exhausted retries — DB may be ACTIVE, watchdog will recover",
 			"messageId", req.MessageID,
 			"error", err,
 		)
@@ -339,8 +339,8 @@ func (m *Manager) publishError(ctx context.Context, req streamRequest, partialCo
 		content = "[Error: " + errMsg + "]"
 	}
 
-	if err := m.loader.FinalizeMessage(req.MessageID, content, "ERROR"); err != nil {
-		m.logger.Error("Failed to finalize error message",
+	if err := m.loader.FinalizeMessageWithRetry(req.MessageID, content, "ERROR", m.logger); err != nil {
+		m.logger.Error("FinalizeMessage (error path) exhausted retries — DB may be ACTIVE, watchdog will recover",
 			"messageId", req.MessageID,
 			"error", err,
 		)

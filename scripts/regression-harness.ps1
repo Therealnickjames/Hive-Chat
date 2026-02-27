@@ -761,6 +761,7 @@ $userCNonce = New-TestId
 $mockOpenAiPid = $null
 $mockTimeoutPid = $null
 $redisStopped = $false
+$webStopped = $false
 
 Ensure-ServicesRunning
 $mockOpenAiPid = Start-MockOpenAiSseServer
@@ -1016,6 +1017,87 @@ COMMIT;
   Assert "K-006 DB message is ERROR" ($k6DbMessage.streamingStatus -eq "ERROR")
   Assert "K-006 DB message preserves partial content" (-not [string]::IsNullOrWhiteSpace($k6DbMessage.content))
 
+  # K-008
+  Write-Header "K-008: Watchdog force-terminates stuck ACTIVE stream"
+  $watchdogComposeOverridePath = Join-Path $RootDir "docker-compose.watchdog-test.yml"
+  try {
+    # -- K-008 setup: fast watchdog for test --
+    @"
+services:
+  gateway:
+    environment:
+      - STREAM_WATCHDOG_TIMEOUT_MS=3000
+"@ | Set-Content -Path $watchdogComposeOverridePath -Encoding UTF8
+
+    docker compose -f $ComposePath -f $watchdogComposeOverridePath up -d --build gateway | Out-Null
+    Start-Sleep 12
+
+    Close-SocketSafe $memberSocket
+    $memberSocket = Open-PhxSocket -JwtToken $memberJwt
+    $ref = [string](Get-Random)
+    Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "phx_join" -Payload @{ lastSequence = 0 } -Ref $ref
+    $k8JoinReply = Wait-PhxReply -Socket $memberSocket -Ref $ref
+    Assert "K-008 member socket rejoins after gateway restart" ($k8JoinReply.payload.status -eq "ok")
+
+    Invoke-Psql "UPDATE ""Bot"" SET ""apiEndpoint"" = 'http://192.0.2.1:9999' WHERE id = '$botId';"
+
+    $ref = [string](Get-Random)
+    Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "new_message" -Payload @{ content = "trigger watchdog force-terminate path" } -Ref $ref
+    $k8Reply = Wait-PhxReply -Socket $memberSocket -Ref $ref
+    Assert "K-008 trigger message accepted" ($k8Reply.payload.status -eq "ok")
+
+    $expectedK8StartSequence = [string](([int64]$k8Reply.payload.response.sequence) + 1)
+    $k8Start = Wait-StreamStartForSequence -Socket $memberSocket -Topic $topic -ExpectedSequence $expectedK8StartSequence -TimeoutMs 12000
+    $k8MessageId = $k8Start.payload.messageId
+    Assert "K-008 stream_start broadcast received" (-not [string]::IsNullOrWhiteSpace($k8MessageId))
+
+    # Keep web down through terminal event + retry window so FinalizeMessage exhausts.
+    docker compose -f $ComposePath stop web
+    $webStopped = $true
+
+    $k8Error = Wait-StreamEventForMessage -Socket $memberSocket -Topic $topic -Event "stream_error" -MessageId $k8MessageId -TimeoutMs 120000
+    Assert "K-008 stream_error received by websocket client" ($k8Error.payload.messageId -eq $k8MessageId)
+
+    # Extra margin beyond 1s+2s+4s retry backoff to guarantee finalize exhaustion.
+    Start-Sleep 15
+
+    docker compose -f $ComposePath start web
+    $webStopped = $false
+
+    $webRecoveredForK8 = Wait-Until -MaxAttempts 15 -DelayMs 2000 -Action {
+      $health = Invoke-CurlJson -Url "$webUrl/api/health"
+      return $health.StatusCode -eq 200
+    }
+    Assert "K-008 web service recovers after finalize retry exhaustion window" $webRecoveredForK8
+
+    # Fast watchdog mode: allow 3s x 6 checks for force-terminate convergence.
+    $k8Converged = Wait-Until -MaxAttempts 6 -DelayMs 3000 -Action {
+      $probe = Invoke-CurlJson -Url "$webUrl/api/internal/messages/$k8MessageId" -Method GET -Headers @{ "x-internal-secret" = $internalSecret }
+      if ($probe.StatusCode -ne 200) {
+        return $false
+      }
+      try {
+        $probeMessage = $probe.BodyText | ConvertFrom-Json
+        return $probeMessage.streamingStatus -eq "ERROR"
+      }
+      catch {
+        return $false
+      }
+    }
+    Assert "K-008 watchdog force-terminates stuck ACTIVE stream to ERROR" $k8Converged
+
+    $k8DbFetch = Invoke-CurlJson -Url "$webUrl/api/internal/messages/$k8MessageId" -Method GET -Headers @{ "x-internal-secret" = $internalSecret }
+    Assert "K-008 message fetch by id returns 200" ($k8DbFetch.StatusCode -eq 200) ("status=" + $k8DbFetch.StatusCode + " body=" + $k8DbFetch.BodyText)
+    $k8DbMessage = $k8DbFetch.BodyText | ConvertFrom-Json
+    Assert "K-008 DB message is ERROR" ($k8DbMessage.streamingStatus -eq "ERROR")
+  }
+  finally {
+    # -- K-008 cleanup: restore production watchdog --
+    Remove-Item $watchdogComposeOverridePath -ErrorAction SilentlyContinue
+    docker compose -f $ComposePath up -d --build gateway | Out-Null
+    Start-Sleep 12
+  }
+
   # K-007
   Write-Header "K-007: Health depends on dependencies"
   $preWeb = Invoke-CurlJson -Url "$webUrl/api/health"
@@ -1064,6 +1146,10 @@ COMMIT;
 finally {
   if ($redisStopped) {
     docker compose -f $ComposePath start redis | Out-Null
+  }
+
+  if ($webStopped) {
+    docker compose -f $ComposePath start web | Out-Null
   }
 
   Stop-MockOpenAiSseServer $mockOpenAiPid

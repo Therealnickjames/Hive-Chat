@@ -11,6 +11,7 @@ defmodule HiveGateway.StreamWatchdog do
   require Logger
 
   @default_check_after_ms 45_000
+  @max_active_retries 5
 
   # ---------- Public API ----------
 
@@ -55,7 +56,10 @@ defmodule HiveGateway.StreamWatchdog do
     active =
       state.active
       |> maybe_cancel_existing(message_id)
-      |> Map.put(message_id, schedule_check(%{channel_id: channel_id}, message_id, state.check_after_ms))
+      |> Map.put(
+        message_id,
+        schedule_check(%{channel_id: channel_id, retries: 0}, message_id, state.check_after_ms)
+      )
 
     {:noreply, %{state | active: active}}
   end
@@ -71,12 +75,15 @@ defmodule HiveGateway.StreamWatchdog do
   def handle_info({:check_stream, message_id, check_ref}, state) do
     case Map.get(state.active, message_id) do
       %{check_ref: ^check_ref} = entry ->
-        case check_and_emit_terminal(entry.channel_id, message_id, state) do
+        retries = Map.get(entry, :retries, 0)
+
+        case check_and_emit_terminal(entry.channel_id, message_id, retries, state) do
           :terminal ->
             {:noreply, %{state | active: Map.delete(state.active, message_id)}}
 
           :pending ->
-            refreshed = schedule_check(entry, message_id, state.check_after_ms)
+            updated_entry = Map.put(entry, :retries, retries + 1)
+            refreshed = schedule_check(updated_entry, message_id, state.check_after_ms)
             {:noreply, %{state | active: Map.put(state.active, message_id, refreshed)}}
         end
 
@@ -106,7 +113,7 @@ defmodule HiveGateway.StreamWatchdog do
     })
   end
 
-  defp check_and_emit_terminal(channel_id, message_id, state) do
+  defp check_and_emit_terminal(channel_id, message_id, retries, state) do
     case state.web_client.get_message(message_id) do
       {:ok, %{"streamingStatus" => "COMPLETE"} = message} ->
         payload = %{
@@ -133,7 +140,43 @@ defmodule HiveGateway.StreamWatchdog do
         Logger.info("[StreamWatchdog] Broadcast synthetic stream_error: channel=#{channel_id} messageId=#{message_id}")
         :terminal
 
+      {:ok, %{"streamingStatus" => "ACTIVE"}} when retries >= @max_active_retries ->
+        # Stream has been ACTIVE for too long — force-terminate.
+        # This catches: Go Proxy died, web was down during finalize, or any other
+        # scenario where the DB was never updated to a terminal state.
+        Logger.error(
+          "[StreamWatchdog] Forcing stuck stream to ERROR after #{retries} retries: " <>
+            "channel=#{channel_id} messageId=#{message_id}"
+        )
+
+        update_result =
+          state.web_client.update_message(message_id, %{
+            "content" => "[Error: Stream timed out — no completion received]",
+            "streamingStatus" => "ERROR"
+          })
+
+        case update_result do
+          {:ok, _} ->
+            Logger.info("[StreamWatchdog] Forced DB status to ERROR: messageId=#{message_id}")
+
+          {:error, reason} ->
+            Logger.error(
+              "[StreamWatchdog] Failed to force DB status: messageId=#{message_id} reason=#{inspect(reason)}"
+            )
+        end
+
+        payload = %{
+          "messageId" => message_id,
+          "status" => "error",
+          "error" => "Stream timed out — no completion received",
+          "partialContent" => nil
+        }
+
+        state.broadcaster.("room:#{channel_id}", "stream_error", payload)
+        :terminal
+
       {:ok, %{"streamingStatus" => "ACTIVE"}} ->
+        # Still active, but haven't hit max retries yet. Keep checking.
         :pending
 
       {:ok, %{"streamingStatus" => status}} ->

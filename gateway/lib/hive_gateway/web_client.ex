@@ -177,4 +177,30 @@ defmodule HiveGateway.WebClient do
         {:error, reason}
     end
   end
+
+  @doc """
+  Update a message's streaming status via PUT /api/internal/messages/{messageId}.
+  Used by StreamWatchdog to force-terminate stuck ACTIVE streams.
+  Returns {:ok, response_body} | {:error, reason}.
+  """
+  def update_message(message_id, update_body) do
+    url = "#{web_url()}/api/internal/messages/#{message_id}"
+
+    case Req.put(url,
+           json: update_body,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("update_message failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("update_message request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
 end

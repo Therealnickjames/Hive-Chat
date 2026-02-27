@@ -57,7 +57,12 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
       const res = await fetch(`/api/servers/${currentServerId}/bots`);
       if (res.ok) {
         const data = await res.json();
-        setBots(data);
+        const nextBots = Array.isArray(data?.bots)
+          ? data.bots
+          : Array.isArray(data)
+            ? data
+            : [];
+        setBots(nextBots);
       }
     } catch {
       console.error("Failed to fetch bots");

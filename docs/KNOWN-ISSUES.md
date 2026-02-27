@@ -46,3 +46,31 @@
 - **Description**: 30s token-gap timeout persisted `ERROR` but could miss terminal `stream_error` delivery to clients.
 - **Status**: `RESOLVED` (2026-02-25)
 - **Fix summary**: Same watchdog fallback as BREAK-0005 plus explicit terminal delivery logging in streaming and gateway services to trace publish/relay gaps.
+
+## BREAK-0007
+
+- **Severity**: `CRITICAL`
+- **Description**: Gateway production logger used `Jason.encode!/1` as the Logger console formatter, which does not implement the required 4-argument formatter callback and caused repeated `FORMATTER CRASH` lines.
+- **Status**: `RESOLVED` (2026-02-26)
+- **Fix summary**: Replaced the console formatter with `HiveGateway.LogFormatter.format/4`, which safely normalizes Logger message iodata/chardata and emits JSON log lines with metadata.
+
+## BREAK-0009
+
+- **Severity**: `HIGH`
+- **Description**: During F-02 (Redis kill), stream rows could remain `ACTIVE` in DB indefinitely, causing watchdog retries to loop forever without terminal convergence.
+- **Status**: `RESOLVED` (2026-02-26)
+- **Fix summary**: Added watchdog max ACTIVE retries with force-update fallback to set DB status to `ERROR` and emit synthetic `stream_error` after 5 consecutive ACTIVE checks.
+
+## BREAK-0010
+
+- **Severity**: `HIGH`
+- **Description**: During F-05 (Next.js kill at completion), Go Proxy could publish terminal status to Redis but fail DB finalize HTTP call, leaving DB `ACTIVE`.
+- **Status**: `RESOLVED` (2026-02-26)
+- **Fix summary**: Added Go Proxy `FinalizeMessageWithRetry` (1s/2s/4s backoff, 3 retries) and switched both COMPLETE and ERROR finalize paths to use it.
+
+## BREAK-0011
+
+- **Severity**: `HIGH`
+- **Description**: During F-06 (Gateway restart mid-stream), transient web/gateway instability could cause finalize persistence failure after terminal publish, leaving DB `ACTIVE`.
+- **Status**: `RESOLVED` (2026-02-26)
+- **Fix summary**: Same two-layer convergence fix as BREAK-0010 plus watchdog force-termination safety net to guarantee eventual non-ACTIVE terminal state.
