@@ -8,40 +8,40 @@
 
 ## Task Number Mapping
 
-V0 tasks (TASK-0001 through TASK-0008) are all DONE. V1 tasks start at TASK-0009.
+V0 tasks (TASK-0001 through TASK-0010) are all DONE. V1 tasks start at TASK-0011. TASK-0009 and TASK-0010 are reserved for V0 reactions and uploads to match shipped history.
 
 | ROADMAP Task | Feature | Original V1-ROADMAP # | Track |
 |-------------|---------|----------------------|-------|
-| TASK-0009 | Agent Thinking Timeline | — (new) | Agent |
-| TASK-0010 | Multi-Stream | — (new) | Agent |
-| TASK-0011 | Provider Abstraction | — (new) | Agent |
-| TASK-0012 | Message Edit & Delete | was TASK-0008 | Chat |
-| TASK-0013 | @Mentions | was TASK-0009 | Chat |
-| TASK-0014 | Unread Indicators | was TASK-0010 | Chat |
-| TASK-0015 | README + Demo | — (new) | Launch |
-| TASK-0016 | MCP Tool Interface | — (new) | Agent |
-| TASK-0017 | Direct Messages | was TASK-0011 | Chat |
-| TASK-0018 | Channel Charter / Swarms | — (new) | Agent |
-| TASK-0019 | Stream Rewind + Checkpoints | — (new) | Agent |
-| TASK-0020 | Message Search | was TASK-0012 | Chat |
-| TASK-0021 | Server Settings UI | was TASK-0013 | Chat |
-| TASK-0022 | User Profile & Settings | was TASK-0014 | Chat |
-| TASK-0023 | File & Image Uploads | was TASK-0015 | Chat |
-| TASK-0024 | JSON Schema Contracts | — (new) | Infra |
-| TASK-0025 | gRPC/Protobuf | — (new) | Infra |
-| TASK-0026 | Agent Memory (pgvector) | — (new) | Agent |
-| TASK-0027 | Notification System | was TASK-0017 | Chat |
-| TASK-0028 | Emoji Reactions | was TASK-0016 | Chat |
-| TASK-0029 | X-Ray Observability | — (new) | Agent |
-| TASK-0030 | Branching Conversations | — (new) | Agent |
-| TASK-0031 | Caddy HTTPS | was TASK-0019 | Deploy |
-| TASK-0032 | Admin Dashboard | was TASK-0020 | Deploy |
-| TASK-0033 | Data Export | was TASK-0021 | Deploy |
-| TASK-0034 | Mobile Responsive | was TASK-0018 | Deploy |
+| TASK-0011 | Agent Thinking Timeline | — (new) | Agent |
+| TASK-0012 | Multi-Stream | — (new) | Agent |
+| TASK-0013 | Provider Abstraction | — (new) | Agent |
+| TASK-0014 | Message Edit & Delete | was TASK-0008 | Chat |
+| TASK-0015 | @Mentions (enhance existing V0 behavior) | was TASK-0011 | Chat |
+| TASK-0016 | Unread Indicators | was TASK-0012 | Chat |
+| TASK-0017 | README + Demo | — (new) | Launch |
+| TASK-0018 | MCP Tool Interface | — (new) | Agent |
+| TASK-0019 | Direct Messages | was TASK-0013 | Chat |
+| TASK-0020 | Channel Charter / Swarms | — (new) | Agent |
+| TASK-0021 | Stream Rewind + Checkpoints | — (new) | Agent |
+| TASK-0022 | Message Search | was TASK-0014 | Chat |
+| TASK-0023 | Server Settings UI | was TASK-0015 | Chat |
+| TASK-0024 | User Profile & Settings | was TASK-0016 | Chat |
+| TASK-0025 | File & Image Uploads (enhance existing V0 behavior) | was TASK-0017 | Chat |
+| TASK-0026 | JSON Schema Contracts | — (new) | Infra |
+| TASK-0027 | gRPC/Protobuf | — (new) | Infra |
+| TASK-0028 | Agent Memory (pgvector) | — (new) | Agent |
+| TASK-0029 | Notification System | was TASK-0019 | Chat |
+| TASK-0030 | Emoji Reactions (enhance existing V0 behavior) | was TASK-0018 | Chat |
+| TASK-0031 | X-Ray Observability | — (new) | Agent |
+| TASK-0032 | Branching Conversations | — (new) | Agent |
+| TASK-0033 | Caddy HTTPS (already shipped) | was TASK-0021 | Deploy |
+| TASK-0034 | Admin Dashboard | was TASK-0022 | Deploy |
+| TASK-0035 | Data Export | was TASK-0023 | Deploy |
+| TASK-0036 | Mobile Responsive | was TASK-0020 | Deploy |
 
 ---
 
-## TASK-0012: Message Edit & Delete
+## TASK-0014: Message Edit & Delete
 
 **Priority**: P0 — Launch
 **Track**: Chat (Track B)
@@ -109,10 +109,13 @@ New WebSocket events on `room:{channelId}`:
 
 ---
 
-## TASK-0013: @Mentions with Autocomplete
+## TASK-0015: @Mentions with Autocomplete
 
 **Priority**: P1 — Launch
 **Track**: Chat (Track B)
+
+### Current State
+Autocomplete, mention rendering, and bot trigger-on-mention behavior are already shipped in V0. V1 work focuses on mention persistence (`MessageMention`) and stronger mention read-state semantics.
 
 ### Data Model
 
@@ -145,8 +148,8 @@ model MessageMention {
   - Clicking a mention opens the user's profile card
   - Mentions of the current user render with stronger highlight ("you were mentioned")
 - [ ] **Mention notification** — when a user is mentioned:
-  - Channel gets a special unread indicator (TASK-0014 handles the badge)
-  - In Wave 3, this becomes a proper notification (TASK-0027)
+  - Channel gets a special unread indicator (TASK-0016 handles the badge)
+  - In Wave 3, this becomes a proper notification (TASK-0029)
 
 ### Acceptance Criteria
 - [ ] Typing `@` shows autocomplete dropdown of channel members
@@ -157,7 +160,7 @@ model MessageMention {
 
 ---
 
-## TASK-0014: Unread Indicators
+## TASK-0016: Unread Indicators
 
 **Priority**: P0 — Launch
 **Track**: Chat (Track B)
@@ -213,7 +216,7 @@ model ChannelReadState {
 
 ---
 
-## TASK-0017: Direct Messages
+## TASK-0019: Direct Messages
 
 **Priority**: P1 — Wave 1
 **Track**: Chat
@@ -304,7 +307,7 @@ New module: `HiveGatewayWeb.DmChannel`
 
 ---
 
-## TASK-0020: Message Search
+## TASK-0022: Message Search
 
 **Priority**: P1 — Wave 2
 **Track**: Chat
@@ -338,7 +341,7 @@ New module: `HiveGatewayWeb.DmChannel`
 
 ---
 
-## TASK-0021: Server Settings UI
+## TASK-0023: Server Settings UI
 
 **Priority**: P1 — Wave 2
 **Track**: Chat
@@ -365,7 +368,7 @@ New module: `HiveGatewayWeb.DmChannel`
 
 ---
 
-## TASK-0022: User Profile & Settings
+## TASK-0024: User Profile & Settings
 
 **Priority**: P1 — Wave 2
 **Track**: Chat
@@ -394,10 +397,13 @@ New module: `HiveGatewayWeb.DmChannel`
 
 ---
 
-## TASK-0023: File & Image Uploads
+## TASK-0025: File & Image Uploads
 
 **Priority**: P1 — Wave 2
 **Track**: Chat
+
+### Current State
+Baseline attachments are already shipped in V0 (upload/download API, paperclip upload, inline image/file rendering). V1 work focuses on drag-and-drop, clipboard paste, progress UX, and richer metadata handling.
 
 ### Data Model
 
@@ -445,7 +451,7 @@ model MessageAttachment {
 
 ---
 
-## TASK-0027: Notification System
+## TASK-0029: Notification System
 
 **Priority**: P1 — Wave 3
 **Track**: Chat
@@ -488,10 +494,13 @@ model Notification {
 
 ---
 
-## TASK-0028: Emoji Reactions
+## TASK-0030: Emoji Reactions
 
 **Priority**: P2 — Wave 3
 **Track**: Chat
+
+### Current State
+Baseline reactions are already shipped in V0 (Reaction model, API, picker, optimistic toggles). V1 work focuses on real-time reaction broadcast and expanded emoji UX.
 
 ### Data Model
 
@@ -531,10 +540,13 @@ model Reaction {
 
 ---
 
-## TASK-0031: Caddy HTTPS
+## TASK-0033: Caddy HTTPS
 
 **Priority**: P1 — Deploy
 **Track**: Self-Hosting
+
+### Current State
+Already shipped. Keep this section as operational reference and for regression validation.
 
 ### Implementation
 
@@ -552,7 +564,7 @@ model Reaction {
 
 ---
 
-## TASK-0032: Admin Dashboard
+## TASK-0034: Admin Dashboard
 
 **Priority**: P2 — Deploy
 **Track**: Self-Hosting
@@ -570,7 +582,7 @@ model Reaction {
 
 ---
 
-## TASK-0033: Data Export
+## TASK-0035: Data Export
 
 **Priority**: P2 — Deploy
 **Track**: Self-Hosting
@@ -592,7 +604,7 @@ model Reaction {
 
 ---
 
-## TASK-0034: Mobile Responsive Polish
+## TASK-0036: Mobile Responsive Polish
 
 **Priority**: P1 — Deploy
 **Track**: Self-Hosting

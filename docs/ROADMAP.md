@@ -27,7 +27,7 @@ The "Holy Shit Threshold" (Grok): *When a solo dev records their full AI team sh
 
 ## V0 — COMPLETE ✅
 
-Foundation, core chat, token streaming, markdown, invite links, roles & permissions.
+Foundation, core chat, token streaming, markdown, invite links, roles & permissions, plus baseline reactions and file/image uploads.
 All break-testing and hardening complete. Two-layer terminal convergence ensures no streaming message stays stuck. See `docs/ARCHITECTURE-CURRENT.md` for full inventory.
 
 ---
@@ -42,9 +42,9 @@ These are what make someone clone the repo, run `docker-compose up`, and post ab
 
 | Task | Feature | Why It's Non-Negotiable | Sources |
 |------|---------|------------------------|---------|
-| TASK-0009 | **Agent Thinking Timeline** | THE differentiator. "Planning → Searching → Drafting" makes agents feel alive. This is the viral screenshot. Solves the "is it stuck?" anxiety. | GPT, Grok, Google |
-| TASK-0010 | **Multi-Stream in One Channel** | 2+ agents streaming simultaneously. Visual proof this isn't just another chat app. "Air traffic control for agents." | Perplexity, Grok |
-| TASK-0011 | **Provider Abstraction + Transport Strategies** | BYOK for OpenAI, Anthropic, Ollama, OpenRouter, Bedrock. Each provider gets its own transport (HTTP SSE, WebSocket, gRPC). System sees only `TokenEvent`. | Architecture review (DEC-0024) |
+| TASK-0011 | **Agent Thinking Timeline** | THE differentiator. "Planning → Searching → Drafting" makes agents feel alive. This is the viral screenshot. Solves the "is it stuck?" anxiety. | GPT, Grok, Google |
+| TASK-0012 | **Multi-Stream in One Channel** | 2+ agents streaming simultaneously. Visual proof this isn't just another chat app. "Air traffic control for agents." | Perplexity, Grok |
+| TASK-0013 | **Provider Abstraction + Transport Strategies** | BYOK for OpenAI, Anthropic, Ollama, OpenRouter, Bedrock. Each provider gets its own transport (HTTP SSE, WebSocket, gRPC). System sees only `TokenEvent`. | Architecture review (DEC-0024) |
 
 ### Track B — Chat Completeness (runs parallel)
 
@@ -52,30 +52,29 @@ These make the chat feel finished instead of a prototype. Without these, first-t
 
 | Task | Feature | Why | Source |
 |------|---------|-----|--------|
-| TASK-0012 | **Message Edit & Delete** | Chat feels broken without it | V1-ROADMAP |
-| TASK-0013 | **@Mentions with Autocomplete** | Core interaction — also triggers agents via `triggerMode=MENTION` | V1-ROADMAP |
-| TASK-0014 | **Unread Indicators** | "Something happened while you were gone" — bold channels, red badges, new-message divider | V1-ROADMAP |
+| TASK-0014 | **Message Edit & Delete** | Chat feels broken without it | V1-ROADMAP |
+| TASK-0015 | **@Mentions with Autocomplete (enhance existing)** | Core interaction — preserve shipped V0 mention UX, add mention persistence + stronger mention-state semantics | V1-ROADMAP + V0 reconciliation |
+| TASK-0016 | **Unread Indicators** | "Something happened while you were gone" — bold channels, red badges, new-message divider | V1-ROADMAP |
 
 ### Launch Gate
 
 | Task | Feature | Why |
 |------|---------|-----|
-| TASK-0015 | **README + Demo GIF** | GitHub discovery is 100% README-driven. The README IS the product page. "Zero to agents in 60 seconds." |
+| TASK-0017 | **README + Demo GIF** | GitHub discovery is 100% README-driven. The README IS the product page. "Zero to agents in 60 seconds." |
 
-**V1 launch = TASK-0009 through TASK-0015 all DONE.**
+**V1 launch = TASK-0011 through TASK-0017 all DONE.**
 
 ---
 
-## Post-Launch Wave 1 — Weeks 1-4
+## Post-Launch Wave 1 — Sprint Cycles 1-2
 
 The features that deepen the wedge and make it a daily driver.
 
 | Task | Feature | Track | Source | Notes |
 |------|---------|-------|--------|-------|
-| TASK-0016 | **MCP-Compatible Tool Interface** | Agent | Architecture review (DEC-0022), Google | `tools/list` + `tools/call` patterns. At least one built-in tool (web search or time). Makes MCP hosting a natural extension. |
-| TASK-0017 | **Direct Messages** | Chat | V1-ROADMAP | Private conversations. Reuses same `RoomChannel` patterns with `DmChannel`. |
-| TASK-0018 | **Channel Charter / Swarm Modes** | Agent | Grok Phase 2, GPT | THE core innovation — human-defined rules with teeth. See details below. |
-| TASK-0019 | **Stream Rewind + Checkpoints + Resume** | Agent | GPT ("maximum wow, minimum scope creep") | Scrub slider replays tokens 0→N. Checkpoints allow resume from different provider/model. |
+| TASK-0018 | **MCP-Compatible Tool Interface** | Agent | Architecture review (DEC-0022), Google | `tools/list` + `tools/call` patterns. At least one built-in tool (web search or time). Makes MCP hosting a natural extension. |
+| TASK-0019 | **Direct Messages** | Chat | V1-ROADMAP | Private conversations. Reuses same `RoomChannel` patterns with `DmChannel`. |
+| TASK-0021 | **Stream Rewind + Checkpoints + Resume** | Agent | GPT ("maximum wow, minimum scope creep") | Scrub slider replays tokens 0→N. Checkpoints allow resume from different provider/model. |
 
 ### Channel Charter — The Core Innovation (detail)
 
@@ -102,38 +101,39 @@ The human who owns the channel dictates how agents behave. Two-click flow via Sw
 
 ---
 
-## Post-Launch Wave 2 — Weeks 4-8
+## Post-Launch Wave 2 — Sprint Cycles 3-4
 
 Chat completeness + infrastructure hardening.
 
 | Task | Feature | Track | Source |
 |------|---------|-------|--------|
-| TASK-0020 | Message Search (full-text + filters) | Chat | V1-ROADMAP |
-| TASK-0021 | Server Settings UI | Chat | V1-ROADMAP |
-| TASK-0022 | User Profile & Settings | Chat | V1-ROADMAP |
-| TASK-0023 | File & Image Uploads | Chat | V1-ROADMAP |
-| TASK-0024 | JSON Schema Cross-Service Contracts | Infra | Architecture review (DEC-0021) |
-| TASK-0025 | gRPC/Protobuf Internal Comms (hot path) | Infra | Architecture review |
+| TASK-0022 | Message Search (full-text + filters) | Chat | V1-ROADMAP |
+| TASK-0023 | Server Settings UI | Chat | V1-ROADMAP |
+| TASK-0024 | User Profile & Settings | Chat | V1-ROADMAP |
+| TASK-0025 | File & Image Uploads (enhance existing) | Chat | V1-ROADMAP + V0 reconciliation |
+| TASK-0026 | JSON Schema Cross-Service Contracts | Infra | Architecture review (DEC-0021) |
+| TASK-0027 | gRPC/Protobuf Internal Comms (hot path) | Infra | Architecture review |
+| TASK-0020 | **Channel Charter / Swarm Modes (moved from Wave 1 after orchestration foundations)** | Agent | Grok Phase 2, GPT |
 
 ---
 
-## Post-Launch Wave 3 — Weeks 8-12
+## Post-Launch Wave 3 — Sprint Cycles 5-6
 
 Power features and stickiness.
 
 | Task | Feature | Track | Source |
 |------|---------|-------|--------|
-| TASK-0026 | Agent Memory Layer (pgvector) | Agent | Grok Phase 3, DEC-0020 |
-| TASK-0027 | Notification System | Chat | V1-ROADMAP |
-| TASK-0028 | Emoji Reactions | Chat | V1-ROADMAP |
-| TASK-0029 | X-Ray Observability Toggle | Agent | Google |
-| TASK-0030 | Branching Conversations ("fork from here") | Agent | GPT |
+| TASK-0028 | Agent Memory Layer (pgvector) | Agent | Grok Phase 3, DEC-0020 |
+| TASK-0029 | Notification System | Chat | V1-ROADMAP |
+| TASK-0030 | Emoji Reactions (enhance existing) | Chat | V1-ROADMAP + V0 reconciliation |
+| TASK-0031 | X-Ray Observability Toggle | Agent | Google |
+| TASK-0032 | Branching Conversations ("fork from here") | Agent | GPT |
 
-### X-Ray Observability (TASK-0029, detail)
+### X-Ray Observability (TASK-0031, detail)
 
 Google's analysis identified this as the gap that separates toy apps from enterprise tools. An expandable panel on any agent message showing: model name, token count (in/out), latency (TTFT + total), estimated cost, system prompt used, raw API payload. Lite version (model + tokens + latency) ships free. Full version (prompts, payloads, traces) becomes paid-tier observability dashboard.
 
-### Branching Conversations (TASK-0030, detail)
+### Branching Conversations (TASK-0032, detail)
 
 GPT's "fork this message" concept: one click creates a new channel with the last N context messages + agent state snapshot + new goal prompt. Turns linear chat into an agent workspace without needing threads.
 
@@ -143,10 +143,10 @@ GPT's "fork this message" concept: one click creates a new channel with the last
 
 | Task | Feature | Source |
 |------|---------|--------|
-| TASK-0031 | Caddy HTTPS + production docker-compose | V1-ROADMAP |
-| TASK-0032 | Admin Dashboard | V1-ROADMAP |
-| TASK-0033 | Data Export (GDPR, server backup) | V1-ROADMAP |
-| TASK-0034 | Mobile Responsive Polish | V1-ROADMAP |
+| TASK-0033 | Caddy HTTPS + production docker-compose (✅ Shipped) | V1-ROADMAP |
+| TASK-0034 | Admin Dashboard | V1-ROADMAP |
+| TASK-0035 | Data Export (GDPR, server backup) | V1-ROADMAP |
+| TASK-0036 | Mobile Responsive Polish | V1-ROADMAP |
 
 ---
 
@@ -203,7 +203,7 @@ Classified by monetization potential. The principle: **the core platform is free
 
 | Protocol | Owner | What It Does | HiveChat Status |
 |----------|-------|-------------|----------------|
-| **MCP** (Model Context Protocol) | Anthropic | Agent ↔ Tool communication via JSON-RPC 2.0 | Building (TASK-0016). Go tool interface matches MCP patterns (DEC-0022). |
+| **MCP** (Model Context Protocol) | Anthropic | Agent ↔ Tool communication via JSON-RPC 2.0 | Building (TASK-0018). Go tool interface matches MCP patterns (DEC-0022). |
 | **A2A** (Agent2Agent) | Google | Agent ↔ Agent task delegation via Agent Cards + task lifecycles | Monitor. Study Agent Card pattern for Channel Charter bot discovery. |
 | **ACP** (Agent Communication Protocol) | IBM / Linux Foundation | Agent ↔ Agent RESTful collaboration with async-first design | Monitor. Too early to build to. |
 
@@ -230,14 +230,14 @@ See `docs/DECISIONS.md` for full rationale on each.
 
 ## Execution Timeline
 
-| Week | Track A (Agent) | Track B (Chat) | Launch |
-|------|----------------|----------------|--------|
-| 1-2 | Agent Thinking Timeline | Message Edit & Delete | README + Demo GIF |
-| 2-4 | Multi-Stream | @Mentions + Unread Indicators | **Launch** → HN, r/selfhosted, X |
-| 4-6 | Provider Abstraction | Direct Messages | |
-| 6-8 | Channel Charter / Swarm Modes | Message Search + Settings UI | |
-| 8-10 | MCP Tool Interface + Stream Rewind | File Uploads + Profile | |
-| 10-12 | Memory Layer (pgvector) + X-Ray | Notifications + Reactions | |
+| Sprint Cycle | Track A (Agent) | Track B (Chat) | Launch |
+|--------------|----------------|----------------|--------|
+| 1 | Agent Thinking Timeline | Message Edit & Delete | README + Demo GIF |
+| 2 | Multi-Stream | @Mentions + Unread Indicators | **Launch** → HN, r/selfhosted, X |
+| 3 | Provider Abstraction + MCP Tool Interface | Direct Messages | |
+| 4 | Stream Rewind + Checkpoints | Message Search + Settings UI | |
+| 5 | Channel Charter / Swarm Modes | Upload enhancements + Profile | |
+| 6 | Memory Layer (pgvector) + X-Ray | Notifications + Reactions enhancements | |
 
 ---
 

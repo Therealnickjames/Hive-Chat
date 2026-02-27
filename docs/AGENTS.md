@@ -81,23 +81,25 @@ This is a locked decision. See `docs/DECISIONS.md` DEC-0019 for rationale.
 See `docs/ROADMAP.md` for the full prioritized roadmap. V1 runs two parallel tracks (DEC-0025):
 
 **Track A — Agent Wedge (Launch):**
-1. Agent Thinking Timeline (TASK-0009) ⭐
-2. Multi-stream in one channel (TASK-0010) ⭐
-3. Provider abstraction with transport strategies (TASK-0011)
+1. Agent Thinking Timeline (TASK-0011) ⭐
+2. Multi-stream in one channel (TASK-0012) ⭐
+3. Provider abstraction with transport strategies (TASK-0013)
 
 **Track B — Chat Completeness (Launch):**
-4. Message edit/delete (TASK-0012)
-5. @Mentions with autocomplete (TASK-0013)
-6. Unread indicators (TASK-0014)
+4. Message edit/delete (TASK-0014)
+5. @Mentions with autocomplete (TASK-0015)
+6. Unread indicators (TASK-0016)
 
 **Launch Gate:**
-7. README + demo (TASK-0015)
+7. README + demo (TASK-0017)
 
 **Wave 1 (Post-Launch):**
-- MCP-compatible tool interface (TASK-0016)
-- Channel Charter / Swarm Modes (TASK-0018)
-- Stream rewind + checkpoints + resume (TASK-0019)
-- Direct Messages (TASK-0017)
+- MCP-compatible tool interface (TASK-0018)
+- Stream rewind + checkpoints + resume (TASK-0021)
+- Direct Messages (TASK-0019)
+
+**Wave 2 (Post-Launch):**
+- Channel Charter / Swarm Modes (TASK-0020)
 
 ---
 

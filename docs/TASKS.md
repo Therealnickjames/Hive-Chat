@@ -2,7 +2,7 @@
 
 > Each task has: ID, title, status, acceptance criteria, and assignee role.
 > Status: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED`
-> Task numbering unified across ROADMAP.md. For detailed implementation specs (data models, API endpoints, file lists) on chat tasks, see `docs/V1-IMPLEMENTATION.md`.
+> Task numbering unified across ROADMAP.md. V0 uses TASK-0001 through TASK-0010 (all complete), and V1 starts at TASK-0011 to avoid historical collisions. For detailed implementation specs (data models, API endpoints, file lists) on chat tasks, see `docs/V1-IMPLEMENTATION.md`.
 
 ---
 
@@ -173,9 +173,43 @@ Implement server roles with bitfield-based permissions and API-level enforcement
 
 ---
 
+## TASK-0009: Emoji Reactions (V0 scope)
+
+**Status**: DONE
+**Priority**: P1 — Core Collaboration
+**Assignee**: Builder
+
+### Description
+Shipped baseline emoji reactions in V0: Reaction model, API endpoints, emoji picker, and optimistic toggle UX.
+
+### Acceptance Criteria
+- [x] Reaction data model and persistence are implemented
+- [x] Add/remove reaction API is implemented
+- [x] Emoji picker and reaction toggle UI are implemented
+- [x] Baseline reaction pills render with counts
+
+---
+
+## TASK-0010: File & Image Uploads (V0 scope)
+
+**Status**: DONE
+**Priority**: P1 — Core Collaboration
+**Assignee**: Builder
+
+### Description
+Shipped baseline attachments in V0: Attachment model, upload/download API, paperclip button, and inline image/file rendering.
+
+### Acceptance Criteria
+- [x] Attachment model and persistence are implemented
+- [x] Upload and download API endpoints are implemented
+- [x] Paperclip-based file upload is implemented
+- [x] Inline image rendering and file cards are implemented
+
+---
+
 # V1 — LAUNCH (Track A: Agent Wedge + Track B: Chat Completeness)
 
-## TASK-0009: Agent Thinking Timeline ⭐
+## TASK-0011: Agent Thinking Timeline ⭐
 
 **Status**: TODO
 **Priority**: P0 — THE Differentiator
@@ -202,7 +236,7 @@ Simplest V1: bot config includes a `thinkingSteps` array, and the proxy emits st
 
 ---
 
-## TASK-0010: Multi-Stream in One Channel ⭐
+## TASK-0012: Multi-Stream in One Channel ⭐
 
 **Status**: TODO
 **Priority**: P0 — THE Differentiator
@@ -224,7 +258,7 @@ Multiple agents streaming simultaneously in the same channel. The visual proof t
 
 ---
 
-## TASK-0011: Provider Abstraction with Transport Strategies
+## TASK-0013: Provider Abstraction with Transport Strategies
 
 **Status**: TODO
 **Priority**: P0 — Core Infrastructure
@@ -245,7 +279,7 @@ Refactor Go proxy to abstract both API format and transport per provider. Each p
 
 ---
 
-## TASK-0012: Message Edit & Delete
+## TASK-0014: Message Edit & Delete
 
 **Status**: TODO
 **Priority**: P0 — Launch
@@ -268,9 +302,9 @@ Edit own messages, delete own or admin-delete. Real-time broadcast.
 
 ---
 
-## TASK-0013: @Mentions with Autocomplete
+## TASK-0015: @Mentions with Autocomplete
 
-**Status**: TODO
+**Status**: IN PROGRESS
 **Priority**: P1 — Launch
 **Track**: B (Chat)
 **Assignee**: Builder
@@ -279,17 +313,20 @@ Edit own messages, delete own or admin-delete. Real-time broadcast.
 ### Description
 @mention users and bots with autocomplete dropdown. Mentions trigger bot responses when triggerMode=MENTION.
 
+### Current State
+Core mention UX is already shipped in V0 (autocomplete, rendering, bot trigger-on-mention). V1 scope is to complete mention persistence/querying via `MessageMention` and strengthen the "you were mentioned" read-state signal.
+
 ### Acceptance Criteria
-- [ ] Typing `@` opens autocomplete dropdown
-- [ ] Dropdown shows matching users and bots in channel
-- [ ] Selected mention inserts formatted mention text
-- [ ] Mentions render as highlighted pills in messages
-- [ ] Bot @mentions trigger bot response
+- [x] Typing `@` opens autocomplete dropdown
+- [x] Dropdown shows matching users and bots in channel
+- [x] Selected mention inserts formatted mention text
+- [x] Mentions render as highlighted pills in messages
+- [x] Bot @mentions trigger bot response
 - [ ] Mentioned users stored in `MessageMention` join table
 
 ---
 
-## TASK-0014: Unread Indicators
+## TASK-0016: Unread Indicators
 
 **Status**: TODO
 **Priority**: P0 — Launch
@@ -312,7 +349,7 @@ Track what users have read. Bold unread channels, red mention badges, new-messag
 
 ---
 
-## TASK-0015: README & Demo (Launch Prep)
+## TASK-0017: README & Demo (Launch Prep)
 
 **Status**: TODO
 **Priority**: P0 — Launch Gate
@@ -332,9 +369,9 @@ Create the killer README, demo GIF, and quickstart experience. The README IS the
 
 ---
 
-# V1 — WAVE 1 (Weeks 1-4 post-launch)
+# V1 — WAVE 1 (Sprint Cycles 1-2 post-launch)
 
-## TASK-0016: MCP-Compatible Tool Interface
+## TASK-0018: MCP-Compatible Tool Interface
 
 **Status**: TODO
 **Priority**: P1 — Architecture
@@ -355,7 +392,7 @@ Go proxy tool abstraction matching MCP `tools/list` and `tools/call` patterns. M
 
 ---
 
-## TASK-0017: Direct Messages
+## TASK-0019: Direct Messages
 
 **Status**: TODO
 **Priority**: P1
@@ -377,7 +414,7 @@ Private conversations between users. DM sidebar, real-time via WebSocket.
 
 ---
 
-## TASK-0018: Channel Charter / Swarm Modes ⭐
+## TASK-0020: Channel Charter / Swarm Modes ⭐
 
 **Status**: TODO
 **Priority**: P1 — Core Innovation
@@ -387,6 +424,8 @@ Private conversations between users. DM sidebar, real-time via WebSocket.
 
 ### Description
 Human-defined rules for multi-agent collaboration, enforced by the Go orchestrator. The channel owner dictates how agents behave — swarm modes with structure, not chaos.
+
+**Scheduling**: moved to Wave 2 to keep early post-launch execution focused on MCP tools, DMs, and stream rewind foundation.
 
 ### Acceptance Criteria
 - [ ] Swarm Settings tab in Edit Channel (2-click setup)
@@ -402,7 +441,7 @@ Study Google A2A "Agent Card" spec for bot capability registration pattern. Each
 
 ---
 
-## TASK-0019: Stream Rewind + Checkpoints + Resume
+## TASK-0021: Stream Rewind + Checkpoints + Resume
 
 **Status**: TODO
 **Priority**: P1 — Category-Defining
@@ -423,9 +462,9 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-# V1 — WAVE 2 (Weeks 4-8)
+# V1 — WAVE 2 (Sprint Cycles 3-4 post-launch)
 
-## TASK-0020: Message Search
+## TASK-0022: Message Search
 
 **Status**: TODO
 **Priority**: P1
@@ -441,7 +480,7 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-## TASK-0021: Server Settings UI
+## TASK-0023: Server Settings UI
 
 **Status**: TODO
 **Priority**: P1
@@ -456,7 +495,7 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-## TASK-0022: User Profile & Settings
+## TASK-0024: User Profile & Settings
 
 **Status**: TODO
 **Priority**: P1
@@ -471,22 +510,25 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-## TASK-0023: File & Image Uploads
+## TASK-0025: File & Image Uploads
 
-**Status**: TODO
+**Status**: IN PROGRESS
 **Priority**: P1
 **Track**: B (Chat)
 **Spec**: V1-IMPLEMENTATION.md
 
+### Current State
+Baseline uploads shipped in V0 (attachment model, upload/download API, paperclip upload, inline image/file rendering). Remaining V1 work: drag-and-drop, clipboard paste, progress UX, and richer metadata/dimensions handling.
+
 ### Acceptance Criteria
 - [ ] Upload via button, drag-and-drop, clipboard paste
-- [ ] Images render inline, files render as download cards
+- [x] Images render inline, files render as download cards
 - [ ] 10MB limit (configurable), progress indicator
 - [ ] Persist via Docker volume
 
 ---
 
-## TASK-0024: JSON Schema Cross-Service Contracts
+## TASK-0026: JSON Schema Cross-Service Contracts
 
 **Status**: TODO
 **Priority**: P2 — Infrastructure
@@ -501,7 +543,7 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-## TASK-0025: gRPC/Protobuf Internal Comms
+## TASK-0027: gRPC/Protobuf Internal Comms
 
 **Status**: TODO
 **Priority**: P2 — Infrastructure
@@ -516,9 +558,9 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-# V1 — WAVE 3 (Weeks 8-12)
+# V1 — WAVE 3 (Sprint Cycles 5-6 post-launch)
 
-## TASK-0026: Agent Memory Layer (pgvector)
+## TASK-0028: Agent Memory Layer (pgvector)
 
 **Status**: TODO
 **Priority**: P1
@@ -534,7 +576,7 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-## TASK-0027: Notification System
+## TASK-0029: Notification System
 
 **Status**: TODO
 **Priority**: P1
@@ -550,22 +592,25 @@ Replay a thought process. Scrub slider on streaming messages replays tokens 0→
 
 ---
 
-## TASK-0028: Emoji Reactions
+## TASK-0030: Emoji Reactions
 
-**Status**: TODO
+**Status**: IN PROGRESS
 **Priority**: P2
 **Track**: B (Chat)
 **Spec**: V1-IMPLEMENTATION.md
 
+### Current State
+Baseline reactions shipped in V0 (Reaction model, API, emoji picker, optimistic toggles). Remaining V1 work is real-time reaction broadcast and broader emoji set/UX polish.
+
 ### Acceptance Criteria
-- [ ] Add/remove reactions (emoji picker, ~50 common emoji)
-- [ ] Reaction pills below messages with counts
-- [ ] Toggle on click, hover shows reactors
+- [x] Add/remove reactions (emoji picker, baseline set)
+- [x] Reaction pills below messages with counts
+- [x] Toggle on click, hover shows reactors
 - [ ] Real-time broadcast
 
 ---
 
-## TASK-0029: X-Ray Observability Toggle
+## TASK-0031: X-Ray Observability Toggle
 
 **Status**: TODO
 **Priority**: P1
@@ -583,7 +628,7 @@ Expandable "X-Ray" panel on any agent message showing execution details. Lite ve
 
 ---
 
-## TASK-0030: Branching Conversations
+## TASK-0032: Branching Conversations
 
 **Status**: TODO
 **Priority**: P2
@@ -604,21 +649,21 @@ Expandable "X-Ray" panel on any agent message showing execution details. Lite ve
 
 # SELF-HOSTING & DEPLOY (parallel — ship when ready)
 
-## TASK-0031: Caddy HTTPS
+## TASK-0033: Caddy HTTPS
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: P1
 **Track**: Deploy
 **Spec**: V1-IMPLEMENTATION.md
 
 ### Acceptance Criteria
-- [ ] `docker-compose.prod.yml` with Caddy, auto HTTPS
-- [ ] WebSocket upgrade through Caddy
-- [ ] HTTP → HTTPS redirect
+- [x] `docker-compose.prod.yml` with Caddy, auto HTTPS
+- [x] WebSocket upgrade through Caddy
+- [x] HTTP → HTTPS redirect
 
 ---
 
-## TASK-0032: Admin Dashboard
+## TASK-0034: Admin Dashboard
 
 **Status**: TODO
 **Priority**: P2
@@ -631,7 +676,7 @@ Expandable "X-Ray" panel on any agent message showing execution details. Lite ve
 
 ---
 
-## TASK-0033: Data Export
+## TASK-0035: Data Export
 
 **Status**: TODO
 **Priority**: P2
@@ -645,7 +690,7 @@ Expandable "X-Ray" panel on any agent message showing execution details. Lite ve
 
 ---
 
-## TASK-0034: Mobile Responsive Polish
+## TASK-0036: Mobile Responsive Polish
 
 **Status**: TODO
 **Priority**: P1
@@ -663,30 +708,30 @@ Expandable "X-Ray" panel on any agent message showing execution details. Lite ve
 
 | Task | Wave | Track | Priority | Description | Status |
 |------|------|-------|----------|-------------|--------|
-| 0001-0008 | V0 | — | — | Foundation through Roles & Permissions | ✅ DONE |
-| **0009** | **Launch** | **Agent** | **P0** | **Agent Thinking Timeline** ⭐ | TODO |
-| **0010** | **Launch** | **Agent** | **P0** | **Multi-Stream in One Channel** ⭐ | TODO |
-| **0011** | **Launch** | **Agent** | **P0** | **Provider Abstraction + Transport** | TODO |
-| **0012** | **Launch** | **Chat** | **P0** | **Message Edit & Delete** | TODO |
-| **0013** | **Launch** | **Chat** | **P1** | **@Mentions with Autocomplete** | TODO |
-| **0014** | **Launch** | **Chat** | **P0** | **Unread Indicators** | TODO |
-| **0015** | **Launch** | **Launch** | **P0** | **README + Demo GIF** | TODO |
-| 0016 | Wave 1 | Agent | P1 | MCP Tool Interface | TODO |
-| 0017 | Wave 1 | Chat | P1 | Direct Messages | TODO |
-| 0018 | Wave 1 | Agent | P1 | Channel Charter / Swarm Modes ⭐ | TODO |
-| 0019 | Wave 1 | Agent | P1 | Stream Rewind + Checkpoints + Resume | TODO |
-| 0020 | Wave 2 | Chat | P1 | Message Search | TODO |
-| 0021 | Wave 2 | Chat | P1 | Server Settings UI | TODO |
-| 0022 | Wave 2 | Chat | P1 | User Profile & Settings | TODO |
-| 0023 | Wave 2 | Chat | P1 | File & Image Uploads | TODO |
-| 0024 | Wave 2 | Infra | P2 | JSON Schema Contracts | TODO |
-| 0025 | Wave 2 | Infra | P2 | gRPC/Protobuf Internal Comms | TODO |
-| 0026 | Wave 3 | Agent | P1 | Agent Memory (pgvector) | TODO |
-| 0027 | Wave 3 | Chat | P1 | Notification System | TODO |
-| 0028 | Wave 3 | Chat | P2 | Emoji Reactions | TODO |
-| 0029 | Wave 3 | Agent | P1 | X-Ray Observability | TODO |
-| 0030 | Wave 3 | Agent | P2 | Branching Conversations | TODO |
-| 0031 | Deploy | Deploy | P1 | Caddy HTTPS | TODO |
-| 0032 | Deploy | Deploy | P2 | Admin Dashboard | TODO |
-| 0033 | Deploy | Deploy | P2 | Data Export | TODO |
-| 0034 | Deploy | Deploy | P1 | Mobile Responsive | TODO |
+| 0001-0010 | V0 | — | — | Foundation through Reactions + Uploads | ✅ DONE |
+| **0011** | **Launch** | **Agent** | **P0** | **Agent Thinking Timeline** ⭐ | TODO |
+| **0012** | **Launch** | **Agent** | **P0** | **Multi-Stream in One Channel** ⭐ | TODO |
+| **0013** | **Launch** | **Agent** | **P0** | **Provider Abstraction + Transport** | TODO |
+| **0014** | **Launch** | **Chat** | **P0** | **Message Edit & Delete** | TODO |
+| **0015** | **Launch** | **Chat** | **P1** | **@Mentions with Autocomplete** | IN PROGRESS |
+| **0016** | **Launch** | **Chat** | **P0** | **Unread Indicators** | TODO |
+| **0017** | **Launch** | **Launch** | **P0** | **README + Demo GIF** | TODO |
+| 0018 | Wave 1 | Agent | P1 | MCP Tool Interface | TODO |
+| 0019 | Wave 1 | Chat | P1 | Direct Messages | TODO |
+| 0020 | Wave 2 | Agent | P1 | Channel Charter / Swarm Modes ⭐ | TODO |
+| 0021 | Wave 1 | Agent | P1 | Stream Rewind + Checkpoints + Resume | TODO |
+| 0022 | Wave 2 | Chat | P1 | Message Search | TODO |
+| 0023 | Wave 2 | Chat | P1 | Server Settings UI | TODO |
+| 0024 | Wave 2 | Chat | P1 | User Profile & Settings | TODO |
+| 0025 | Wave 2 | Chat | P1 | File & Image Uploads | IN PROGRESS |
+| 0026 | Wave 2 | Infra | P2 | JSON Schema Contracts | TODO |
+| 0027 | Wave 2 | Infra | P2 | gRPC/Protobuf Internal Comms | TODO |
+| 0028 | Wave 3 | Agent | P1 | Agent Memory (pgvector) | TODO |
+| 0029 | Wave 3 | Chat | P1 | Notification System | TODO |
+| 0030 | Wave 3 | Chat | P2 | Emoji Reactions | IN PROGRESS |
+| 0031 | Wave 3 | Agent | P1 | X-Ray Observability | TODO |
+| 0032 | Wave 3 | Agent | P2 | Branching Conversations | TODO |
+| 0033 | Deploy | Deploy | P1 | Caddy HTTPS | ✅ DONE |
+| 0034 | Deploy | Deploy | P2 | Admin Dashboard | TODO |
+| 0035 | Deploy | Deploy | P2 | Data Export | TODO |
+| 0036 | Deploy | Deploy | P1 | Mobile Responsive | TODO |
