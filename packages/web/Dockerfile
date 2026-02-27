@@ -46,6 +46,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy standalone build (Next.js bundles everything needed)
 COPY --from=builder /app/packages/web/.next/standalone ./
 COPY --from=builder /app/packages/web/.next/static ./packages/web/.next/static
+COPY --from=builder /app/packages/web/scripts ./scripts
 
 # Copy Prisma for runtime migrations
 COPY --from=builder /app/prisma ./prisma
