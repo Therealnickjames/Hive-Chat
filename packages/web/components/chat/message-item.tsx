@@ -5,6 +5,7 @@ import { useChatContext } from "@/components/providers/chat-provider";
 import type { MessagePayload, ReactionData } from "@/lib/hooks/use-channel";
 import { MarkdownContent } from "./markdown-content";
 import { ReactionBar } from "./reaction-bar";
+import { FileAttachment, parseFileReferences } from "./file-attachment";
 
 interface MessageItemProps {
   message: MessagePayload;
@@ -44,6 +45,10 @@ export function MessageItem({
     () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
     [members, bots]
   );
+  const { text, files } = useMemo(
+    () => parseFileReferences(message.content || ""),
+    [message.content]
+  );
   const handleReactionsChange = useCallback(
     (reactions: ReactionData[]) => {
       onReactionsChange?.(message.id, reactions);
@@ -56,7 +61,15 @@ export function MessageItem({
       <div className="group flex gap-4 px-4 py-0.5 hover:bg-background-primary/30">
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
+          <MarkdownContent content={text} mentionNames={mentionNames} />
+          {files.map((file) => (
+            <FileAttachment
+              key={file.fileId}
+              fileId={file.fileId}
+              filename={file.filename}
+              mimeType={file.mimeType}
+            />
+          ))}
           <ReactionBar
             messageId={message.id}
             reactions={message.reactions || []}
@@ -99,7 +112,15 @@ export function MessageItem({
             {formatTime(message.createdAt)}
           </span>
         </div>
-        <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
+        <MarkdownContent content={text} mentionNames={mentionNames} />
+        {files.map((file) => (
+          <FileAttachment
+            key={file.fileId}
+            fileId={file.fileId}
+            filename={file.filename}
+            mimeType={file.mimeType}
+          />
+        ))}
         <ReactionBar
           messageId={message.id}
           reactions={message.reactions || []}

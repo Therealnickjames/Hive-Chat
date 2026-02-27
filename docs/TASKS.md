@@ -160,3 +160,22 @@ Add role-based permissions so server owners can define roles, assign permissions
 
 ### Description
 Add message reactions so members can add/remove emoji reactions and see reaction counts update in real time.
+
+---
+
+## TASK-0010: File Uploads
+
+**Status**: DONE
+**Priority**: P1 — Core Collaboration
+**Assignee**: Builder
+
+### Description
+Add file upload support for chat messages. Users can upload allowed files through a web API route, store files on local disk in a Docker volume, and render image attachments inline while non-image files render as downloadable links.
+
+### Acceptance Criteria
+- [x] Attachment model added to Prisma schema with User and Message relations
+- [x] Upload storage persisted on local disk via Docker volume mount
+- [x] `POST /api/uploads` implemented with auth, validation, and disk persistence
+- [x] `GET /api/uploads/[fileId]` implemented for authenticated file serving
+- [x] Message renderer parses `[file:FILE_ID:FILENAME:MIMETYPE]` references and displays attachments
+- [x] Message input supports upload button, pending attachments, and file-reference message composition

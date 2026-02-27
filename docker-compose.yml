@@ -70,6 +70,8 @@ services:
       NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-ws://localhost:4001/socket}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       NODE_ENV: ${NODE_ENV:-production}
+    volumes:
+      - uploads-data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -144,6 +146,7 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  uploads-data:
 
 networks:
   hivechat-net:
