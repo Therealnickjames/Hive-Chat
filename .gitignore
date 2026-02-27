@@ -9,6 +9,7 @@ out/
 # === Environment ===
 .env
 .env.local
+.env.production
 .env.*.local
 
 # === Build outputs ===
@@ -56,3 +57,4 @@ coverage/
 
 # === Misc ===
 *.tsbuildinfo
+uploads/

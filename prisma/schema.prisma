@@ -74,10 +74,11 @@ model User {
   // Relations
   accounts       Account[]
   sessions       Session[]
-  ownedServers   Server[]  @relation("ServerOwner")
+  ownedServers   Server[]     @relation("ServerOwner")
   members        Member[]
-  createdInvites Invite[]  @relation("InviteCreator")
+  createdInvites Invite[]     @relation("InviteCreator")
   reactions      Reaction[]
+  attachments    Attachment[]
 }
 
 model Server {
@@ -132,8 +133,9 @@ model Message {
   updatedAt       DateTime      @updatedAt
 
   // Relations
-  channel   Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  reactions Reaction[]
+  channel     Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  reactions   Reaction[]
+  attachments Attachment[]
 
   // Primary query path: messages in a channel, sorted by time (ULID is time-sorted)
   @@index([channelId, id])
@@ -154,6 +156,24 @@ model Reaction {
 
   @@unique([messageId, userId, emoji])
   @@index([messageId])
+}
+
+model Attachment {
+  id          String   @id @db.VarChar(26)
+  messageId   String?  @db.VarChar(26) // null until message is sent
+  userId      String   @db.VarChar(26)
+  filename    String
+  mimeType    String
+  size        Int // bytes
+  storagePath String // path on disk relative to uploads dir
+  createdAt   DateTime @default(now())
+
+  // Relations
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([userId])
 }
 
 model Role {

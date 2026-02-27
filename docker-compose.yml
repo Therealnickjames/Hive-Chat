@@ -18,9 +18,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: hivechat
-      POSTGRES_PASSWORD: hivechat
-      POSTGRES_DB: hivechat
+      POSTGRES_USER: ${POSTGRES_USER:-hivechat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hivechat}
+      POSTGRES_DB: ${POSTGRES_DB:-hivechat}
     ports:
       - "5432:5432"
     volumes:
@@ -61,7 +61,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://hivechat:hivechat@db:5432/hivechat
+      DATABASE_URL: ${DATABASE_URL:-postgresql://hivechat:hivechat@db:5432/hivechat}
       REDIS_URL: redis://redis:6379
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-change-in-production}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
@@ -70,6 +70,8 @@ services:
       NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-ws://localhost:4001/socket}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       NODE_ENV: ${NODE_ENV:-production}
+    volumes:
+      - uploads-data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -137,6 +139,32 @@ services:
     networks:
       - hivechat-net
 
+  # ============================================================
+  # REVERSE PROXY (production only)
+  # ============================================================
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles:
+      - production
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      web:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+    networks:
+      - hivechat-net
+
 # ============================================================
 # VOLUMES & NETWORKS
 # ============================================================
@@ -144,6 +172,9 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  uploads-data:
+  caddy-data:
+  caddy-config:
 
 networks:
   hivechat-net:

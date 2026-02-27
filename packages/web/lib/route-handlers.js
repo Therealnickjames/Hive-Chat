@@ -19,6 +19,16 @@ function isStreamingStatus(value) {
   return value === "ACTIVE" || value === "COMPLETE" || value === "ERROR";
 }
 
+function extractAttachmentIds(content) {
+  const ids = [];
+  const regex = /\[file:([^:\]]+):[^:\]]+:[^\]]+\]/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    ids.push(match[1]);
+  }
+  return [...new Set(ids)];
+}
+
 export function createInternalMessagesPostHandler({ prismaClient }) {
   return async function internalMessagesPostHandler(request) {
     const secret = request.headers.get("x-internal-secret");
@@ -74,6 +84,9 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
       );
     }
 
+    const attachmentIds =
+      authorType === "USER" ? extractAttachmentIds(content) : [];
+
     try {
       const [message] = await prismaClient.$transaction(async (tx) => {
         const createdMessage = await tx.message.create({
@@ -88,6 +101,17 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
             sequence: sequenceBigInt,
           },
         });
+
+        if (attachmentIds.length > 0) {
+          await tx.attachment.updateMany({
+            where: {
+              id: { in: attachmentIds },
+              userId: authorId,
+              messageId: null,
+            },
+            data: { messageId: createdMessage.id },
+          });
+        }
 
         await tx.channel.updateMany({
           ...buildMonotonicLastSequenceUpdate(channelId, sequenceBigInt),

@@ -1,76 +1,78 @@
 # HiveChat
 
-**AI-native self-hostable chat platform.**
+**AI-native, self-hostable chat platform with native token streaming.**
 
-HiveChat looks and feels like Discord but is purpose-built for AI. When an AI agent responds in a channel, tokens stream smoothly word-by-word — not hacked together with message edits.
+HiveChat looks and feels like Discord but is purpose-built for AI. When an
+AI agent responds in a channel, tokens stream smoothly word-by-word - not
+hacked together with message edits.
+
+## Features
+
+- **Native token streaming** - Smooth, real-time AI responses via Server-Sent Events
+- **Multi-provider support** - OpenAI, Anthropic, Ollama, OpenRouter, or any OpenAI-compatible API
+- **Discord-like UX** - Servers, channels, roles, permissions, @mentions, reactions
+- **File uploads** - Share images and documents inline
+- **Role-based permissions** - Granular control with 8 permission types
+- **Invite links** - Shareable links with expiry and usage limits
+- **Markdown rendering** - Full markdown with syntax-highlighted code blocks
+- **Self-hostable** - Single `docker compose up`, automatic HTTPS with Caddy
+- **MIT Licensed** - Fully open source
 
 ## Quick Start
 
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- That's it. Everything else runs in containers.
-
-### Setup
-
 ```bash
-# 1. Clone the repo
 git clone https://github.com/Therealnickjames/Hive-Chat.git
 cd Hive-Chat
-
-# 2. Copy the environment template
-cp .env.example .env
-
-# 3. Start everything
-make up
-
-# 4. Open in your browser
-# http://localhost:3000
+./scripts/setup.sh
+docker compose up -d
 ```
 
-### Verify it's running
+Open [http://localhost:3000](http://localhost:3000), create an account,
+create a server, and start chatting.
 
-```bash
-make health
-```
-
-You should see three services responding with `{"status":"ok"}`.
+For production deployment with HTTPS, see the
+[Self-Hosting Guide](docs/SELF-HOSTING.md).
 
 ## Architecture
 
 Three languages, three jobs, zero overlap:
 
-| Service | Language | Port | Role |
-|---|---|---|---|
-| **Web** | TypeScript (Next.js) | 3000 | UI, auth, REST API, database |
-| **Gateway** | Elixir (Phoenix) | 4001 | WebSocket, presence, real-time messaging |
-| **Streaming** | Go | 4002 (internal) | LLM API streaming, token parsing |
+|Service|Language|Role|
+|---|---|---|
+|**Web**|TypeScript (Next.js)|UI, auth, REST API, database|
+|**Gateway**|Elixir (Phoenix)|WebSocket, presence, real-time messaging|
+|**Streaming**|Go|LLM API streaming, token parsing|
 
-Plus PostgreSQL and Redis running as Docker containers.
+Infrastructure: PostgreSQL, Redis, Caddy (optional, for HTTPS).
+
+## Adding an AI Bot
+
+1. Create a server and channel
+2. Click **Manage Bots** -> **Create Bot**
+3. Enter your LLM provider settings (API key, model, system prompt)
+4. Assign the bot to a channel
+5. Send a message - watch tokens stream in real-time
+
+Supports any OpenAI-compatible endpoint. Use Ollama for fully local AI.
+
+## Documentation
+
+- [Self-Hosting Guide](docs/SELF-HOSTING.md) - Deploy on your own server
+- [Architecture](docs/ARCHITECTURE-CURRENT.md) - How the system works
+- [Protocol](docs/PROTOCOL.md) - Cross-service message contracts
+- [Streaming](docs/STREAMING.md) - Token streaming specification
 
 ## Developer Commands
 
 ```bash
-make help        # Show all commands
-make dev         # Start in development mode
-make up          # Start in production mode
-make down        # Stop everything
-make logs        # Follow all logs
-make health      # Check service health
-make db-migrate  # Run database migrations
-make clean       # Reset everything (destroys data)
+make help          # Show all commands
+make up            # Start all services
+make down          # Stop all services
+make health        # Check service health
+make logs          # Follow all logs
+make db-migrate    # Run database migrations
 ```
-
-## Documentation
-
-All docs live in the `docs/` folder:
-
-- [`docs/HiveChat.md`](docs/HiveChat.md) — Full product spec
-- [`docs/PROTOCOL.md`](docs/PROTOCOL.md) — Cross-service message contracts
-- [`docs/AGENTS.md`](docs/AGENTS.md) — Guide for AI agents working on this codebase
-- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — Workflow and conventions
-- [`docs/DECISIONS.md`](docs/DECISIONS.md) — Architectural decision log
 
 ## License
 
-MIT License — fully open source, permissive, community-friendly.
+MIT - use it however you want.

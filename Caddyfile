@@ -1,0 +1,20 @@
+{$DOMAIN} {
+    # Next.js web app
+    handle /api/* {
+        reverse_proxy web:3000
+    }
+
+    handle /invite/* {
+        reverse_proxy web:3000
+    }
+
+    # Phoenix WebSocket - upgrade-aware proxy
+    handle /socket/* {
+        reverse_proxy gateway:4001
+    }
+
+    # Everything else goes to Next.js
+    handle {
+        reverse_proxy web:3000
+    }
+}

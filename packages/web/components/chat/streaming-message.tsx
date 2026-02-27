@@ -5,6 +5,7 @@ import { useChatContext } from "@/components/providers/chat-provider";
 import type { MessagePayload, ReactionData } from "@/lib/hooks/use-channel";
 import { MarkdownContent } from "./markdown-content";
 import { ReactionBar } from "./reaction-bar";
+import { FileAttachment, parseFileReferences } from "./file-attachment";
 
 interface StreamingMessageProps {
   message: MessagePayload;
@@ -51,6 +52,10 @@ export function StreamingMessage({
     () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
     [members, bots]
   );
+  const { text, files } = useMemo(
+    () => parseFileReferences(message.content || ""),
+    [message.content]
+  );
   const handleReactionsChange = useCallback(
     (reactions: ReactionData[]) => {
       onReactionsChange?.(message.id, reactions);
@@ -66,9 +71,17 @@ export function StreamingMessage({
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <div>
-            <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
+            <MarkdownContent content={text} mentionNames={mentionNames} />
             {isActive && <span className="inline-block w-0.5 h-4 ml-0.5 bg-brand animate-pulse align-middle" />}
           </div>
+          {files.map((file) => (
+            <FileAttachment
+              key={file.fileId}
+              fileId={file.fileId}
+              filename={file.filename}
+              mimeType={file.mimeType}
+            />
+          ))}
           {isError && (
             <p className="text-xs text-status-danger mt-1">
               Stream ended with an error
@@ -122,9 +135,17 @@ export function StreamingMessage({
           </span>
         </div>
         <div>
-          <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
+          <MarkdownContent content={text} mentionNames={mentionNames} />
           {isActive && <span className="inline-block w-0.5 h-4 ml-0.5 bg-brand animate-pulse align-middle" />}
         </div>
+        {files.map((file) => (
+          <FileAttachment
+            key={file.fileId}
+            fileId={file.fileId}
+            filename={file.filename}
+            mimeType={file.mimeType}
+          />
+        ))}
         {isError && (
           <p className="text-xs text-status-danger mt-1">
             Stream ended with an error
