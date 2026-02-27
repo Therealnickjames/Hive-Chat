@@ -35,6 +35,12 @@ interface MemberData {
   avatarUrl: string | null;
 }
 
+interface BotData {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface ChatContextValue {
   servers: ServerData[];
   currentServerId: string | null;
@@ -43,9 +49,11 @@ interface ChatContextValue {
   currentServerOwnerId: string | null;
   channels: ChannelData[];
   members: MemberData[];
+  bots: BotData[];
   refreshServers: () => Promise<void>;
   refreshChannels: () => Promise<void>;
   refreshMembers: () => Promise<void>;
+  refreshBots: () => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -79,6 +87,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [servers, setServers] = useState<ServerData[]>([]);
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [members, setMembers] = useState<MemberData[]>([]);
+  const [bots, setBots] = useState<BotData[]>([]);
   const [currentServerName, setCurrentServerName] = useState<string | null>(
     null
   );
@@ -101,6 +110,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const refreshChannels = useCallback(async () => {
     if (!serverId) {
       setChannels([]);
+      setBots([]);
       setCurrentServerName(null);
       setCurrentServerOwnerId(null);
       return;
@@ -134,6 +144,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [serverId]);
 
+  const refreshBots = useCallback(async () => {
+    if (!serverId) {
+      setBots([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/servers/${serverId}/bots`);
+      if (res.ok) {
+        const data = await res.json();
+        setBots((data.bots || []).filter((b: BotData) => b.isActive));
+      }
+    } catch (error) {
+      console.error("Failed to fetch bots:", error);
+    }
+  }, [serverId]);
+
   // Fetch servers on mount
   useEffect(() => {
     refreshServers();
@@ -143,7 +169,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshChannels();
     refreshMembers();
-  }, [refreshChannels, refreshMembers]);
+    refreshBots();
+  }, [refreshChannels, refreshMembers, refreshBots]);
 
   return (
     <ChatContext.Provider
@@ -155,9 +182,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         currentServerOwnerId,
         channels,
         members,
+        bots,
         refreshServers,
         refreshChannels,
         refreshMembers,
+        refreshBots,
       }}
     >
       {children}

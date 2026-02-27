@@ -1,12 +1,24 @@
 "use client";
 
-import { useState, useRef, useCallback, type KeyboardEvent } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
+import {
+  MentionAutocomplete,
+  getFilteredOptions,
+  type MentionOption,
+} from "./mention-autocomplete";
 
 interface MessageInputProps {
   onSend: (content: string) => void;
   onTyping: () => void;
   disabled?: boolean;
   channelName?: string;
+  mentionOptions?: MentionOption[];
 }
 
 export function MessageInput({
@@ -14,9 +26,14 @@ export function MessageInput({
   onTyping,
   disabled,
   channelName,
+  mentionOptions = [],
 }: MessageInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStartIndex, setMentionStartIndex] = useState(0);
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
@@ -24,6 +41,7 @@ export function MessageInput({
 
     onSend(trimmed);
     setValue("");
+    setMentionActive(false);
 
     // Reset textarea height
     if (textareaRef.current) {
@@ -31,37 +49,144 @@ export function MessageInput({
     }
   }, [value, onSend]);
 
+  const checkForMention = useCallback((text: string, cursorPos: number) => {
+    let i = cursorPos - 1;
+    while (i >= 0) {
+      const char = text[i];
+      if (char === "@") {
+        if (i === 0 || /\s/.test(text[i - 1])) {
+          const query = text.slice(i + 1, cursorPos);
+          if (!/\s/.test(query)) {
+            setMentionActive(true);
+            setMentionQuery(query);
+            setMentionStartIndex(i);
+            setMentionSelectedIndex(0);
+            return;
+          }
+        }
+        break;
+      }
+
+      if (/\s/.test(char)) break;
+      i--;
+    }
+    setMentionActive(false);
+  }, []);
+
+  const handleMentionSelect = useCallback(
+    (option: MentionOption) => {
+      const before = value.slice(0, mentionStartIndex);
+      const after = value.slice(mentionStartIndex + 1 + mentionQuery.length);
+      const newValue = `${before}@${option.name} ${after}`;
+      setValue(newValue);
+      setMentionActive(false);
+
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.focus();
+        const cursorPos = before.length + 1 + option.name.length + 1;
+        el.setSelectionRange(cursorPos, cursorPos);
+      });
+    },
+    [value, mentionStartIndex, mentionQuery]
+  );
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (mentionActive) {
+        const filtered = getFilteredOptions(mentionOptions, mentionQuery);
+
+        if (e.key === "ArrowDown") {
+          if (filtered.length > 0) {
+            e.preventDefault();
+            setMentionSelectedIndex((prev) =>
+              prev < filtered.length - 1 ? prev + 1 : 0
+            );
+            return;
+          }
+        }
+
+        if (e.key === "ArrowUp") {
+          if (filtered.length > 0) {
+            e.preventDefault();
+            setMentionSelectedIndex((prev) =>
+              prev > 0 ? prev - 1 : filtered.length - 1
+            );
+            return;
+          }
+        }
+
+        if (e.key === "Enter" || e.key === "Tab") {
+          if (filtered.length > 0) {
+            e.preventDefault();
+            handleMentionSelect(filtered[mentionSelectedIndex]);
+            return;
+          }
+        }
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setMentionActive(false);
+          return;
+        }
+      }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
       }
     },
-    [handleSend]
+    [
+      mentionActive,
+      mentionOptions,
+      mentionQuery,
+      mentionSelectedIndex,
+      handleMentionSelect,
+      handleSend,
+    ]
   );
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setValue(e.target.value);
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = e.target.value;
+      setValue(newValue);
       onTyping();
+
+      const cursorPos = e.target.selectionStart || 0;
+      checkForMention(newValue, cursorPos);
 
       // Auto-resize textarea
       const el = e.target;
       el.style.height = "auto";
       el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
     },
-    [onTyping]
+    [onTyping, checkForMention]
   );
+
+  const handleSelect = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    checkForMention(value, el.selectionStart || 0);
+  }, [value, checkForMention]);
 
   return (
     <div className="px-4 pb-6 pt-0">
-      <div className="flex items-end gap-2 rounded-lg bg-background-secondary px-4 py-2">
+      <div className="relative flex items-end gap-2 rounded-lg bg-background-secondary px-4 py-2">
+        <MentionAutocomplete
+          query={mentionQuery}
+          options={mentionOptions}
+          onSelect={handleMentionSelect}
+          onClose={() => setMentionActive(false)}
+          visible={mentionActive}
+          selectedIndex={mentionSelectedIndex}
+        />
         <textarea
           ref={textareaRef}
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onSelect={handleSelect}
           disabled={disabled}
           placeholder={
             channelName

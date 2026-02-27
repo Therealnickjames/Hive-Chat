@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
 interface MarkdownContentProps {
   content: string;
+  mentionNames?: string[];
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -28,7 +29,40 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function MarkdownContent({ content }: MarkdownContentProps) {
+function childrenToText(children: ReactNode): string {
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (Array.isArray(children)) return children.map(childrenToText).join("");
+  return "";
+}
+
+export function MarkdownContent({ content, mentionNames }: MarkdownContentProps) {
+  const processedContent = useMemo(() => {
+    if (!mentionNames || mentionNames.length === 0 || !content.includes("@")) {
+      return content;
+    }
+
+    const uniqueNames = Array.from(
+      new Set(mentionNames.filter((name) => name.trim().length > 0))
+    ).sort((a, b) => b.length - a.length);
+
+    let result = content;
+    for (const name of uniqueNames) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(
+        `(^|[\\s([\\{])@${escaped}(?=$|[\\s)\\]}.,!?;:])`,
+        "gm"
+      );
+      result = result.replace(regex, `$1**@${name}**`);
+    }
+    return result;
+  }, [content, mentionNames]);
+
+  const mentionSet = useMemo(
+    () => new Set((mentionNames || []).map((name) => `@${name}`)),
+    [mentionNames]
+  );
+
   if (!content) return null;
 
   return (
@@ -40,9 +74,21 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           p: ({ children }) => (
             <p className="mb-1 last:mb-0 whitespace-pre-wrap break-words">{children}</p>
           ),
-          strong: ({ children }) => (
-            <strong className="font-semibold text-text-primary">{children}</strong>
-          ),
+          strong: ({ children }) => {
+            const text = childrenToText(children);
+            if (mentionSet.has(text)) {
+              return (
+                <span className="rounded bg-brand/20 px-1 text-brand font-medium">
+                  {text}
+                </span>
+              );
+            }
+            return (
+              <strong className="font-semibold text-text-primary">
+                {children}
+              </strong>
+            );
+          },
           em: ({ children }) => <em className="italic">{children}</em>,
           a: ({ href, children }) => (
             <a
@@ -141,7 +187,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

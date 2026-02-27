@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { useChannel } from "@/lib/hooks/use-channel";
 import { ChannelHeader } from "./channel-header";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
+import type { MentionOption } from "./mention-autocomplete";
 
 interface ChatAreaProps {
   channelId: string;
@@ -22,7 +23,7 @@ export function ChatArea({
   channelTopic,
   onPresenceChange,
 }: ChatAreaProps) {
-  const { refreshMembers } = useChatContext();
+  const { refreshMembers, members, bots } = useChatContext();
   const {
     messages,
     sendMessage,
@@ -50,6 +51,22 @@ export function ChatArea({
     prevPresenceSize.current = presenceMap.size;
   }, [presenceMap.size, refreshMembers]);
 
+  const mentionOptions: MentionOption[] = useMemo(() => {
+    const memberOptions: MentionOption[] = members.map((member) => ({
+      id: member.userId,
+      name: member.displayName,
+      type: "user",
+      secondary: member.username,
+    }));
+    const botOptions: MentionOption[] = bots.map((bot) => ({
+      id: bot.id,
+      name: bot.name,
+      type: "bot",
+      secondary: "Bot",
+    }));
+    return [...memberOptions, ...botOptions];
+  }, [members, bots]);
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <ChannelHeader channelName={channelName} topic={channelTopic} />
@@ -64,6 +81,7 @@ export function ChatArea({
         onTyping={sendTyping}
         disabled={!isConnected}
         channelName={channelName}
+        mentionOptions={mentionOptions}
       />
     </div>
   );

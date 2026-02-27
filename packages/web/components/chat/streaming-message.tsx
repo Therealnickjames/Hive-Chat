@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import { useChatContext } from "@/components/providers/chat-provider";
 import type { MessagePayload } from "@/lib/hooks/use-channel";
 import { MarkdownContent } from "./markdown-content";
 
@@ -38,6 +40,11 @@ function formatTime(dateStr: string): string {
  * - Normal rendering when COMPLETE
  */
 export function StreamingMessage({ message, isGrouped }: StreamingMessageProps) {
+  const { members, bots } = useChatContext();
+  const mentionNames = useMemo(
+    () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
+    [members, bots]
+  );
   const isActive = message.streamingStatus === "ACTIVE";
   const isError = message.streamingStatus === "ERROR";
 
@@ -47,7 +54,7 @@ export function StreamingMessage({ message, isGrouped }: StreamingMessageProps) 
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <div>
-            <MarkdownContent content={message.content || ""} />
+            <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
             {isActive && <span className="inline-block w-0.5 h-4 ml-0.5 bg-brand animate-pulse align-middle" />}
           </div>
           {isError && (
@@ -96,7 +103,7 @@ export function StreamingMessage({ message, isGrouped }: StreamingMessageProps) 
           </span>
         </div>
         <div>
-          <MarkdownContent content={message.content || ""} />
+          <MarkdownContent content={message.content || ""} mentionNames={mentionNames} />
           {isActive && <span className="inline-block w-0.5 h-4 ml-0.5 bg-brand animate-pulse align-middle" />}
         </div>
         {isError && (
