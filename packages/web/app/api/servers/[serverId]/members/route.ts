@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { generateId } from "@/lib/ulid";
 
 /**
  * GET /api/servers/[serverId]/members — List members with user info
@@ -63,72 +62,15 @@ export async function GET(
 }
 
 /**
- * POST /api/servers/[serverId]/members — Join a server (direct join for MVP)
+ * POST /api/servers/[serverId]/members — REMOVED (ISSUE-015)
+ *
+ * Direct server join without an invite has been disabled.
+ * All server joins must go through /api/invites/{code}/accept.
+ * See CONSOLIDATED-FINDINGS.md ISSUE-015 and DEC-0019.
  */
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { serverId } = await params;
-
-  try {
-    // Verify server exists
-    const server = await prisma.server.findUnique({
-      where: { id: serverId },
-      select: { id: true, name: true },
-    });
-
-    if (!server) {
-      return NextResponse.json({ error: "Server not found" }, { status: 404 });
-    }
-
-    // Check if already a member
-    const existing = await prisma.member.findUnique({
-      where: {
-        userId_serverId: { userId: session.user.id, serverId },
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "Already a member" },
-        { status: 409 }
-      );
-    }
-
-    const member = await prisma.member.create({
-      data: {
-        id: generateId(),
-        userId: session.user.id,
-        serverId,
-      },
-    });
-
-    const everyoneRole = await prisma.role.findFirst({
-      where: { serverId, name: "@everyone" },
-      select: { id: true },
-    });
-
-    if (everyoneRole) {
-      await prisma.member.update({
-        where: { id: member.id },
-        data: {
-          roles: { connect: { id: everyoneRole.id } },
-        },
-      });
-    }
-
-    return NextResponse.json(
-      { id: member.id, serverId, joinedAt: member.joinedAt.toISOString() },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Failed to join server:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
-  }
+export async function POST() {
+  return NextResponse.json(
+    { error: "Direct join is disabled. Use an invite link to join servers." },
+    { status: 410 }
+  );
 }

@@ -21,14 +21,26 @@ defmodule HiveGatewayWeb.UserSocket do
   def connect(%{"token" => token}, socket, _connect_info) do
     case verify_token(token) do
       {:ok, claims} ->
-        socket =
-          socket
-          |> assign(:user_id, claims["sub"])
-          |> assign(:username, claims["username"])
-          |> assign(:display_name, claims["displayName"])
+        user_id = claims["sub"]
+        username = claims["username"]
+        display_name = claims["displayName"]
 
-        Logger.info("WebSocket connected: user=#{claims["sub"]}")
-        {:ok, socket}
+        # Validate required claims are present and non-empty
+        if is_binary(user_id) and byte_size(user_id) > 0 and
+             is_binary(username) and byte_size(username) > 0 and
+             is_binary(display_name) and byte_size(display_name) > 0 do
+          socket =
+            socket
+            |> assign(:user_id, user_id)
+            |> assign(:username, username)
+            |> assign(:display_name, display_name)
+
+          Logger.info("WebSocket connected: user=#{user_id}")
+          {:ok, socket}
+        else
+          Logger.warning("WebSocket auth failed: missing required claims (sub, username, displayName)")
+          :error
+        end
 
       {:error, reason} ->
         Logger.warning("WebSocket auth failed: #{inspect(reason)}")
@@ -48,7 +60,7 @@ defmodule HiveGatewayWeb.UserSocket do
   # Verify JWT token using shared secret
   @doc false
   def verify_token(token) do
-    jwt_secret = Application.get_env(:hive_gateway, :jwt_secret, "dev-jwt-secret")
+    jwt_secret = Application.get_env(:hive_gateway, :jwt_secret)
 
     signer = Joken.Signer.create("HS256", jwt_secret)
 

@@ -23,6 +23,9 @@ defmodule HiveGateway.Application do
       # Redis connection — for cross-service communication
       {Redix, {redis_url, [name: :redix]}},
 
+      # Task supervisor — for async bot trigger work (ISSUE-007)
+      {Task.Supervisor, name: HiveGateway.TaskSupervisor},
+
       # Presence tracking
       HiveGatewayWeb.Presence,
 

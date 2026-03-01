@@ -43,7 +43,11 @@ export async function GET() {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const jwtSecret = process.env.JWT_SECRET || "dev-jwt-secret-change-in-production";
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error("JWT_SECRET is not set");
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+  }
 
   const token = signHs256Jwt(
     {

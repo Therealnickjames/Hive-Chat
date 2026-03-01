@@ -380,3 +380,21 @@ forever on ACTIVE.
 - Separation of concerns: ROADMAP.md = "what and when", V1-IMPLEMENTATION.md = "how exactly"
 
 **Consequences**: Two roadmap docs: `docs/ROADMAP.md` (strategic, synthesized) and `docs/V1-IMPLEMENTATION.md` (detailed chat specs with task-number mapping).
+
+## DEC-0027 — Consolidation sweep: 33 issues fixed across all services
+
+**Date**: 2026-02-28
+**Status**: Accepted
+**Context**: Four independent code reviews (Composer, Opus, Codex, Claude) of the V0 codebase produced overlapping findings. Consolidated into 33 unique issues (6 CRITICAL, 10 HIGH, 10 MEDIUM, 7 LOW). Executed all fixes in a single sweep.
+**Decision**: Fix all 33 issues before starting V1 feature work. Group by service for efficiency. Key decisions within the sweep:
+- ISSUE-015: Require invite-only server joins (disable direct POST to /members). Nick's call.
+- ISSUE-010: Create shared timing-safe auth utility (`lib/internal-auth.ts`) for all internal API routes.
+- ISSUE-011: Use interactive Prisma transaction with conditional `updateMany` for atomic invite acceptance.
+- ISSUE-028: Use rejection sampling for unbiased invite code generation.
+- ISSUE-001: All secrets crash-on-missing (no fallback defaults anywhere).
+- ISSUE-004: Redis requires password auth.
+**Rationale**:
+- Security hardening must happen before any public deployment
+- Race conditions and goroutine leaks compound under load
+- Fixing now prevents V1 features from inheriting V0 bugs
+**Consequences**: All 33 issues from CONSOLIDATED-FINDINGS.md are resolved. Codebase is hardened for security, correctness, and reliability. Some changes require a Prisma migration (removed redundant indexes).

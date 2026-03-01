@@ -71,7 +71,16 @@ defmodule HiveGateway.StreamListener do
 
   @impl true
   def handle_info({:redix_pubsub, _pubsub, _ref, :reconnected, _}, state) do
-    Logger.info("[StreamListener] Redis reconnected")
+    # Redix.PubSub auto-resubscribes on reconnect, but explicitly re-subscribe
+    # as a safety measure in case auto-resubscription fails silently. (ISSUE-025)
+    Logger.info("[StreamListener] Redis reconnected — re-subscribing to patterns")
+
+    {:ok, _ref_tokens} =
+      Redix.PubSub.psubscribe(state.pubsub, "hive:stream:tokens:*", self())
+
+    {:ok, _ref_status} =
+      Redix.PubSub.psubscribe(state.pubsub, "hive:stream:status:*", self())
+
     {:noreply, state}
   end
 

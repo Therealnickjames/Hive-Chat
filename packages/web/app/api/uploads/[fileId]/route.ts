@@ -47,6 +47,8 @@ export async function GET(
       headers: {
         "Content-Type": attachment.mimeType,
         "Content-Disposition": `${disposition}; filename="${attachment.filename}"`,
+        "Content-Security-Policy": "default-src 'none'",
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=31536000, immutable",
       },
     });

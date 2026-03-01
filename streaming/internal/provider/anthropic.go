@@ -20,10 +20,14 @@ import (
 )
 
 // Anthropic implements the Provider interface for the Anthropic Claude API.
-type Anthropic struct{}
+type Anthropic struct {
+	client *http.Client // reused across all Stream() calls (ISSUE-005)
+}
 
 func NewAnthropic() *Anthropic {
-	return &Anthropic{}
+	return &Anthropic{
+		client: &http.Client{Timeout: 5 * time.Minute},
+	}
 }
 
 func (a *Anthropic) Name() string {
@@ -103,9 +107,8 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 	httpReq.Header.Set("x-api-key", req.APIKey)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 
-	// Send request
-	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Do(httpReq)
+	// Send request (reuse shared HTTP client — ISSUE-005)
+	resp, err := a.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}
@@ -119,6 +122,7 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 	// Parse SSE stream
 	var finalContent strings.Builder
 	tokenIndex := 0
+	var streamErr error // capture error events from SSE stream (ISSUE-002)
 
 	err = sse.Parse(resp.Body, func(event sse.Event) {
 		switch event.EventType {
@@ -132,11 +136,17 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 			text := delta.Delta.Text
 			if text != "" {
 				finalContent.WriteString(text)
-				tokens <- Token{
+				// Context-aware channel send — prevents goroutine leak if manager
+				// stops reading (timeout, cancel). (ISSUE-005)
+				select {
+				case tokens <- Token{
 					Text:  text,
 					Index: tokenIndex,
+				}:
+					tokenIndex++
+				case <-ctx.Done():
+					return
 				}
-				tokenIndex++
 			}
 
 		case "message_stop":
@@ -148,7 +158,11 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 			return
 
 		case "error":
+			// Anthropic sends error events for rate limits, auth failures, and
+			// overloaded errors. Capture as a real error so the manager publishes
+			// stream_error instead of stream_complete. (ISSUE-002)
 			slog.Error("Anthropic stream error event", "data", event.Data)
+			streamErr = fmt.Errorf("anthropic error event: %s", event.Data)
 			return
 
 		default:
@@ -164,6 +178,16 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 			DurationMs:   time.Since(startTime).Milliseconds(),
 			Error:        fmt.Errorf("sse parse error: %w", err),
 		}, err
+	}
+
+	// Check for error events captured during parsing (ISSUE-002)
+	if streamErr != nil {
+		return &StreamResult{
+			FinalContent: finalContent.String(),
+			TokenCount:   tokenIndex,
+			DurationMs:   time.Since(startTime).Milliseconds(),
+			Error:        streamErr,
+		}, streamErr
 	}
 
 	return &StreamResult{

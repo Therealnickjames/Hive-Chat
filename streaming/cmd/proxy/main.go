@@ -41,7 +41,11 @@ func main() {
 	port := getEnv("STREAMING_PORT", "4002")
 	redisURL := getEnv("STREAMING_REDIS_URL", getEnv("REDIS_URL", "redis://localhost:6379"))
 	webURL := getEnv("STREAMING_WEB_URL", getEnv("WEB_INTERNAL_URL", "http://web:3000"))
-	internalSecret := getEnv("INTERNAL_API_SECRET", "dev-internal-secret")
+	internalSecret := os.Getenv("INTERNAL_API_SECRET")
+	if internalSecret == "" {
+		slog.Error("INTERNAL_API_SECRET must be set")
+		os.Exit(1)
+	}
 
 	// Connect to Redis
 	redisOpts, err := redis.ParseURL(redisURL)
@@ -130,6 +134,11 @@ func main() {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server forced shutdown", "error", err)
+	}
+
+	// Close gateway client pub/sub subscription (ISSUE-009)
+	if err := gwClient.Close(); err != nil {
+		slog.Error("Gateway client close error", "error", err)
 	}
 
 	// Close Redis connection

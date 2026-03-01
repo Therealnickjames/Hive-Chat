@@ -39,6 +39,7 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingBot, setEditingBot] = useState<Bot | null>(null);
   const [error, setError] = useState("");
+  const [deletingBotId, setDeletingBotId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -163,6 +164,12 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
   async function handleDelete(botId: string) {
     if (!currentServerId) return;
 
+    // First click sets confirmation state, second click executes (ISSUE-027)
+    if (deletingBotId !== botId) {
+      setDeletingBotId(botId);
+      return;
+    }
+
     try {
       const res = await fetch(
         `/api/servers/${currentServerId}/bots/${botId}`,
@@ -173,6 +180,8 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
       }
     } catch {
       console.error("Failed to delete bot");
+    } finally {
+      setDeletingBotId(null);
     }
   }
 
@@ -214,9 +223,14 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
                     </button>
                     <button
                       onClick={() => handleDelete(bot.id)}
-                      className="rounded px-2 py-1 text-xs text-status-danger hover:bg-status-danger/10"
+                      onBlur={() => setDeletingBotId(null)}
+                      className={`rounded px-2 py-1 text-xs ${
+                        deletingBotId === bot.id
+                          ? "bg-status-danger text-white font-semibold"
+                          : "text-status-danger hover:bg-status-danger/10"
+                      }`}
                     >
-                      Delete
+                      {deletingBotId === bot.id ? "Confirm?" : "Delete"}
                     </button>
                   </div>
                 </div>

@@ -8,6 +8,15 @@ if config_env() == :prod do
     System.get_env("SECRET_KEY_BASE") ||
       raise "SECRET_KEY_BASE not set. Generate with: mix phx.gen.secret"
 
+  # ALLOWED_ORIGINS: comma-separated list of allowed WebSocket origins.
+  # Default: allow localhost origins for development.
+  # Production: set to your domain, e.g. "https://yourdomain.com"
+  allowed_origins =
+    case System.get_env("ALLOWED_ORIGINS") do
+      nil -> ["//localhost", "//127.0.0.1"]
+      origins -> String.split(origins, ",", trim: true)
+    end
+
   config :hive_gateway, HiveGatewayWeb.Endpoint,
     adapter: Bandit.PhoenixAdapter,
     http: [
@@ -15,12 +24,13 @@ if config_env() == :prod do
       port: String.to_integer(System.get_env("GATEWAY_PORT") || "4001")
     ],
     secret_key_base: secret_key_base,
-    check_origin: false
+    check_origin: allowed_origins
 end
 
 # JWT secret for validating tokens from Next.js (DEC-0003)
 config :hive_gateway, :jwt_secret,
-  System.get_env("GATEWAY_JWT_SECRET") || System.get_env("JWT_SECRET") || "dev-jwt-secret"
+  System.get_env("GATEWAY_JWT_SECRET") || System.get_env("JWT_SECRET") ||
+    raise("GATEWAY_JWT_SECRET or JWT_SECRET must be set")
 
 # Redis connection
 config :hive_gateway, :redis_url,
@@ -32,7 +42,8 @@ config :hive_gateway, :web_url,
 
 # Internal API secret
 config :hive_gateway, :internal_api_secret,
-  System.get_env("INTERNAL_API_SECRET") || "dev-internal-secret"
+  System.get_env("INTERNAL_API_SECRET") ||
+    raise("INTERNAL_API_SECRET must be set")
 
 config :hive_gateway, :stream_watchdog_timeout_ms,
   String.to_integer(System.get_env("STREAM_WATCHDOG_TIMEOUT_MS") || "45000")

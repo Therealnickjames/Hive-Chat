@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-function validateInternalSecret(request: NextRequest): boolean {
-  const secret = request.headers.get("x-internal-secret");
-  return secret === process.env.INTERNAL_API_SECRET;
-}
+import { validateInternalSecret } from "@/lib/internal-auth";
 
 /**
  * GET /api/internal/messages/{messageId}

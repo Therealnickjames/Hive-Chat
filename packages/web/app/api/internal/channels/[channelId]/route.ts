@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { serializeSequence } from "@/lib/api-safety";
+import { validateInternalSecret } from "@/lib/internal-auth";
 
 /**
  * GET /api/internal/channels/{channelId}
@@ -15,8 +16,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
-  const secret = request.headers.get("x-internal-secret");
-  if (secret !== process.env.INTERNAL_API_SECRET) {
+  if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

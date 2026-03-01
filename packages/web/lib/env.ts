@@ -20,6 +20,9 @@ const serverEnvSchema = z.object({
   // Internal API
   INTERNAL_API_SECRET: z.string().min(16, "INTERNAL_API_SECRET must be at least 16 characters"),
 
+  // Encryption (AES-256-GCM for bot API keys — DEC-0013)
+  ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters (32 bytes)"),
+
   // Node environment
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });

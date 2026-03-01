@@ -204,13 +204,31 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	tokenCount := 0
 	tokenTimeout := 30 * time.Second
 
-	for {
+	// Use a reusable timer instead of time.After in the loop.
+	// time.After creates a new timer every iteration that isn't GC'd until it fires,
+	// leaking ~3000 timers per stream at 100 tokens/sec. (ISSUE-008)
+	timer := time.NewTimer(tokenTimeout)
+	defer timer.Stop()
+
+	streamDone := false
+	for !streamDone {
 		select {
 		case token, ok := <-tokens:
 			if !ok {
 				// Token channel closed — stream ended
-				goto streamDone
+				streamDone = true
+				break
 			}
+
+			// Reset the per-token timeout timer
+			if !timer.Stop() {
+				// Drain the timer channel if it already fired
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(tokenTimeout)
 
 			// Publish token to Redis
 			tokenPayload, _ := json.Marshal(map[string]interface{}{
@@ -229,7 +247,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 			lastContent += token.Text
 			tokenCount = token.Index + 1
 
-		case <-time.After(tokenTimeout):
+		case <-timer.C:
 			// No token received for 30 seconds — timeout
 			m.logger.Warn("Stream timed out — no token received for 30s",
 				"messageId", req.MessageID,
@@ -244,7 +262,6 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		}
 	}
 
-streamDone:
 	// 6. Wait for provider result
 	pr := <-resultCh
 

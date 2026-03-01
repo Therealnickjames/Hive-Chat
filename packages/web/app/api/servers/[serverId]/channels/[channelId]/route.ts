@@ -96,6 +96,12 @@ export async function PATCH(
     if (body.topic === null || body.topic === "") {
       updateData.topic = null;
     } else if (typeof body.topic === "string") {
+      if (body.topic.length > 300) {
+        return NextResponse.json(
+          { error: "Topic must be 300 characters or fewer" },
+          { status: 400 }
+        );
+      }
       updateData.topic = body.topic;
     } else {
       return NextResponse.json(

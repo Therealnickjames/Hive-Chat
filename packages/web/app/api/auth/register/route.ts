@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { generateId } from "@/lib/ulid";
 
@@ -69,6 +70,29 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: error.errors[0].message },
         { status: 400 },
+      );
+    }
+    // Catch unique constraint violations from concurrent registrations (ISSUE-020)
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const target = (error.meta?.target as string[]) || [];
+      if (target.includes("email")) {
+        return NextResponse.json(
+          { error: "Email already taken" },
+          { status: 409 },
+        );
+      }
+      if (target.includes("username")) {
+        return NextResponse.json(
+          { error: "Username already taken" },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(
+        { error: "Email or username already taken" },
+        { status: 409 },
       );
     }
     console.error("Registration error:", error);

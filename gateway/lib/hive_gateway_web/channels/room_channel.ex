@@ -125,41 +125,63 @@ defmodule HiveGatewayWeb.RoomChannel do
   def handle_info({:check_bot_trigger, trigger_message_id, content}, socket) do
     channel_id = socket.assigns.channel_id
 
-    case WebClient.get_channel_bot(channel_id) do
-      {:ok, nil} ->
-        # No default bot for this channel
-        {:noreply, socket}
+    # Run bot trigger check in a separate Task to avoid blocking the channel process.
+    # The channel process handles ALL messages for this room — blocking it with HTTP calls
+    # would freeze message delivery for every user in the channel. (ISSUE-007)
+    Task.Supervisor.async_nolink(HiveGateway.TaskSupervisor, fn ->
+      case WebClient.get_channel_bot(channel_id) do
+        {:ok, nil} ->
+          # No default bot for this channel
+          :noop
 
-      {:ok, bot_config} ->
-        trigger_mode = Map.get(bot_config, "triggerMode", "ALWAYS")
-        bot_name = Map.get(bot_config, "name", "")
+        {:ok, bot_config} ->
+          trigger_mode = Map.get(bot_config, "triggerMode", "ALWAYS")
+          bot_name = Map.get(bot_config, "name", "")
 
-        should_trigger =
-          case trigger_mode do
-            "ALWAYS" -> true
-            "MENTION" -> String.contains?(content, "@#{bot_name}")
-            _ -> false
+          should_trigger =
+            case trigger_mode do
+              "ALWAYS" -> true
+              "MENTION" -> String.contains?(content, "@#{bot_name}")
+              _ -> false
+            end
+
+          if should_trigger do
+            run_bot_trigger(socket, bot_config, trigger_message_id)
           end
 
-        if should_trigger do
-          handle_bot_trigger(socket, bot_config, trigger_message_id)
-        else
-          {:noreply, socket}
-        end
+        {:error, reason} ->
+          Logger.error("Failed to fetch channel bot: #{inspect(reason)}")
+      end
+    end)
 
-      {:error, reason} ->
-        Logger.error("Failed to fetch channel bot: #{inspect(reason)}")
-        {:noreply, socket}
-    end
+    {:noreply, socket}
+  end
+
+  # Handle Task completion/failure — we don't need the result
+  @impl true
+  def handle_info({ref, _result}, socket) when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, socket}
   end
 
   @impl true
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, socket) do
+    {:noreply, socket}
+  end
+
+  # Maximum message content length (matches PROTOCOL.md constraint)
+  @max_content_length 4000
+
+  @impl true
   def handle_in("new_message", %{"content" => content}, socket) when is_binary(content) do
-    case String.trim(content) do
-      "" ->
+    cond do
+      String.trim(content) == "" ->
         {:reply, {:error, %{reason: "empty_content"}}, socket}
 
-      _ ->
+      String.length(content) > @max_content_length ->
+        {:reply, {:error, %{reason: "content_too_long", max: @max_content_length}}, socket}
+
+      true ->
     channel_id = socket.assigns.channel_id
     user_id = socket.assigns.user_id
     display_name = socket.assigns.display_name
@@ -323,7 +345,7 @@ defmodule HiveGatewayWeb.RoomChannel do
 
   # ---------- Bot trigger helpers ----------
 
-  defp handle_bot_trigger(socket, bot_config, trigger_message_id) do
+  defp run_bot_trigger(socket, bot_config, trigger_message_id) do
     channel_id = socket.assigns.channel_id
     bot_id = Map.get(bot_config, "id")
     bot_name = Map.get(bot_config, "name")
@@ -350,7 +372,7 @@ defmodule HiveGatewayWeb.RoomChannel do
         case WebClient.post_message(placeholder) do
           {:ok, _response} ->
             # 4. Broadcast stream_start to all clients
-            broadcast!(socket, "stream_start", %{
+            HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_start", %{
               messageId: message_id,
               botId: bot_id,
               botName: bot_name,
@@ -384,16 +406,12 @@ defmodule HiveGatewayWeb.RoomChannel do
                 Logger.error("Failed to publish stream request: #{inspect(reason)}")
             end
 
-            {:noreply, socket}
-
           {:error, reason} ->
             Logger.error("Failed to persist streaming placeholder: #{inspect(reason)}")
-            {:noreply, socket}
         end
 
       {:error, reason} ->
         Logger.error("Redis INCR failed for streaming message: #{inspect(reason)}")
-        {:noreply, socket}
     end
   end
 
@@ -423,21 +441,43 @@ defmodule HiveGatewayWeb.RoomChannel do
   end
 
   defp next_sequence(channel_id) do
+    # Redis INCR is atomic and creates the key with value 1 if it doesn't exist.
+    # No need for GET → SET NX → INCR dance which has a race condition on the
+    # first message in a channel. (ISSUE-026)
+    #
+    # For channels that already have messages in the DB but no Redis key (e.g.,
+    # after a Redis restart), we first try INCR. If the key was missing, Redis
+    # creates it at 1 — but the DB may already have higher sequences. We detect
+    # this case and seed properly.
     key = "hive:channel:#{channel_id}:seq"
 
-    case Redix.command(:redix, ["GET", key]) do
-      {:ok, nil} ->
-        with {:ok, seed} <- channel_seed_sequence(channel_id),
-             {:ok, _} <- Redix.command(:redix, ["SET", key, Integer.to_string(seed), "NX"]),
-             {:ok, sequence} <- Redix.command(:redix, ["INCR", key]) do
-          {:ok, sequence}
+    case Redix.command(:redix, ["INCR", key]) do
+      {:ok, 1} ->
+        # Key was just created — check if DB has higher sequences and seed if needed
+        case channel_seed_sequence(channel_id) do
+          {:ok, 0} ->
+            # Fresh channel, sequence 1 is correct
+            {:ok, 1}
+
+          {:ok, seed} when seed >= 1 ->
+            # DB has existing messages — set Redis to seed value and increment
+            case Redix.command(:redix, ["SET", key, Integer.to_string(seed)]) do
+              {:ok, _} ->
+                case Redix.command(:redix, ["INCR", key]) do
+                  {:ok, sequence} -> {:ok, sequence}
+                  error -> error
+                end
+
+              error ->
+                error
+            end
+
+          {:error, reason} ->
+            {:error, reason}
         end
 
-      {:ok, _existing} ->
-        case Redix.command(:redix, ["INCR", key]) do
-          {:ok, sequence} -> {:ok, sequence}
-          error -> error
-        end
+      {:ok, sequence} ->
+        {:ok, sequence}
 
       {:error, reason} ->
         {:error, reason}
@@ -463,13 +503,13 @@ defmodule HiveGatewayWeb.RoomChannel do
   def parse_sequence(_), do: {:error, :invalid_sequence}
 
   def parse_limit(nil), do: {:ok, 50}
-  def parse_limit(value) when is_integer(value) and value >= 0 do
+  def parse_limit(value) when is_integer(value) and value > 0 do
     {:ok, min(value, 100)}
   end
 
   def parse_limit(value) when is_binary(value) do
     case Integer.parse(value) do
-      {num, ""} when num >= 0 ->
+      {num, ""} when num > 0 ->
         {:ok, min(num, 100)}
 
       _ ->

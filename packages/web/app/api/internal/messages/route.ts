@@ -5,12 +5,7 @@ import {
   serializeSequence,
 } from "@/lib/api-safety";
 import { createInternalMessagesPostHandler } from "@/lib/route-handlers";
-
-// Internal API secret validation
-function validateInternalSecret(request: NextRequest): boolean {
-  const secret = request.headers.get("x-internal-secret");
-  return secret === process.env.INTERNAL_API_SECRET;
-}
+import { validateInternalSecret } from "@/lib/internal-auth";
 
 /**
  * POST /api/internal/messages — Persist a message
@@ -64,8 +59,10 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Record<string, unknown> = { channelId };
 
-    if (parsedAfterSequence) {
+    if (parsedAfterSequence !== null) {
       // Reconnection sync: messages with sequence > N
+      // Must use !== null instead of truthiness check because "0" is a valid
+      // afterSequence for fresh channels. (ISSUE-006)
       where.sequence = { gt: BigInt(parsedAfterSequence) };
     } else if (before) {
       // History cursor: messages with id < ULID (older messages)

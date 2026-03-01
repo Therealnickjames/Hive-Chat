@@ -22,12 +22,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hivechat}
       POSTGRES_DB: ${POSTGRES_DB:-hivechat}
     ports:
-      # Use a dedicated host port to avoid conflicts with local PostgreSQL installs.
-      - "${POSTGRES_HOST_PORT:-55432}:5432"
+      # Bound to localhost only — not accessible from external network.
+      # Remove this port mapping entirely in production (services use Docker network).
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-55432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hivechat"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hivechat}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,13 +38,15 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-hivechat-redis-dev}
     ports:
-      - "6379:6379"
+      # Bound to localhost only — not accessible from external network.
+      # Remove this port mapping entirely in production.
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-hivechat-redis-dev}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -63,13 +66,13 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://hivechat:hivechat@db:5432/hivechat}
-      REDIS_URL: redis://redis:6379
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret-change-in-production}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-hivechat-redis-dev}@redis:6379
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required - see .env.example}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-internal-api-secret}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - see .env.example}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required - see .env.example}
       NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-ws://localhost:4001/socket}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required - see .env.example}
       NODE_ENV: ${NODE_ENV:-production}
     volumes:
       - uploads-data:/app/uploads
@@ -96,11 +99,11 @@ services:
       - "4001:4001"
     environment:
       GATEWAY_PORT: "4001"
-      GATEWAY_JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
-      GATEWAY_REDIS_URL: redis://redis:6379
+      GATEWAY_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - see .env.example}
+      GATEWAY_REDIS_URL: redis://:${REDIS_PASSWORD:-hivechat-redis-dev}@redis:6379
       GATEWAY_WEB_URL: ${GATEWAY_WEB_URL:-http://web:3000}
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-internal-api-secret}
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dev-secret-key-base-that-is-at-least-64-bytes-long-for-development-only}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required - see .env.example}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required - see .env.example}
       PHX_SERVER: "true"
       MIX_ENV: prod
     depends_on:
@@ -125,9 +128,9 @@ services:
     # Port 4002 is internal only — not exposed to host
     environment:
       STREAMING_PORT: "4002"
-      STREAMING_REDIS_URL: redis://redis:6379
+      STREAMING_REDIS_URL: redis://:${REDIS_PASSWORD:-hivechat-redis-dev}@redis:6379
       STREAMING_WEB_URL: ${STREAMING_WEB_URL:-http://web:3000}
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-internal-api-secret}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required - see .env.example}
     depends_on:
       redis:
         condition: service_healthy

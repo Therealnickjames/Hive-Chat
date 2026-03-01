@@ -8,33 +8,12 @@ import { MarkdownContent } from "./markdown-content";
 import { ReactionBar } from "./reaction-bar";
 import { FileAttachment, parseFileReferences } from "./file-attachment";
 import { passthroughImageLoader } from "@/lib/image-loader";
+import { formatTime } from "@/lib/format-time";
 
 interface StreamingMessageProps {
   message: MessagePayload;
   isGrouped: boolean;
   onReactionsChange?: (messageId: string, reactions: ReactionData[]) => void;
-}
-
-function formatTime(dateStr: string): string {
-  try {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-
-    if (isToday) {
-      return `Today at ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-    }
-
-    return date.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return "";
-  }
 }
 
 /**

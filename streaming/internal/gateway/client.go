@@ -7,8 +7,6 @@
 // - Publish stream status (hive:stream:status:{channelId}:{messageId})
 //
 // See docs/PROTOCOL.md §2 for Redis event contracts.
-//
-// TODO: Implement in TASK-0004
 package gateway
 
 import (
@@ -19,7 +17,8 @@ import (
 
 // Client wraps Redis pub/sub for Gateway communication.
 type Client struct {
-	rdb *redis.Client
+	rdb    *redis.Client
+	pubsub *redis.PubSub // stored for cleanup on shutdown (ISSUE-009)
 }
 
 // NewClient creates a new Gateway client.
@@ -29,11 +28,12 @@ func NewClient(rdb *redis.Client) *Client {
 
 // SubscribeStreamRequests subscribes to the stream request channel.
 // Returns a channel of raw JSON messages.
+// The subscription is stored on the Client and closed by Close().
 func (c *Client) SubscribeStreamRequests(ctx context.Context) (<-chan string, error) {
-	pubsub := c.rdb.Subscribe(ctx, "hive:stream:request")
+	c.pubsub = c.rdb.Subscribe(ctx, "hive:stream:request")
 
 	// Verify subscription
-	_, err := pubsub.Receive(ctx)
+	_, err := c.pubsub.Receive(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,12 +41,21 @@ func (c *Client) SubscribeStreamRequests(ctx context.Context) (<-chan string, er
 	ch := make(chan string, 100)
 	go func() {
 		defer close(ch)
-		for msg := range pubsub.Channel() {
+		for msg := range c.pubsub.Channel() {
 			ch <- msg.Payload
 		}
 	}()
 
 	return ch, nil
+}
+
+// Close cleans up the Redis pub/sub subscription.
+// Must be called during shutdown to allow graceful exit. (ISSUE-009)
+func (c *Client) Close() error {
+	if c.pubsub != nil {
+		return c.pubsub.Close()
+	}
+	return nil
 }
 
 // PublishToken publishes a streaming token to Redis.

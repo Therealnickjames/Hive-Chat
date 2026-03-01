@@ -69,7 +69,7 @@ On failure: socket connection is rejected by Phoenix transport (WebSocket close,
 | Event | Payload | Description |
 | --- | --- | --- |
 | `phx_join` | `{lastSequence?: string}` | Join channel, optionally with last seen sequence for sync |
-| `new_message` | `{content: string}` | User sends a chat message |
+| `new_message` | `{content: string}` | User sends a chat message (max 4000 chars) |
 | `typing` | `{}` | User is typing (debounced client-side, 3s cooldown) |
 | `sync` | `{lastSequence: string}` | Request missed messages since sequence N |
 | `history` | `{before?: string, limit?: int}` | Request older messages (before = ULID cursor, limit default 50, max 100) |
@@ -336,24 +336,35 @@ Full bot configuration including decrypted API key.
 
 **Response:** Same as channel bot endpoint above.
 
-#### POST /api/internal/messages
+#### PUT /api/internal/messages/{messageId}
 
-Persist a completed or errored streaming message.
+Update a streaming message on completion or error. Used by Go Proxy to finalize placeholder messages.
 
 **Request body:**
 
 ```json
 {
-  "id": "01HXY...",
-  "channelId": "01HXY...",
-  "authorId": "01HXY...",
-  "authorType": "BOT",
   "content": "Hello! How can I help you today?",
-  "type": "STREAMING",
-  "streamingStatus": "COMPLETE",
-  "sequence": "43"
+  "streamingStatus": "COMPLETE"
 }
 ```
+
+For errors:
+
+```json
+{
+  "content": "Hello! How can I",
+  "streamingStatus": "ERROR"
+}
+```
+
+**Response:** `200 OK` with updated message fields (`id`, `content`, `streamingStatus`).
+
+#### GET /api/internal/messages/{messageId}
+
+Fetch a single message by ID. Used by Gateway StreamWatchdog to check stream terminal state.
+
+**Response:** `200 OK` with message fields (`id`, `channelId`, `content`, `type`, `streamingStatus`), or `404` if not found.
 
 ---
 
@@ -392,9 +403,9 @@ Persist a completed or errored streaming message.
 
 3. **Single writer**: Only one stream can be active per `messageId`. The Go Proxy owns the stream lifecycle for a given message.
 
-4. **Completion persistence**: On `stream_complete`, the Go Proxy calls `POST /api/internal/messages` to update the message with `streamingStatus=COMPLETE` and `content=finalContent`.
+4. **Completion persistence**: On `stream_complete`, the Go Proxy calls `PUT /api/internal/messages/{messageId}` to update the message with `streamingStatus=COMPLETE` and `content=finalContent`.
 
-5. **Error persistence**: On `stream_error`, the Go Proxy calls `POST /api/internal/messages` to update the message with `streamingStatus=ERROR` and `content=partialContent` (may be empty string).
+5. **Error persistence**: On `stream_error`, the Go Proxy calls `PUT /api/internal/messages/{messageId}` to update the message with `streamingStatus=ERROR` and `content=partialContent` (may be empty string).
 
 6. **Client cleanup**: When a user switches channels, the client MUST stop rendering any active streams from the previous channel. On rejoin, stream state is reconstructed from the persisted message.
 
@@ -478,3 +489,4 @@ In production, these endpoints are not exposed to the public internet.
 | Date | Version | Change |
 | --- | --- | --- |
 | 2026-02-23 | v1 | Initial protocol definition |
+| 2026-02-28 | v1.1 | Fix finalization endpoint (POST → PUT), add GET single message, add content length constraint, document StreamWatchdog endpoint |

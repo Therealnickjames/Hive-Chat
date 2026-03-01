@@ -6,6 +6,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,10 +35,16 @@ func NewLoader(webURL, internalSecret string) *Loader {
 
 // GetBot fetches full bot configuration including decrypted API key.
 // GET /api/internal/bots/{botId}
+// Now accepts context for cancellation support. (ISSUE-014)
 func (l *Loader) GetBot(botID string) (*BotConfig, error) {
+	return l.GetBotWithContext(context.Background(), botID)
+}
+
+// GetBotWithContext fetches bot configuration with context for cancellation.
+func (l *Loader) GetBotWithContext(ctx context.Context, botID string) (*BotConfig, error) {
 	url := fmt.Sprintf("%s/api/internal/bots/%s", l.webURL, botID)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -64,7 +71,13 @@ func (l *Loader) GetBot(botID string) (*BotConfig, error) {
 
 // FinalizeMessage updates a streaming message's content and status.
 // PUT /api/internal/messages/{messageId}
+// Now accepts context for cancellation support. (ISSUE-014)
 func (l *Loader) FinalizeMessage(messageID, content, streamingStatus string) error {
+	return l.FinalizeMessageWithContext(context.Background(), messageID, content, streamingStatus)
+}
+
+// FinalizeMessageWithContext updates a streaming message with context for cancellation.
+func (l *Loader) FinalizeMessageWithContext(ctx context.Context, messageID, content, streamingStatus string) error {
 	url := fmt.Sprintf("%s/api/internal/messages/%s", l.webURL, messageID)
 
 	body := map[string]string{
@@ -77,7 +90,7 @@ func (l *Loader) FinalizeMessage(messageID, content, streamingStatus string) err
 		return fmt.Errorf("marshal body: %w", err)
 	}
 
-	req, err := http.NewRequest("PUT", url, bytes.NewReader(bodyJSON))
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(bodyJSON))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -99,12 +112,16 @@ func (l *Loader) FinalizeMessage(messageID, content, streamingStatus string) err
 }
 
 // FinalizeMessageWithRetry attempts FinalizeMessage up to maxRetries times
-// with exponential backoff (1s, 2s, 4s). This closes the window where a
-// transient web outage causes terminal status to be published to Redis
-// (clients see completion) but the DB is never updated.
+// with exponential backoff (1s, 2s, 4s). Uses context-aware sleep to avoid
+// blocking during shutdown. (ISSUE-014)
 //
 // See docs/DECISIONS.md DEC-0018.
 func (l *Loader) FinalizeMessageWithRetry(messageID, content, streamingStatus string, logger *slog.Logger) error {
+	return l.FinalizeMessageWithRetryCtx(context.Background(), messageID, content, streamingStatus, logger)
+}
+
+// FinalizeMessageWithRetryCtx attempts FinalizeMessage with context support.
+func (l *Loader) FinalizeMessageWithRetryCtx(ctx context.Context, messageID, content, streamingStatus string, logger *slog.Logger) error {
 	const maxRetries = 3
 	backoffs := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second}
 
@@ -122,10 +139,15 @@ func (l *Loader) FinalizeMessageWithRetry(messageID, content, streamingStatus st
 				"backoff", wait.String(),
 				"lastError", lastErr.Error(),
 			)
-			time.Sleep(wait)
+			// Context-aware sleep — don't block during shutdown (ISSUE-014)
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
-		lastErr = l.FinalizeMessage(messageID, content, streamingStatus)
+		lastErr = l.FinalizeMessageWithContext(ctx, messageID, content, streamingStatus)
 		if lastErr == nil {
 			if attempt > 0 {
 				logger.Info("FinalizeMessage succeeded on retry",

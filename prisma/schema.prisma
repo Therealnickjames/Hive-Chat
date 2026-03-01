@@ -155,7 +155,8 @@ model Reaction {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
-  @@index([messageId])
+  // @@index([messageId]) — removed: composite unique index on (messageId, userId, emoji)
+  // already serves messageId lookups via its leading column (ISSUE-029)
 }
 
 model Attachment {
@@ -223,7 +224,7 @@ model Invite {
   creator User   @relation("InviteCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([serverId])
-  @@index([code])
+  // @@index([code]) — removed: @unique on code already creates an index (ISSUE-029)
 }
 
 // ============================================================
