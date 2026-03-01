@@ -11,6 +11,8 @@ defmodule HiveGateway.StreamListener do
   """
   use GenServer
 
+  alias HiveGateway.Broadcast
+
   require Logger
 
   # ---------- Public API ----------
@@ -94,16 +96,11 @@ defmodule HiveGateway.StreamListener do
 
   defp handle_stream_message("hive:stream:tokens:" <> rest, payload) do
     # rest = "{channelId}:{messageId}"
+    # Zero-copy: payload is already valid JSON from Go Proxy — skip decode,
+    # wrap raw bytes as Jason.Fragment to avoid 1000x re-encode. (DEC-0030)
     case String.split(rest, ":", parts: 2) do
       [channel_id, _message_id] ->
-        case Jason.decode(payload) do
-          {:ok, data} ->
-            # Broadcast stream_token to room:{channelId}
-            HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_token", data)
-
-          {:error, _} ->
-            Logger.error("[StreamListener] Failed to decode token payload: #{payload}")
-        end
+        Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_token", payload)
 
       _ ->
         Logger.error("[StreamListener] Invalid token channel format: hive:stream:tokens:#{rest}")
@@ -112,15 +109,16 @@ defmodule HiveGateway.StreamListener do
 
   defp handle_stream_message("hive:stream:status:" <> rest, payload) do
     # rest = "{channelId}:{messageId}"
+    # Decode to check status field, but broadcast raw JSON bytes. (DEC-0030)
     case String.split(rest, ":", parts: 2) do
-      [channel_id, message_id] ->
+      [channel_id, _message_id] ->
         case Jason.decode(payload) do
           {:ok, %{"status" => "complete"} = data} ->
-            HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_complete", data)
+            Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_complete", payload)
             Logger.info("[StreamListener] Broadcast stream_complete: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}")
 
           {:ok, %{"status" => "error"} = data} ->
-            HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_error", data)
+            Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_error", payload)
             Logger.info("[StreamListener] Broadcast stream_error: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}")
 
           {:ok, data} ->

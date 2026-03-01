@@ -26,7 +26,17 @@ type Anthropic struct {
 
 func NewAnthropic() *Anthropic {
 	return &Anthropic{
-		client: &http.Client{Timeout: 5 * time.Minute},
+		client: &http.Client{
+			Timeout: 5 * time.Minute,
+			// Tuned transport for high-concurrency streaming (DEC-0034).
+			// Go's default MaxIdleConnsPerHost=2 causes TCP churn at scale.
+			Transport: &http.Transport{
+				MaxConnsPerHost:     200,
+				MaxIdleConns:        200,
+				MaxIdleConnsPerHost: 20,
+				IdleConnTimeout:     120 * time.Second,
+			},
+		},
 	}
 }
 

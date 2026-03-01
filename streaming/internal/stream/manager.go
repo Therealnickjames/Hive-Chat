@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -199,10 +200,18 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		resultCh <- providerResult{result: result, err: err}
 	}()
 
-	// 5. Read tokens and publish to Redis with per-token timeout
+	// 5. Read tokens and publish to Redis with batching + per-token timeout
+	//
+	// Token batching (DEC-0031): Accumulate tokens and flush every 50ms or 10 tokens,
+	// whichever comes first. Concatenates token text into a single "token" field.
+	// At 1000 subscribers this reduces Redis PUBLISH calls and Phoenix broadcasts by 5-10x.
+	// Gateway and frontend require zero changes — they just see larger "token" strings.
 	var lastContent string
 	tokenCount := 0
 	tokenTimeout := 30 * time.Second
+
+	const batchMaxTokens = 10
+	const batchFlushInterval = 50 * time.Millisecond
 
 	// Use a reusable timer instead of time.After in the loop.
 	// time.After creates a new timer every iteration that isn't GC'd until it fires,
@@ -210,19 +219,44 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	timer := time.NewTimer(tokenTimeout)
 	defer timer.Stop()
 
+	// Batch accumulator: concatenate token text, flush periodically
+	var batchBuf strings.Builder
+	batchCount := 0
+	batchTimer := time.NewTimer(batchFlushInterval)
+	defer batchTimer.Stop()
+
+	flushBatch := func() {
+		if batchBuf.Len() == 0 {
+			return
+		}
+		tokenPayload, _ := json.Marshal(map[string]interface{}{
+			"messageId": req.MessageID,
+			"token":     batchBuf.String(),
+			"index":     tokenCount - 1, // latest index in batch
+		})
+		if err := m.gwClient.PublishToken(ctx, req.ChannelID, req.MessageID, string(tokenPayload)); err != nil {
+			m.logger.Error("Failed to publish token batch",
+				"messageId", req.MessageID,
+				"error", err,
+			)
+		}
+		batchBuf.Reset()
+		batchCount = 0
+	}
+
 	streamDone := false
 	for !streamDone {
 		select {
 		case token, ok := <-tokens:
 			if !ok {
-				// Token channel closed — stream ended
+				// Token channel closed — flush remaining batch, then exit loop
+				flushBatch()
 				streamDone = true
 				break
 			}
 
 			// Reset the per-token timeout timer
 			if !timer.Stop() {
-				// Drain the timer channel if it already fired
 				select {
 				case <-timer.C:
 				default:
@@ -230,25 +264,31 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 			}
 			timer.Reset(tokenTimeout)
 
-			// Publish token to Redis
-			tokenPayload, _ := json.Marshal(map[string]interface{}{
-				"messageId": req.MessageID,
-				"token":     token.Text,
-				"index":     token.Index,
-			})
-
-			if err := m.gwClient.PublishToken(ctx, req.ChannelID, req.MessageID, string(tokenPayload)); err != nil {
-				m.logger.Error("Failed to publish token",
-					"messageId", req.MessageID,
-					"error", err,
-				)
-			}
-
+			// Accumulate into batch
 			lastContent += token.Text
 			tokenCount = token.Index + 1
+			batchBuf.WriteString(token.Text)
+			batchCount++
+
+			if batchCount >= batchMaxTokens {
+				flushBatch()
+				if !batchTimer.Stop() {
+					select {
+					case <-batchTimer.C:
+					default:
+					}
+				}
+				batchTimer.Reset(batchFlushInterval)
+			}
+
+		case <-batchTimer.C:
+			// Flush batch on timer (ensures low-throughput streams still deliver promptly)
+			flushBatch()
+			batchTimer.Reset(batchFlushInterval)
 
 		case <-timer.C:
 			// No token received for 30 seconds — timeout
+			flushBatch()
 			m.logger.Warn("Stream timed out — no token received for 30s",
 				"messageId", req.MessageID,
 			)
@@ -257,6 +297,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 			return
 
 		case <-ctx.Done():
+			flushBatch()
 			m.publishError(ctx, req, lastContent, "Service shutting down", tokenCount, startTime)
 			return
 		}

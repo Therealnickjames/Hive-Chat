@@ -398,3 +398,153 @@ forever on ACTIVE.
 - Race conditions and goroutine leaks compound under load
 - Fixing now prevents V1 features from inheriting V0 bugs
 **Consequences**: All 33 issues from CONSOLIDATED-FINDINGS.md are resolved. Codebase is hardened for security, correctness, and reliability. Some changes require a Prisma migration (removed redundant indexes).
+
+---
+
+## DEC-0028 — Broadcast-first with background persistence
+
+**Date**: 2026-02-28
+**Status**: Accepted — supersedes DEC-0011 for the Gateway message pipeline
+**Context**: Speed testing showed 5-60ms per message blocked on the Web API database write before any client sees the message. At 1000 concurrent users in one channel, this synchronous persistence blocks the Elixir channel process — queuing all other messages behind each HTTP call. The broadcast payload is built entirely from in-memory data (socket assigns, ULID, Redis sequence, `DateTime.utc_now()`) with zero dependency on the database response.
+**Decision**: Broadcast messages to all clients immediately, then persist to PostgreSQL in a background `Task.Supervisor.async_nolink` task with retry logic.
+**Rationale**:
+- Broadcast payload has no DB dependency — all data comes from socket assigns, ULID generator, and Redis INCR
+- Background persistence with retry (3 retries, exponential backoff 1s/2s/4s) provides eventual durability
+- Web API returns 409 on duplicate message IDs, making retries idempotent
+- Client deduplicates via `messageIdsRef` Set — safe against duplicate broadcasts
+- Reconnection sync uses `WHERE sequence > N` which handles gaps gracefully
+- Expected latency improvement: message broadcast drops from ~15-55ms to ~3-8ms
+- At 1000 users, unblocking the channel process prevents message queuing bottleneck
+
+**Consequences**:
+- Messages are visible in real-time before they exist in the database
+- If Web API is down for 7+ seconds, messages appear in real-time but are absent from history on refresh (logged CRITICAL)
+- New module `HiveGateway.MessagePersistence` encapsulates retry logic
+- DEC-0011 (persist-first) is superseded — the reliability tradeoff is acceptable for the scale target
+
+---
+
+## DEC-0029 — ETS caching for Gateway HTTP lookups
+
+**Date**: 2026-02-28
+**Status**: Accepted
+**Context**: The Gateway makes HTTP calls to Next.js for bot config (per-message) and membership checks (per-join). At scale, the per-message bot config lookup is the largest source of unnecessary network I/O — 10-50ms per call, called for every message in every channel. No caching existed.
+**Decision**: Add a GenServer-owned ETS table (`HiveGateway.ConfigCache`) with TTL-based caching. Bot config cached per-channel (5 min TTL). Membership cached per-user+channel (15 min TTL). Negative results (no bot) cached to prevent repeated 404s. Errors NOT cached to allow retry. Raw ETS with `:public` read access — no external libraries.
+**Rationale**:
+- ETS is the BEAM's native in-memory store — zero external dependencies, O(1) lookups
+- `:public` table with `read_concurrency: true` allows channel processes to read without going through the GenServer mailbox — zero contention on the hot path
+- GenServer owns the table for lifecycle management and periodic sweep
+- 5-minute bot config TTL: bot config rarely changes, eliminates ~99% of HTTP calls
+- 15-minute membership TTL: membership changes are rare, worst case is delayed kick enforcement
+- Caching nil (no bot) prevents channels without bots from generating useless 404 traffic
+- No external library — raw ETS is ~60 lines of code
+
+**Consequences**: New module `HiveGateway.ConfigCache` added to supervision tree. Bot config lookup drops from 10-50ms HTTP to <1us ETS read on cache hit. If the ConfigCache GenServer crashes, the supervisor restarts it with a fresh table. Bot config changes via UI may take up to 5 minutes to propagate unless explicit invalidation is called.
+
+---
+
+## DEC-0030: Pre-Serialized Broadcast Payloads via Jason.Fragment
+
+**Date**: 2026-02-28
+**Status**: Accepted
+**Relates to**: DEC-0028 (broadcast-first persistence)
+
+**Context**: After P0-1 (broadcast-first) and P0-2 (ETS caching), the remaining broadcast bottleneck at 1000 users is JSON serialization. Phoenix Channels' default path calls `Jason.encode!()` independently in each subscriber's channel process — 1000 identical serializations producing the same bytes. At 10 messages/second, that's 10,000 redundant encode operations per second.
+
+**Decision**: Wrap broadcast payloads in `Jason.Fragment` before calling `broadcast!`. Jason.Fragment implements `Jason.Encoder` and returns pre-encoded bytes directly, so when Phoenix's V2 JSON serializer builds the wire format `[join_ref, ref, topic, event, payload]`, the payload portion is included as-is without re-encoding.
+
+Three broadcast patterns:
+1. **Channel broadcasts** (message_new, typing, stream_start): Pre-serialize Elixir map → Jason.Fragment → broadcast
+2. **Stream tokens from Redis**: Zero-copy — raw JSON string from Redis → Jason.Fragment → broadcast (skip both decode AND re-encode)
+3. **Stream status from Redis**: Decode for status field routing, but broadcast raw JSON bytes
+
+**Alternatives considered**:
+- Per-channel coordinator GenServer: Would require a new process per channel, DynamicSupervisor, ETS table for cached binaries, and coordinator bottleneck risk. Overkill when Jason.Fragment achieves the same result with zero infrastructure.
+- Custom Phoenix serializer: Would need to override the default serializer and maintain compatibility. Fragile across Phoenix upgrades.
+- Phoenix.Channel intercept + handle_out: Still serializes per-process, just adds a hook. Doesn't solve the core issue.
+
+**Consequences**: New module `HiveGateway.Broadcast` provides `broadcast_pre_serialized!/3`, `broadcast_from_pre_serialized!/3`, `endpoint_broadcast!/3`, and `endpoint_broadcast_raw!/3`. Wire format is byte-for-byte identical — no client changes needed. At 1000 subscribers, serialization drops from 1000x to 1x per broadcast. Stream tokens additionally save the decode step (zero-copy from Redis to WebSocket).
+
+---
+
+## DEC-0031: Token Batching in Go Streaming Proxy
+
+**Date**: 2026-02-28
+**Status**: Accepted
+**Relates to**: DEC-0030 (pre-serialized broadcasts)
+
+**Context**: Each LLM token generates 1 Redis PUBLISH → 1 Gateway broadcast → 1000 WebSocket frames. At 100 tokens/sec from a fast LLM, that's 100,000 WebSocket frames/sec to deliver to 1000 subscribers. This creates TCP backpressure and GC pressure on the BEAM VM.
+
+**Decision**: Batch tokens in the Go streaming proxy before publishing to Redis. Accumulate tokens in a `strings.Builder` and flush every 50ms or 10 tokens, whichever comes first. The flushed payload concatenates all buffered token text into a single `"token"` field with the latest `"index"` value.
+
+**Why concatenation**: The frontend (`use-channel.ts`) simply appends `payload.token` to a string buffer — it doesn't care if `token` is one character or fifty. The `index` field isn't used for ordering. Gateway StreamListener uses zero-copy raw broadcast (DEC-0030) — no parsing of token content. So batching by concatenation requires **zero changes** to Gateway or Frontend.
+
+**Alternatives considered**:
+- Batching in Elixir StreamListener: Would still receive individual Redis messages (no pub/sub load reduction), only consolidates broadcasts. Less impact than Go-side batching.
+- Array-based batch format (`{"tokens": [...]}`): Would require Gateway + Frontend changes to parse new format. Unnecessary complexity.
+
+**Consequences**: At 100 tokens/sec, approximately 20 batched publishes/sec instead of 100 individual ones. Reduces Redis pub/sub traffic and Phoenix broadcasts by 5x. At 1000 subscribers: ~20,000 WebSocket frames/sec instead of 100,000. Low-throughput streams (slow LLMs) still deliver within 50ms via the flush timer.
+
+---
+
+## DEC-0032: Server-Side Typing Throttle
+
+**Date**: 2026-02-28
+**Status**: Accepted
+
+**Context**: No server-side throttle on typing events. Every keystroke triggers a broadcast to N-1 users. At 1000 users with 50 simultaneous typists at 10 keystrokes/sec = ~500,000 WebSocket frames/sec.
+
+**Decision**: Add 2-second debounce in `RoomChannel.handle_in("typing", ...)`. Track `last_typing_at` timestamp in `socket.assigns`. Silently drop typing events within the throttle window.
+
+**Consequences**: Typing broadcasts capped at 0.5/sec per user regardless of client behavior. 50 typists × 0.5/sec × 999 recipients = 25,000 frames/sec (20x reduction). The client already has its own 3-second cooldown (DEC-0014), so this is defense-in-depth against misbehaving clients.
+
+---
+
+## DEC-0033: Request Collapsing on ConfigCache Miss
+
+**Date**: 2026-02-28
+**Status**: Accepted
+**Relates to**: DEC-0029 (ETS ConfigCache)
+
+**Context**: When ETS cache is cold (restart, TTL expiry), simultaneous messages for the same channel each independently call `WebClient.get_channel_bot()` — thundering herd of HTTP requests to Next.js.
+
+**Decision**: Route cache misses through the GenServer for request collapsing. When a miss occurs:
+1. If no in-flight request exists for this key: spawn `Task.async`, store `{ref, [from]}` in `state.in_flight`
+2. If an in-flight request already exists: add caller to waiters list (no new HTTP call)
+3. When Task completes: populate ETS, reply to all waiters, remove from `in_flight`
+
+Cache hits still read ETS directly (no GenServer hop — same fast path as before).
+
+**Consequences**: 10 concurrent cache misses for same channel = 1 HTTP request instead of 10. Stats now include `coalesced` counter and `in_flight` gauge. Task crashes are caught via `:DOWN` messages and replied with error to all waiters.
+
+---
+
+## DEC-0034: LLM Connection Pool Tuning
+
+**Date**: 2026-02-28
+**Status**: Accepted
+
+**Context**: Go's default `http.Transport` uses `MaxIdleConnsPerHost=2`. Under high concurrency (many simultaneous LLM streams), this causes TCP churn — new connections created and torn down constantly because idle connections are recycled too aggressively.
+
+**Decision**: Configure custom `http.Transport` on both Anthropic and OpenAI provider HTTP clients:
+- `MaxConnsPerHost: 200` — hard cap on concurrent connections to one host
+- `MaxIdleConns: 200` — total idle connections across all hosts
+- `MaxIdleConnsPerHost: 20` — keep more warm connections per provider endpoint
+- `IdleConnTimeout: 120s` — reclaim truly idle connections after 2 minutes
+
+**Consequences**: Reduces TCP setup/teardown overhead at scale. At 50 concurrent streams to Anthropic, connections are reused from the idle pool instead of created fresh. Minimal memory overhead (20 idle connections × ~few KB each). The 200 MaxConnsPerHost cap prevents runaway connection growth.
+
+---
+
+## DEC-0035: Per-Channel Message Rate Limiting
+
+**Date**: 2026-02-28
+**Status**: Accepted
+
+**Context**: No server-side rate limiting on message sends. A misbehaving client could flood a channel with messages, overwhelming persistence, bot triggers, and broadcasts. At 1000 subscribers, each message triggers broadcast + potential bot stream.
+
+**Decision**: ETS-based per-channel rate limiter using atomic `update_counter/4`. 20 messages/second per channel with a 1-second sliding window that resets via GenServer timer. The ETS table uses `:public` + `write_concurrency: true` so channel processes increment counters directly — no GenServer mailbox bottleneck.
+
+**Integration**: `RoomChannel.handle_in("new_message", ...)` calls `RateLimiter.check_and_increment(channel_id)` before any processing. Rate-limited messages get `{:error, %{reason: "rate_limited"}}` reply.
+
+**Consequences**: Caps channel throughput at 20 msgs/sec regardless of client count. Protects downstream systems (persistence, bot triggers, broadcasts). The 20/sec limit is generous for human conversation but prevents abuse. Counter reset every second is simple and predictable. Stats available via `RateLimiter.stats/0`.

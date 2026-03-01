@@ -15,9 +15,16 @@ defmodule HiveGatewayWeb.RoomChannel do
   """
   use Phoenix.Channel
 
+  alias HiveGateway.Broadcast
   alias HiveGateway.StreamWatchdog
+  alias HiveGateway.MessagePersistence
+  alias HiveGateway.ConfigCache
+  alias HiveGateway.RateLimiter
   alias HiveGatewayWeb.Presence
   alias HiveGateway.WebClient
+
+  # Server-side typing throttle: silently drop typing events within this window (DEC-0031)
+  @typing_throttle_ms 2_000
 
   require Logger
 
@@ -65,7 +72,7 @@ defmodule HiveGatewayWeb.RoomChannel do
   end
 
   defp authorize_join(channel_id, user_id) do
-    case WebClient.check_channel_membership(channel_id, user_id) do
+    case ConfigCache.get_channel_membership(channel_id, user_id) do
       {:ok, %{"isMember" => true}} ->
         {:ok}
 
@@ -129,7 +136,7 @@ defmodule HiveGatewayWeb.RoomChannel do
     # The channel process handles ALL messages for this room — blocking it with HTTP calls
     # would freeze message delivery for every user in the channel. (ISSUE-007)
     Task.Supervisor.async_nolink(HiveGateway.TaskSupervisor, fn ->
-      case WebClient.get_channel_bot(channel_id) do
+      case ConfigCache.get_channel_bot(channel_id) do
         {:ok, nil} ->
           # No default bot for this channel
           :noop
@@ -183,6 +190,13 @@ defmodule HiveGatewayWeb.RoomChannel do
 
       true ->
     channel_id = socket.assigns.channel_id
+
+    # 0. Per-channel rate limit check (DEC-0035)
+    case RateLimiter.check_and_increment(channel_id) do
+      {:error, :rate_limited} ->
+        {:reply, {:error, %{reason: "rate_limited"}}, socket}
+
+      :ok ->
     user_id = socket.assigns.user_id
     display_name = socket.assigns.display_name
 
@@ -192,8 +206,30 @@ defmodule HiveGatewayWeb.RoomChannel do
     # 2. Get next sequence number with Redis-backed monotonic recovery
     case next_sequence(channel_id) do
       {:ok, sequence} ->
-        # 3. Build persist request body (matches PersistMessageRequest type)
-        body = %{
+        seq_str = Integer.to_string(sequence)
+
+        # 3. Broadcast immediately — payload built from in-memory data only
+        message_payload = %{
+          id: message_id,
+          channelId: channel_id,
+          authorId: user_id,
+          authorType: "USER",
+          authorName: display_name,
+          authorAvatarUrl: nil,
+          content: content,
+          type: "STANDARD",
+          streamingStatus: nil,
+          sequence: seq_str,
+          createdAt: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
+
+        Broadcast.broadcast_pre_serialized!(socket, "message_new", message_payload)
+
+        # 4. Check for bot trigger (async — don't delay the reply)
+        send(self(), {:check_bot_trigger, message_id, content})
+
+        # 5. Persist in background — never blocks the channel process
+        persist_body = %{
           id: message_id,
           channelId: channel_id,
           authorId: user_id,
@@ -201,47 +237,18 @@ defmodule HiveGatewayWeb.RoomChannel do
           content: content,
           type: "STANDARD",
           streamingStatus: nil,
-          sequence: Integer.to_string(sequence)
+          sequence: seq_str
         }
 
-        # 4. Persist via internal API
-        case WebClient.post_message(body) do
-          {:ok, _response} ->
-            # 5. Build MessagePayload for broadcast
-            message_payload = %{
-              id: message_id,
-              channelId: channel_id,
-              authorId: user_id,
-              authorType: "USER",
-              authorName: display_name,
-              authorAvatarUrl: nil,
-              content: content,
-              type: "STANDARD",
-              streamingStatus: nil,
-              sequence: Integer.to_string(sequence),
-              createdAt: DateTime.utc_now() |> DateTime.to_iso8601()
-            }
+        MessagePersistence.persist_async(persist_body, message_id, channel_id)
 
-            # 6. Broadcast to all clients in channel
-            broadcast!(socket, "message_new", message_payload)
-
-            # 7. Check for bot trigger (async — don't delay the reply)
-            send(self(), {:check_bot_trigger, message_id, content})
-
-            # 8. Reply to sender with message id and sequence
-            {:reply, {:ok, %{id: message_id, sequence: Integer.to_string(sequence)}}, socket}
-
-          {:error, reason} ->
-            Logger.error(
-              "Failed to persist message: channel=#{channel_id} error=#{inspect(reason)}"
-            )
-
-            {:reply, {:error, %{reason: "persistence_failed"}}, socket}
-        end
+        # 6. Reply to sender immediately
+        {:reply, {:ok, %{id: message_id, sequence: seq_str}}, socket}
 
       {:error, reason} ->
         Logger.error("Redis INCR failed: #{inspect(reason)}")
         {:reply, {:error, %{reason: "sequence_failed"}}, socket}
+    end
     end
     end
   end
@@ -253,14 +260,23 @@ defmodule HiveGatewayWeb.RoomChannel do
 
   @impl true
   def handle_in("typing", _payload, socket) do
-    # Broadcast typing indicator to other users in the channel
-    broadcast_from(socket, "user_typing", %{
-      userId: socket.assigns.user_id,
-      username: socket.assigns.username,
-      displayName: socket.assigns.display_name
-    })
+    # Server-side typing throttle: cap at 1 broadcast per @typing_throttle_ms per user.
+    # At 1000 users, this prevents 50 typists × 10 keystrokes/sec = 500k frames/sec.
+    now = System.monotonic_time(:millisecond)
+    last = socket.assigns[:last_typing_at] || 0
 
-    {:noreply, socket}
+    if now - last >= @typing_throttle_ms do
+      Broadcast.broadcast_from_pre_serialized!(socket, "user_typing", %{
+        userId: socket.assigns.user_id,
+        username: socket.assigns.username,
+        displayName: socket.assigns.display_name
+      })
+
+      {:noreply, assign(socket, :last_typing_at, now)}
+    else
+      # Silently drop — client-side already has its own throttle (DEC-0014)
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -357,7 +373,21 @@ defmodule HiveGatewayWeb.RoomChannel do
     # 2. Get next sequence number with Redis-backed monotonic recovery
     case next_sequence(channel_id) do
       {:ok, sequence} ->
-        # 3. Persist placeholder (type=STREAMING, status=ACTIVE, content="")
+        seq_str = Integer.to_string(sequence)
+
+        # 3. Broadcast stream_start immediately — no DB dependency
+        Broadcast.endpoint_broadcast!("room:#{channel_id}", "stream_start", %{
+          messageId: message_id,
+          botId: bot_id,
+          botName: bot_name,
+          botAvatarUrl: bot_avatar_url,
+          sequence: seq_str
+        })
+
+        # 4. Register fallback watchdog immediately
+        StreamWatchdog.register_stream(channel_id, message_id)
+
+        # 5. Persist placeholder in background (concurrent with context fetch)
         placeholder = %{
           id: message_id,
           channelId: channel_id,
@@ -366,48 +396,32 @@ defmodule HiveGatewayWeb.RoomChannel do
           content: "",
           type: "STREAMING",
           streamingStatus: "ACTIVE",
-          sequence: Integer.to_string(sequence)
+          sequence: seq_str
         }
 
-        case WebClient.post_message(placeholder) do
-          {:ok, _response} ->
-            # 4. Broadcast stream_start to all clients
-            HiveGatewayWeb.Endpoint.broadcast!("room:#{channel_id}", "stream_start", %{
-              messageId: message_id,
-              botId: bot_id,
-              botName: bot_name,
-              botAvatarUrl: bot_avatar_url,
-              sequence: Integer.to_string(sequence)
-            })
+        MessagePersistence.persist_async(placeholder, message_id, channel_id)
 
-            # Register fallback watchdog in case terminal status is missed on Redis pub/sub.
-            StreamWatchdog.register_stream(channel_id, message_id)
+        # 6. Build context messages for the LLM
+        context_messages = fetch_context_messages(channel_id)
 
-            # 5. Build context messages for the LLM
-            context_messages = fetch_context_messages(channel_id)
+        # 7. Publish stream request to Redis for Go Proxy
+        stream_request =
+          Jason.encode!(%{
+            channelId: channel_id,
+            messageId: message_id,
+            botId: bot_id,
+            triggerMessageId: trigger_message_id,
+            contextMessages: context_messages
+          })
 
-            # 6. Publish stream request to Redis for Go Proxy
-            stream_request =
-              Jason.encode!(%{
-                channelId: channel_id,
-                messageId: message_id,
-                botId: bot_id,
-                triggerMessageId: trigger_message_id,
-                contextMessages: context_messages
-              })
-
-            case Redix.command(:redix, ["PUBLISH", "hive:stream:request", stream_request]) do
-              {:ok, _} ->
-                Logger.info(
-                  "Stream request published: channel=#{channel_id} message=#{message_id} bot=#{bot_id}"
-                )
-
-              {:error, reason} ->
-                Logger.error("Failed to publish stream request: #{inspect(reason)}")
-            end
+        case Redix.command(:redix, ["PUBLISH", "hive:stream:request", stream_request]) do
+          {:ok, _} ->
+            Logger.info(
+              "Stream request published: channel=#{channel_id} message=#{message_id} bot=#{bot_id}"
+            )
 
           {:error, reason} ->
-            Logger.error("Failed to persist streaming placeholder: #{inspect(reason)}")
+            Logger.error("Failed to publish stream request: #{inspect(reason)}")
         end
 
       {:error, reason} ->

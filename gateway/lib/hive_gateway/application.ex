@@ -26,6 +26,12 @@ defmodule HiveGateway.Application do
       # Task supervisor — for async bot trigger work (ISSUE-007)
       {Task.Supervisor, name: HiveGateway.TaskSupervisor},
 
+      # Config cache — ETS-backed cache for bot config and membership (DEC-0029)
+      HiveGateway.ConfigCache,
+
+      # Rate limiter — per-channel message rate limiting (DEC-0035)
+      HiveGateway.RateLimiter,
+
       # Presence tracking
       HiveGatewayWeb.Presence,
 

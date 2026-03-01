@@ -161,6 +161,14 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
         { status: 201 }
       );
     } catch (error) {
+      // P2002 = Prisma unique constraint violation (duplicate message ID).
+      // Return 409 so Gateway retry logic treats it as success (idempotency).
+      if (error?.code === 'P2002') {
+        return NextResponse.json(
+          { error: "Message already exists" },
+          { status: 409 }
+        );
+      }
       console.error("Failed to persist message:", error);
       return NextResponse.json(
         { error: "Failed to persist message" },

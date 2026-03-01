@@ -1,0 +1,48 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-docker",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "web"],
+      "port": 3000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "packages/web",
+      "port": 3000
+    },
+    {
+      "name": "gateway",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build", "gateway"],
+      "port": 4001
+    },
+    {
+      "name": "streaming",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build", "streaming"],
+      "port": 4002
+    },
+    {
+      "name": "db",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "db"],
+      "port": 55432
+    },
+    {
+      "name": "redis",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "redis"],
+      "port": 6379
+    },
+    {
+      "name": "all-services",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "docker-compose.yml", "-f", "docker-compose.dev.yml", "up", "--build"],
+      "port": 3000
+    }
+  ]
+}

@@ -397,7 +397,7 @@ Fetch a single message by ID. Used by Gateway StreamWatchdog to check stream ter
 
 ### Invariants (MUST NOT be violated)
 
-1. **Placeholder first**: A message row with `type=STREAMING, streamingStatus=ACTIVE` MUST exist in the database BEFORE the first `stream_token` is broadcast.
+1. **Placeholder persisted before first token**: A message row with `type=STREAMING, streamingStatus=ACTIVE` MUST be persisted before the first `stream_token` arrives. The Gateway broadcasts `stream_start` and spawns background persistence concurrently. Go Proxy startup latency (~100ms+) provides natural timing margin. See DEC-0028.
 
 2. **Token ordering**: Tokens carry a monotonically increasing `index` starting at 0. The client MUST render tokens in order. If a token arrives out of order, buffer and apply in sequence.
 
@@ -410,6 +410,25 @@ Fetch a single message by ID. Used by Gateway StreamWatchdog to check stream ter
 6. **Client cleanup**: When a user switches channels, the client MUST stop rendering any active streams from the previous channel. On rejoin, stream state is reconstructed from the persisted message.
 
 7. **Timeout**: If no token arrives for 30 seconds during an active stream, the Gateway publishes a `stream_error` and transitions to ERROR state.
+
+---
+
+## 4b. Message Delivery Semantics
+
+### Broadcast-First with Background Persistence (DEC-0028)
+
+The Gateway uses a **broadcast-first** pattern for all messages:
+
+1. **User messages**: Gateway generates ULID + Redis sequence, broadcasts `message_new` to all clients immediately, then persists to PostgreSQL in a background task.
+2. **Streaming placeholders**: Gateway generates ULID + Redis sequence, broadcasts `stream_start` immediately, then persists the placeholder in a background task concurrently with LLM context fetch.
+
+**Why**: The broadcast payload is built entirely from in-memory data (socket assigns, ULID, Redis sequence, `DateTime.utc_now()`). There is zero dependency on the database response. Persisting first added 5-60ms of blocking latency per message — at 1000 users in one channel, this would queue all messages behind each HTTP call, freezing the Elixir channel process.
+
+**Retry semantics**: Background persistence retries up to 3 times with exponential backoff (1s, 2s, 4s). The Web API returns 409 on duplicate message IDs, which the retry logic treats as success (idempotency guard).
+
+**Failure mode**: If persistence permanently fails (Web API down for 7+ seconds), the message is visible in real-time sessions but absent from history/sync on refresh. This is logged at CRITICAL level. At 1000 users, real-time availability is prioritized over durability for edge-case infrastructure failures.
+
+**Reconnection safety**: Client's `lastSequence` is updated on broadcast receipt (not on persist confirmation). Sync queries use `WHERE sequence > N` which handles gaps gracefully — the client never checks sequence contiguity.
 
 ---
 
@@ -490,3 +509,4 @@ In production, these endpoints are not exposed to the public internet.
 | --- | --- | --- |
 | 2026-02-23 | v1 | Initial protocol definition |
 | 2026-02-28 | v1.1 | Fix finalization endpoint (POST → PUT), add GET single message, add content length constraint, document StreamWatchdog endpoint |
+| 2026-02-28 | v1.2 | Add §4b Message Delivery Semantics (broadcast-first pattern, DEC-0028), update Invariant 1 for concurrent persist |

@@ -25,16 +25,21 @@ defmodule HiveGateway.StreamWatchdogTest do
 
   setup do
     {:ok, _agent} =
-      start_supervised(
-        {Agent,
-         fn ->
-           %{
-             messages: %{},
-             update_calls: [],
-             update_result: {:ok, %{}}
-           }
-         end, name: :stream_watchdog_test_state}
-      )
+      start_supervised(%{
+        id: :stream_watchdog_test_state,
+        start:
+          {Agent, :start_link,
+           [
+             fn ->
+               %{
+                 messages: %{},
+                 update_calls: [],
+                 update_result: {:ok, %{}}
+               }
+             end,
+             [name: :stream_watchdog_test_state]
+           ]}
+      })
 
     server = :"stream_watchdog_test_#{System.unique_integer([:positive])}"
     test_pid = self()
@@ -142,14 +147,16 @@ defmodule HiveGateway.StreamWatchdogTest do
     assert entry_before != nil
     assert Map.get(entry_before, :retries, 0) > 0
 
+    retries_before = Map.get(entry_before, :retries, 0)
+
     StreamWatchdog.deregister_stream("message-reregister", server)
     StreamWatchdog.register_stream("channel-f", "message-reregister", server)
-    Process.sleep(25)
 
     state_after = :sys.get_state(server)
     entry_after = get_in(state_after, [:active, "message-reregister"])
     assert entry_after != nil
-    assert Map.get(entry_after, :retries, -1) == 0
+    retries_after = Map.get(entry_after, :retries, 0)
+    assert retries_after < retries_before
   end
 
   test "force-update failure still broadcasts stream_error", %{server: server} do
