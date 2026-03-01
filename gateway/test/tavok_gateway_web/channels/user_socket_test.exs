@@ -21,6 +21,48 @@ defmodule TavokGatewayWeb.UserSocketTest do
   end
 
   describe "verify_token/1" do
+    test "rejects completely invalid token string" do
+      assert {:error, _reason} = UserSocket.verify_token("not.a.jwt")
+    end
+
+    test "rejects JWT signed with wrong key", %{secret: _secret} do
+      token =
+        sign_hs256(
+          %{
+            "sub" => "user-1",
+            "username" => "alice",
+            "displayName" => "Alice",
+            "exp" => System.system_time(:second) + 3600
+          },
+          "wrong-secret-key"
+        )
+
+      assert {:error, _reason} = UserSocket.verify_token(token)
+    end
+
+    test "rejects empty string token" do
+      assert {:error, _reason} = UserSocket.verify_token("")
+    end
+
+    test "returns claims with all expected fields on success", %{secret: secret} do
+      token =
+        sign_hs256(
+          %{
+            "sub" => "user-42",
+            "username" => "bob",
+            "displayName" => "Bob Builder",
+            "exp" => System.system_time(:second) + 7200
+          },
+          secret
+        )
+
+      assert {:ok, claims} = UserSocket.verify_token(token)
+      assert claims["sub"] == "user-42"
+      assert claims["username"] == "bob"
+      assert claims["displayName"] == "Bob Builder"
+      assert is_number(claims["exp"])
+    end
+
     test "rejects JWT without exp claim", %{secret: secret} do
       token =
         sign_hs256(
