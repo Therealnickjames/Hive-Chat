@@ -5,6 +5,11 @@ export type TriggerMode = "ALWAYS" | "MENTION" | "KEYWORD";
 export type LLMProvider =
   | "anthropic"
   | "openai"
+  | "google"
+  | "xai"
+  | "groq"
+  | "mistral"
+  | "moonshot"
   | "ollama"
   | "openrouter"
   | "custom";

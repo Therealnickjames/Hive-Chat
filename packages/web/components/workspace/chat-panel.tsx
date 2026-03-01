@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useWorkspaceContext } from "@/components/providers/workspace-provider";
 import { useChatContext } from "@/components/providers/chat-provider";
@@ -9,6 +9,8 @@ import { MessageList } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import type { MentionOption } from "@/components/chat/mention-autocomplete";
+import { ChannelSettingsModal } from "@/components/modals/channel-settings-modal";
+import { Permissions } from "@/lib/permissions";
 import { PanelState } from "@/lib/hooks/use-panel-state";
 
 interface ChatPanelProps {
@@ -29,7 +31,8 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     setStreamState,
   } = useWorkspaceContext();
 
-  const { servers, serverDataById, ensureServerScopedData } = useChatContext();
+  const { servers, serverDataById, ensureServerScopedData, hasPermission } = useChatContext();
+  const [showChannelSettings, setShowChannelSettings] = useState(false);
   const {
     messages,
     sendMessage,
@@ -240,6 +243,11 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     [servers, panel.serverId]
   );
 
+  const channelData = useMemo(() => {
+    const scoped = serverDataById[panel.serverId];
+    return scoped?.channels?.find((ch) => ch.id === panel.channelId);
+  }, [serverDataById, panel.serverId, panel.channelId]);
+
   const hasActiveStream = messages.some((m) => m.streamingStatus === "ACTIVE");
 
   useEffect(() => {
@@ -298,6 +306,19 @@ export function ChatPanel({ panel }: ChatPanelProps) {
             <span className="font-mono text-[10px] text-text-dim uppercase tracking-wider select-none">
               @{panelServerName}
             </span>
+          )}
+          {hasPermission(Permissions.MANAGE_CHANNELS) && (
+            <button
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => setShowChannelSettings(true)}
+              className="ml-1 text-text-dim hover:text-text-primary transition-colors"
+              title="Channel Settings"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs select-none">
@@ -378,6 +399,15 @@ export function ChatPanel({ panel }: ChatPanelProps) {
           <div className="absolute bottom-0 right-0 h-2 w-2 border-b border-r border-text-dim pointer-events-none rounded-br-[1px]" />
         </div>
       )}
+
+      <ChannelSettingsModal
+        isOpen={showChannelSettings}
+        onClose={() => setShowChannelSettings(false)}
+        channelId={panel.channelId}
+        channelName={panel.channelName}
+        currentBotIds={channelData?.botIds}
+        currentDefaultBotId={channelData?.defaultBotId ?? null}
+      />
     </div>
   );
 }

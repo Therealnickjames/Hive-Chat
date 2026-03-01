@@ -7,7 +7,6 @@ import { useChatContext } from "@/components/providers/chat-provider";
 import { useWorkspaceContext } from "@/components/providers/workspace-provider";
 import { CreateServerModal } from "@/components/modals/create-server-modal";
 import { CreateChannelModal } from "@/components/modals/create-channel-modal";
-import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
 import { Permissions } from "@/lib/permissions";
 import { passthroughImageLoader } from "@/lib/image-loader";
 
@@ -27,7 +26,6 @@ export function LeftPanel() {
   const [activeTab, setActiveTab] = useState<"servers" | "channels">("channels");
   const [showCreateServer, setShowCreateServer] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-  const [showManageAgents, setShowManageAgents] = useState(false);
 
   // Derive which channels have active panels
   const openChannelIds = new Set(
@@ -142,15 +140,6 @@ export function LeftPanel() {
                       {currentServerName}
                     </span>
                     <div className="flex items-center gap-2">
-                      {hasPermission(Permissions.MANAGE_BOTS) && (
-                        <button
-                          onClick={() => setShowManageAgents(true)}
-                          className="text-[10px] font-bold uppercase text-accent-cyan hover:text-text-primary"
-                          title="Add / Manage Agents"
-                        >
-                          Agent
-                        </button>
-                      )}
                       {hasPermission(Permissions.MANAGE_CHANNELS) && (
                         <button
                           onClick={() => setShowCreateChannel(true)}
@@ -236,12 +225,6 @@ export function LeftPanel() {
         />
       )}
 
-      {currentServerId && (
-        <ManageBotsModal
-          isOpen={showManageAgents}
-          onClose={() => setShowManageAgents(false)}
-        />
-      )}
     </>
   );
 }

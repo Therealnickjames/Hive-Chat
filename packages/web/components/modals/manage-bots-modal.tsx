@@ -28,6 +28,11 @@ interface ManageBotsModalProps {
 const PROVIDER_DEFAULTS: Record<string, { endpoint: string; model: string }> = {
   openai: { endpoint: "https://api.openai.com", model: "gpt-4o" },
   anthropic: { endpoint: "https://api.anthropic.com", model: "claude-sonnet-4-20250514" },
+  google: { endpoint: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.0-flash" },
+  xai: { endpoint: "https://api.x.ai", model: "grok-3" },
+  groq: { endpoint: "https://api.groq.com/openai", model: "llama-3.3-70b-versatile" },
+  mistral: { endpoint: "https://api.mistral.ai", model: "mistral-large-latest" },
+  moonshot: { endpoint: "https://api.moonshot.ai", model: "kimi-k2" },
   ollama: { endpoint: "http://localhost:11434", model: "llama3" },
   openrouter: { endpoint: "https://openrouter.ai/api", model: "openai/gpt-4o" },
   custom: { endpoint: "", model: "" },
@@ -277,8 +282,13 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
             >
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
+              <option value="google">Google Gemini</option>
+              <option value="xai">xAI (Grok)</option>
+              <option value="groq">Groq</option>
+              <option value="mistral">Mistral</option>
+              <option value="moonshot">Moonshot (Kimi)</option>
               <option value="ollama">Ollama (Local)</option>
-              <option value="openrouter">OpenRouter</option>
+              <option value="openrouter">OpenRouter (400+ models)</option>
               <option value="custom">Custom (OpenAI-compatible)</option>
             </select>
           </div>

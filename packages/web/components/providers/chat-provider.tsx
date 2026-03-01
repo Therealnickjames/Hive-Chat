@@ -43,6 +43,8 @@ interface BotData {
   id: string;
   name: string;
   isActive: boolean;
+  llmModel?: string;
+  thinkingSteps?: string | null; // JSON array of phase labels
 }
 
 interface ServerScopedData {

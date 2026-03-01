@@ -15,7 +15,6 @@ interface CreateServerModalProps {
 export function CreateServerModal({ isOpen, onClose }: CreateServerModalProps) {
   const [step, setStep] = useState<"name" | "config">("name");
   const [name, setName] = useState("");
-  const [iconUrl, setIconUrl] = useState("");
   const [defaultChannelName, setDefaultChannelName] = useState("general");
   const [defaultChannelTopic, setDefaultChannelTopic] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +25,6 @@ export function CreateServerModal({ isOpen, onClose }: CreateServerModalProps) {
   const resetModal = () => {
     setStep("name");
     setName("");
-    setIconUrl("");
     setDefaultChannelName("general");
     setDefaultChannelTopic("");
     setError("");
@@ -58,7 +56,6 @@ export function CreateServerModal({ isOpen, onClose }: CreateServerModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          iconUrl: iconUrl.trim() || null,
           defaultChannelName: defaultChannelName.trim() || "general",
           defaultChannelTopic: defaultChannelTopic.trim() || null,
         }),
@@ -109,12 +106,6 @@ export function CreateServerModal({ isOpen, onClose }: CreateServerModalProps) {
         ) : (
           <>
             <div className="space-y-3">
-              <Input
-                label="Server Icon URL (optional)"
-                value={iconUrl}
-                onChange={(e) => setIconUrl(e.target.value)}
-                placeholder="https://example.com/icon.png"
-              />
               <Input
                 label="Default Channel Name"
                 value={defaultChannelName}
