@@ -31,6 +31,14 @@ export async function GET(
         id: true,
         serverId: true,
         lastSequence: true,
+        // Charter fields (TASK-0020)
+        swarmMode: true,
+        charterGoal: true,
+        charterRules: true,
+        charterAgentOrder: true,
+        charterMaxTurns: true,
+        charterCurrentTurn: true,
+        charterStatus: true,
       },
     });
 
@@ -38,15 +46,28 @@ export async function GET(
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
 
-    const response: {
-      channelId: string;
-      serverId: string;
-      lastSequence: string;
-      isMember?: boolean;
-    } = {
+    // Parse charterAgentOrder JSON string → array
+    let charterAgentOrder: string[] | null = null;
+    if (channel.charterAgentOrder) {
+      try {
+        charterAgentOrder = JSON.parse(channel.charterAgentOrder);
+      } catch {
+        charterAgentOrder = null;
+      }
+    }
+
+    const response: Record<string, unknown> = {
       channelId: channel.id,
       serverId: channel.serverId,
       lastSequence: serializeSequence(channel.lastSequence),
+      // Charter fields (TASK-0020)
+      swarmMode: channel.swarmMode,
+      charterGoal: channel.charterGoal,
+      charterRules: channel.charterRules,
+      charterAgentOrder,
+      charterMaxTurns: channel.charterMaxTurns,
+      charterCurrentTurn: channel.charterCurrentTurn,
+      charterStatus: channel.charterStatus,
     };
 
     if (userId) {

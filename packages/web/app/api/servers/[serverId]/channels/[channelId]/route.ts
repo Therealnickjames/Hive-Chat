@@ -65,10 +65,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const updateData: {
-    defaultBotId?: string | null;
-    topic?: string | null;
-  } = {};
+  // Valid swarm modes for TASK-0020
+  const VALID_SWARM_MODES = [
+    "HUMAN_IN_THE_LOOP", "LEAD_AGENT", "ROUND_ROBIN",
+    "STRUCTURED_DEBATE", "CODE_REVIEW_SPRINT", "FREEFORM", "CUSTOM",
+  ];
+
+  const updateData: Record<string, unknown> = {};
 
   if ("defaultBotId" in body) {
     if (body.defaultBotId === null) {
@@ -112,6 +115,47 @@ export async function PATCH(
         { status: 400 }
       );
     }
+  }
+
+  // Handle swarm mode fields (TASK-0020)
+  if ("swarmMode" in body) {
+    if (typeof body.swarmMode !== "string" || !VALID_SWARM_MODES.includes(body.swarmMode)) {
+      return NextResponse.json(
+        { error: `swarmMode must be one of: ${VALID_SWARM_MODES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    updateData.swarmMode = body.swarmMode;
+  }
+
+  if ("charterGoal" in body) {
+    if (body.charterGoal !== null && typeof body.charterGoal !== "string") {
+      return NextResponse.json({ error: "charterGoal must be a string or null" }, { status: 400 });
+    }
+    updateData.charterGoal = body.charterGoal || null;
+  }
+
+  if ("charterRules" in body) {
+    if (body.charterRules !== null && typeof body.charterRules !== "string") {
+      return NextResponse.json({ error: "charterRules must be a string or null" }, { status: 400 });
+    }
+    updateData.charterRules = body.charterRules || null;
+  }
+
+  if ("charterAgentOrder" in body) {
+    if (body.charterAgentOrder !== null && !Array.isArray(body.charterAgentOrder)) {
+      return NextResponse.json({ error: "charterAgentOrder must be an array or null" }, { status: 400 });
+    }
+    updateData.charterAgentOrder = body.charterAgentOrder
+      ? JSON.stringify(body.charterAgentOrder)
+      : null;
+  }
+
+  if ("charterMaxTurns" in body) {
+    if (typeof body.charterMaxTurns !== "number" || body.charterMaxTurns < 0) {
+      return NextResponse.json({ error: "charterMaxTurns must be a non-negative integer" }, { status: 400 });
+    }
+    updateData.charterMaxTurns = Math.floor(body.charterMaxTurns);
   }
 
   // Handle botIds array (multi-bot assignment — TASK-0012)
@@ -164,9 +208,20 @@ export async function PATCH(
     },
   });
 
+  // Parse charterAgentOrder JSON string → array for client
+  let parsedAgentOrder: string[] | null = null;
+  if (channel.charterAgentOrder) {
+    try {
+      parsedAgentOrder = JSON.parse(channel.charterAgentOrder);
+    } catch {
+      parsedAgentOrder = null;
+    }
+  }
+
   return NextResponse.json({
     ...channel,
     lastSequence: serializeSequence(channel.lastSequence),
     botIds: channel.channelBots.map((cb) => cb.botId),
+    charterAgentOrder: parsedAgentOrder,
   });
 }

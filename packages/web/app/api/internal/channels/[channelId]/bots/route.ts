@@ -30,6 +30,16 @@ export async function GET(
     });
 
     if (channelBots.length > 0) {
+      // Load agent registrations for connectionMethod lookup (DEC-0043)
+      const activeBotIds = channelBots
+        .filter((cb) => cb.bot.isActive)
+        .map((cb) => cb.bot.id);
+      const agentRegs = await prisma.agentRegistration.findMany({
+        where: { botId: { in: activeBotIds } },
+        select: { botId: true, connectionMethod: true },
+      });
+      const regMap = new Map(agentRegs.map((r) => [r.botId, r.connectionMethod]));
+
       // Return all active bots with decrypted keys
       const bots = channelBots
         .filter((cb) => cb.bot.isActive)
@@ -54,6 +64,7 @@ export async function GET(
             maxTokens: cb.bot.maxTokens,
             triggerMode: cb.bot.triggerMode,
             thinkingSteps: cb.bot.thinkingSteps ? JSON.parse(cb.bot.thinkingSteps) : [], // TASK-0011
+            connectionMethod: regMap.get(cb.bot.id) || "WEBSOCKET", // DEC-0043
           };
         });
 
@@ -78,6 +89,12 @@ export async function GET(
       console.error(`[Internal] Failed to decrypt API key for bot ${bot.id}`);
     }
 
+    // Check if this bot has an agent registration for connectionMethod (DEC-0043)
+    const agentReg = await prisma.agentRegistration.findUnique({
+      where: { botId: bot.id },
+      select: { connectionMethod: true },
+    });
+
     return NextResponse.json({
       bots: [
         {
@@ -93,6 +110,7 @@ export async function GET(
           maxTokens: bot.maxTokens,
           triggerMode: bot.triggerMode,
           thinkingSteps: bot.thinkingSteps ? JSON.parse(bot.thinkingSteps) : [], // TASK-0011
+          connectionMethod: agentReg?.connectionMethod || "WEBSOCKET", // DEC-0043
         },
       ],
     });

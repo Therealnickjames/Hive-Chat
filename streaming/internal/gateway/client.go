@@ -77,3 +77,27 @@ func (c *Client) PublishThinking(ctx context.Context, channelID, messageID, payl
 	topic := "hive:stream:thinking:" + channelID + ":" + messageID
 	return c.rdb.Publish(ctx, topic, payload).Err()
 }
+
+// PublishToolCall publishes a tool call event to Redis. (TASK-0018)
+// The Gateway subscribes to this pattern and broadcasts to WebSocket clients.
+// Sent when the LLM requests a tool execution.
+func (c *Client) PublishToolCall(ctx context.Context, channelID, messageID, payload string) error {
+	topic := "hive:stream:tool_call:" + channelID + ":" + messageID
+	return c.rdb.Publish(ctx, topic, payload).Err()
+}
+
+// PublishToolResult publishes a tool result event to Redis. (TASK-0018)
+// The Gateway subscribes to this pattern and broadcasts to WebSocket clients.
+// Sent after tool execution completes.
+func (c *Client) PublishToolResult(ctx context.Context, channelID, messageID, payload string) error {
+	topic := "hive:stream:tool_result:" + channelID + ":" + messageID
+	return c.rdb.Publish(ctx, topic, payload).Err()
+}
+
+// PublishCharterStatus publishes a charter status update to Redis. (TASK-0020)
+// The Gateway subscribes to hive:stream:charter_status:* pattern and broadcasts
+// as charter_status events to room:{channelId} for live header updates.
+func (c *Client) PublishCharterStatus(ctx context.Context, channelID, payload string) error {
+	topic := "hive:stream:charter_status:" + channelID
+	return c.rdb.Publish(ctx, topic, payload).Err()
+}

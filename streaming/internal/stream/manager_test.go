@@ -13,7 +13,7 @@ func silentLogger() *slog.Logger {
 }
 
 func TestNewManagerDefaultsToConfiguredConcurrency(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, 3)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil,3)
 
 	if manager.maxConcurrentStreams != 3 {
 		t.Fatalf("expected maxConcurrentStreams=3, got %d", manager.maxConcurrentStreams)
@@ -24,7 +24,7 @@ func TestNewManagerDefaultsToConfiguredConcurrency(t *testing.T) {
 }
 
 func TestNewManagerDefaultsConcurrencyWhenZero(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, 0)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil,0)
 
 	if manager.maxConcurrentStreams != 32 {
 		t.Fatalf("expected default maxConcurrentStreams=32, got %d", manager.maxConcurrentStreams)
@@ -35,7 +35,7 @@ func TestNewManagerDefaultsConcurrencyWhenZero(t *testing.T) {
 }
 
 func TestNewManagerDefaultsConcurrencyWhenNegative(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, -5)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil,-5)
 
 	if manager.maxConcurrentStreams != 32 {
 		t.Fatalf("expected default maxConcurrentStreams=32, got %d", manager.maxConcurrentStreams)
@@ -65,7 +65,7 @@ func TestConcurrencyLimitRejectsAdditionalSlots(t *testing.T) {
 }
 
 func TestActiveCountStartsAtZero(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, 10)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil,10)
 
 	if manager.ActiveCount() != 0 {
 		t.Fatalf("expected ActiveCount=0, got %d", manager.ActiveCount())

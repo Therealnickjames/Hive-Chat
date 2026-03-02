@@ -795,3 +795,242 @@ model AgentRegistration {
    - All send the `typed_message` channel event and wait for Gateway reply
 
 **Consequences**: Agent output is structured, interactive, and informative. Tool calls render as collapsible cards with status indicators. Code blocks have syntax highlighting and copy buttons. Artifacts render in sandboxed iframes. Metadata shows model, tokens, and latency on completed agent messages. The streaming pipeline and existing message types are completely unchanged. Documented in PROTOCOL.md v2.0.
+
+---
+
+## DEC-0043 — Open Source Launch: MIT License + Demo + Polish
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Relates to**: Session 4 of the Agent-First Launch Plan, TASK-0017
+
+**Context**: Tavok is ready for open-source launch. All four sessions of the Agent-First Launch Plan are complete: agent self-registration (Session 1), Python SDK (Session 2), typed messages + metadata (Session 3), and now demo + polish (Session 4). Need to make the repository presentation-ready for developers discovering the project.
+
+**Decision**: Relicense from AGPL-3.0 to MIT, rewrite the README as a developer-facing product page, add multi-agent demo infrastructure, and polish the UI with agent presence indicators and skeleton loading states.
+
+**Key choices**:
+
+1. **AGPL-3.0 → MIT license**:
+   - AGPL's network use clause (§13) deters self-hosting adoption
+   - MIT maximizes developer adoption and contribution
+   - Python SDK was already MIT — now the entire project is consistent
+   - Trade-off: no copyleft protection, but adoption > protection for a platform play
+
+2. **README as product page**:
+   - Hero section with 10-line SDK snippet showing the "holy shit" moment
+   - "Get Started in 60 Seconds" — clone, cp .env, docker compose up
+   - Comparison table positioning Tavok against CrewAI, LibreChat, Matrix
+   - SDK quick reference (Agent, StreamContext, multi-agent patterns)
+   - Self-hosting production guide (Caddy auto-HTTPS, manual setup)
+
+3. **Multi-agent demo** (`docker-compose.demo.yml`):
+   - Separate compose file for demo agents (echo + Claude)
+   - Python SDK Dockerfile for containerized agent runners
+   - `make demo` target for one-command agent startup
+   - Requires `TAVOK_SERVER_ID` and `TAVOK_CHANNEL_ID` env vars
+
+4. **Agent presence polish**:
+   - Member list split into "Agents" (with `Agent` badge, model label, streaming pulse) and "Online"/"Offline" human sections
+   - Agents use rounded-square avatar shape with accent-cyan color to visually distinguish from circular user avatars
+   - Inactive agents shown in dimmed separate section
+
+5. **Skeleton loading states**:
+   - Message history loading uses animated pulse skeleton (3 message placeholders + "LOADING HISTORY" label)
+   - Replaces plain "Scroll up to load more..." text
+
+6. **Branding cleanup**:
+   - `scripts/setup.sh` updated: "HiveChat" → "Tavok", database names `hivechat` → `tavok`
+   - `package.json` license field updated to "MIT"
+   - `.playwright-mcp/test-upload.txt` is test-only, cosmetic
+
+**Consequences**: Repository is ready for open-source launch. MIT license removes adoption friction. README serves as the product page for developers discovering Tavok via GitHub, HN, or r/selfhosted. Demo infrastructure lets developers see multi-agent collaboration in under 5 minutes. Remaining launch items: demo GIF capture and social media post drafts.
+
+---
+
+## DEC-0044 — Universal Agent Connectivity: Adapter Layer Architecture
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Relates to**: Universal Agent Connectivity initiative
+
+**Context**: Tavok only supported WebSocket (Phoenix Channel V2) connections for agents via the Python SDK. Every major agent framework (LangGraph, CrewAI, AutoGen, OpenAI Assistants) and messaging platform (Discord, Telegram, Slack) uses different patterns — HTTP webhooks, REST APIs, SSE streaming, or OpenAI-compatible endpoints. To make Tavok a universal agent platform, we need every conceivable integration pattern.
+
+**Decision**: Implement 6 connection methods that all converge to the same Phoenix Channel events through an adapter layer. Create a single REST endpoint on the Gateway (`POST /api/internal/broadcast`) that accepts `{topic, event, payload}` and calls the existing `Broadcast.endpoint_broadcast!/3`. Each connection method is a Next.js adapter that translates its protocol into broadcast calls.
+
+**Key design choices**:
+
+1. **Single convergence point**: All adapters call `POST /api/internal/broadcast` on the Gateway, which reuses the existing pre-serialized broadcast infrastructure. Zero changes to Phoenix PubSub, zero changes to the frontend. The UI renders identically regardless of connection method.
+
+2. **Zero Go changes**: The Go streaming proxy handles LLM orchestration for WEBSOCKET agents. Non-WebSocket agents handle their own LLM calls — they just send results through the adapter layer. This preserves the architectural boundary (DEC-0019).
+
+3. **Six methods cover every pattern**:
+   - WebSocket (existing): Python/TS SDK, persistent bidirectional
+   - Inbound Webhook: curl, CI/CD, n8n (Discord incoming webhook pattern)
+   - HTTP Webhook outbound: LangGraph, CrewAI, Slack Events API pattern
+   - REST Polling: Serverless/Lambda, cron, Telegram getUpdates pattern
+   - SSE: Browser agents, restrictive proxies
+   - OpenAI-Compatible: LiteLLM, LangChain, any OpenAI SDK client
+
+4. **ConnectionMethod enum on AgentRegistration**: Agents declare their method at registration time. The Gateway branches `maybe_trigger_bot` on this field to dispatch via the appropriate channel.
+
+**Consequences**: Any agent from any framework can connect to Tavok. The adapter layer adds ~15 new Next.js route files and 1 new Elixir controller. Backward compatible — WebSocket flow is unchanged.
+
+---
+
+## DEC-0045 — Inbound Webhooks: URL-is-the-Auth Pattern
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Relates to**: Universal Agent Connectivity, DEC-0044
+
+**Context**: Discord's incoming webhooks are the most copied pattern in messaging. The URL itself serves as the credential — no Authorization header needed. This makes it trivial to integrate with curl, CI/CD, n8n, Zapier, and any HTTP client.
+
+**Decision**: Implement inbound webhooks with `whk_` prefixed tokens in the URL path. The token is separate from the `sk-tvk-` API key for blast-radius isolation — a leaked webhook token only grants write access to one channel, not the entire agent.
+
+**Key design choices**:
+
+1. **Separate `InboundWebhook` model**: Not embedded in AgentRegistration. A single agent can create multiple webhooks for different channels. Each webhook has its own token.
+
+2. **Token format**: `whk_` prefix + 32 random hex chars. Stored in a unique indexed column. URL example: `POST /api/v1/webhooks/whk_abc123...`
+
+3. **Streaming support**: Webhook messages can initiate streaming via `{"streaming": true}`, returning a `streamUrl` for subsequent token batches. This enables real-time streaming from simple HTTP clients.
+
+4. **No rate limiting on webhook sends** (yet): Will add per-webhook rate limiting in a future iteration.
+
+**Consequences**: Any HTTP client can send messages to Tavok with a single POST. Webhooks are CRUD-managed via the agent's API key. The token-in-URL pattern matches developer expectations from Discord/Slack.
+
+---
+
+## DEC-0046 — OpenAI-Compatible API: Universal Framework Coverage
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Relates to**: Universal Agent Connectivity, DEC-0044
+
+**Context**: The OpenAI Chat Completions API has become the de facto standard interface for LLM tools. LiteLLM, LangChain, LlamaIndex, AutoGen, CrewAI, Semantic Kernel — virtually every framework can speak this protocol. By exposing Tavok channels as OpenAI "models", any tool that can set a `base_url` can talk to Tavok.
+
+**Decision**: Implement `POST /api/v1/chat/completions` and `GET /api/v1/models` endpoints that speak the OpenAI wire format. The `model` field encodes the target channel as `tavok-channel-{channelId}`. Auth uses the same `sk-tvk-...` API key as Bearer token.
+
+**Key design choices**:
+
+1. **Model = Channel**: `tavok-channel-{channelId}` routes to a specific channel. `GET /api/v1/models` returns all channels in the agent's server as OpenAI model objects.
+
+2. **Inject-and-wait pattern**: The completions endpoint injects the user's message into the channel (as the agent's bot), then polls for a bot response from another bot in the channel. This makes Tavok act as a proxy — the calling framework sends a message, and a Tavok-native bot (WebSocket agent, configured LLM bot, etc.) responds.
+
+3. **30-second timeout**: If no bot response arrives within 30s, returns 504 Gateway Timeout. Prevents indefinite hanging.
+
+4. **Streaming relay**: When `stream: true`, the response is returned as SSE chunks in `chat.completion.chunk` format. Since the bot response may already be complete (polled from DB), the streaming is simulated by splitting on word boundaries.
+
+5. **Token usage from metadata**: If the responding bot's message has metadata (tokensIn, tokensOut), these are included in the OpenAI usage response.
+
+**Consequences**: Any tool that supports `base_url` override works with Tavok out of the box. LiteLLM users just set `base_url="http://tavok:3000/api/v1"` and `api_key="sk-tvk-..."`. This is the highest-leverage integration point — one endpoint covers dozens of frameworks.
+
+---
+
+## DEC-0047 — Agent Approval Flow: Server-Controlled Registration Gating
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Relates to**: DEC-0040 (Agent Self-Registration), DEC-0044 (Universal Agent Connectivity)
+
+**Context**: Agents can self-register via `POST /api/v1/agents/register` using a server ID. Without controls, any agent knowing a server ID can join. Server owners need the ability to gate and approve external agent registrations, while still being able to add agents themselves through the UI.
+
+**Decision**: Add `allowAgentRegistration` (default: `false`) and `registrationApprovalRequired` (default: `true`) fields to the Server model. When registration is allowed but approval is required, new self-registered agents are created with `approvalStatus: PENDING` and `Bot.isActive: false`. Server members with `MANAGE_BOTS` permission can approve or reject via dedicated endpoints.
+
+**Key design choices**:
+
+1. **Default-off registration**: `allowAgentRegistration` defaults to `false`. External agents cannot self-register until a server owner explicitly enables it. Security first.
+
+2. **Default-on approval**: When registration is enabled, `registrationApprovalRequired` defaults to `true`. Agents must be approved before they can participate. Server owners can disable this for open servers.
+
+3. **Owner-initiated agents skip approval**: When a server admin creates a non-BYOK agent through the UI, the agent is auto-approved (`approvalStatus: APPROVED`). Only self-registered agents go through the approval flow.
+
+4. **Agents are server-scoped**: An agent belongs to exactly one server. To operate in multiple servers, it must register separately in each. No cross-server permissions.
+
+5. **BYOK backward compatibility**: Existing BYOK bots have no `AgentRegistration` and are unaffected. Their `connectionMethod` is `null` on the Bot model.
+
+6. **`ApprovalStatus` defaults to APPROVED**: Existing `AgentRegistration` records get `APPROVED` automatically in the migration, so all previously registered agents continue working.
+
+**UI changes**: The "Manage Agents" modal is rebuilt as a multi-view state machine. The entry view shows agent list grouped by status (pending, active, inactive, rejected). An "Add Agent" flow presents a method picker with 7 options (BYOK, SDK, Inbound Webhook, Outbound Webhook, REST Polling, SSE, OpenAI-Compatible). Non-BYOK creation generates credentials shown once.
+
+**New endpoints**:
+- `GET/PATCH /api/servers/{serverId}/agent-settings` — read/update registration settings
+- `POST /api/servers/{serverId}/bots/{botId}/approve` — approve a pending agent
+- `POST /api/servers/{serverId}/bots/{botId}/reject` — reject a pending agent
+
+**Consequences**: Server owners have full control over which agents can join. The approval flow protects against unwanted agents while the method picker makes it easy to add agents using any connection method. The BYOK flow is preserved as-is.
+
+---
+
+## DEC-0048 — MCP-Compatible Tool Interface in Go Proxy
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Context**: TASK-0018 — Agents need to execute tools (web search, time, custom tools) during streaming. The MCP (Model Context Protocol) defines `tools/list` + `tools/call` patterns that are becoming the standard.
+
+**Decision**: Implement tool execution in the Go proxy with an MCP-compatible interface.
+
+**Architecture**:
+1. **Go proxy owns tool execution**: Tools run server-side in the Go proxy, not in the frontend or Gateway. This follows DEC-0019 (Go owns orchestration).
+2. **Tool execution loop**: When an LLM returns `stop_reason: "tool_use"`, the manager executes the requested tools, feeds results back into context, and starts a new provider iteration. Capped at 10 iterations.
+3. **Provider-agnostic interface**: `tools.Tool` interface with `Definition()` and `Execute()`. The `tools.Registry` handles discovery and dispatch. Format converters transform definitions to Anthropic/OpenAI API formats.
+4. **Built-in tools**: `current_time` (always available) and `web_search` (configurable via `STREAMING_SEARCH_API_URL`/`STREAMING_SEARCH_API_KEY` env vars).
+5. **Per-bot tool filtering**: `enabledTools` field on Bot model (JSON array). Empty = all tools available. Allows server owners to control which tools each bot can use.
+6. **Frontend events**: `stream_tool_call` and `stream_tool_result` broadcast via Redis → Gateway → WebSocket. Frontend displays tool usage in thinking phase.
+
+**Alternatives rejected**:
+- Frontend tool execution: Would require WebSocket round-trips and expose tool logic to clients
+- Gateway (Elixir) tool execution: Violates DEC-0019 boundary
+- Full MCP server protocol: Premature — we borrow the patterns without the full JSON-RPC transport
+
+**Consequences**: Agents can now use tools during streaming. The interface is extensible — new tools are added by implementing the `Tool` interface and registering in `main.go`. MCP server hosting becomes a natural extension in the future.
+
+---
+
+## DEC-0049 — Direct Messages: Separate Models, Shared Transport
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Context**: TASK-0019 — Users need private 1:1 messaging. DMs live outside the server/channel hierarchy, requiring separate authorization, persistence, and routing while reusing existing transport infrastructure.
+
+**Decision**: Implement DMs as separate Prisma models with a dedicated Phoenix Channel topic.
+
+**Architecture**:
+1. **Separate models**: `DirectMessageChannel`, `DmParticipant`, `DirectMessage` — fully decoupled from `Channel`/`Message`. DMs are not server-scoped; a user can DM anyone they share a server with.
+2. **Shared server requirement**: Users must share at least one server to start a DM. This prevents spam from random users while keeping DMs cross-server.
+3. **Gateway topic**: `dm:{dmChannelId}` — a new Phoenix Channel alongside `room:{channelId}`. Authorization checks participant membership via `WebClient.verify_dm_participant/2`.
+4. **Human-only**: DMs reject BOT connections. No streaming, no agents, no tool execution. This keeps the DM channel simple and reduces attack surface.
+5. **Reuse infrastructure**: Same Redis INCR for sequences (`hive:dm:{dmId}:seq`), same broadcast pattern, same WebSocket auth (JWT). Internal APIs follow existing patterns (`/api/internal/dms/*`).
+6. **Client routing**: `/dms/{dmId}` route with dedicated `DmChatArea` component. Left panel gains a "DMs" tab listing conversations.
+
+**Alternatives rejected**:
+- Using existing Channel/Message models with a `type: "DM"` flag: Pollutes server-scoped queries, complicates authorization, makes DM-specific features harder to add later.
+- Separate microservice for DMs: Premature optimization — the volume doesn't justify a fourth service.
+
+**Consequences**: DMs are clean, independent, and extensible. Future features (read receipts, DM-specific notifications, group DMs) can build on the separate models without touching room/channel logic.
+
+---
+
+## DEC-0050 — Channel Charter: Inline Fields, Go-Enforced Turn Tracking
+
+**Date**: 2026-03-01
+**Status**: Accepted
+**Context**: TASK-0020 — Multi-agent channels need structured collaboration modes (round-robin, debate, code review) with human-defined rules. The system must enforce turn order, inject charter context into prompts, and auto-complete sessions when turn limits are reached.
+
+**Decision**: Inline charter fields on the Channel model, with Go proxy enforcement and WebSocket-based live status updates.
+
+**Architecture**:
+1. **Charter fields inline on Channel**: `swarmMode`, `charterGoal`, `charterRules`, `charterAgentOrder` (JSON), `charterMaxTurns`, `charterCurrentTurn`, `charterStatus`. Not a separate model — charter data is small and always needed when processing stream requests. Avoids JOIN overhead.
+2. **7 swarm modes**: HUMAN_IN_THE_LOOP (default, backward-compatible), LEAD_AGENT, ROUND_ROBIN, STRUCTURED_DEBATE, CODE_REVIEW_SPRINT, FREEFORM, CUSTOM.
+3. **Go enforces rules** (DEC-0019): After loading bot config, Go fetches charter config from internal API, validates turn order (ROUND_ROBIN/CODE_REVIEW_SPRINT), checks max turns, and injects charter context into the system prompt. Elixir just relays charter_status events.
+4. **Turn counting via Web API**: Go calls `POST /api/internal/channels/{channelId}/charter-turn` after stream completes. Single writer, persisted to DB.
+5. **Charter injected into system prompt**: Agents see their role, goal, rules, and current turn in their context. Works with any LLM provider.
+6. **Session lifecycle state machine**: INACTIVE → ACTIVE → PAUSED → ACTIVE → COMPLETED. State transitions validated server-side. WebSocket `charter_control` events allow pause/end from the UI.
+7. **Live UI updates**: `charter_status` Redis pub/sub → Gateway → `charter_status` WebSocket event → React state → header display with mode, turn counter, pause/end buttons.
+
+**Alternatives rejected**:
+- Separate CharterSession model: Adds JOIN overhead on every stream request. Charter data is tightly coupled to channel.
+- Frontend-enforced turn order: Violates DEC-0019 (Go owns orchestration). Clients could bypass rules.
+- Polling-based status: WebSocket events are already in place. Polling would be slower and more complex.
+
+**Consequences**: Channels gain structured multi-agent collaboration without changing existing stream request format. HUMAN_IN_THE_LOOP default ensures full backward compatibility.

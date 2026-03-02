@@ -4,7 +4,9 @@ Tests: registration, WebSocket connect, channel join, send message.
 """
 
 import asyncio
+import json
 import logging
+import os
 import sys
 
 logging.basicConfig(
@@ -13,9 +15,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger("test-sdk")
 
-# Use the known server and channel from the database
-SERVER_ID = "01KJNFXWYBWZR7H71SSXX5BQ7A"
-CHANNEL_ID = "01KJNFXWYB20VJNDG10A947HW9"
+# Resolve server/channel IDs: env vars > seed-ids.json > hardcoded fallback
+SEED_IDS_PATH = os.path.join(os.path.dirname(__file__), "..", "prisma", ".seed-ids.json")
+
+SERVER_ID = os.environ.get("TAVOK_SERVER_ID")
+CHANNEL_ID = os.environ.get("TAVOK_CHANNEL_ID")
+
+if not SERVER_ID or not CHANNEL_ID:
+    try:
+        with open(SEED_IDS_PATH) as f:
+            seed_ids = json.load(f)
+        SERVER_ID = SERVER_ID or seed_ids["serverId"]
+        CHANNEL_ID = CHANNEL_ID or seed_ids["generalChannelId"]
+        logger.info("Loaded IDs from prisma/.seed-ids.json")
+    except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+        logger.warning("Could not read %s: %s — using hardcoded fallback IDs", SEED_IDS_PATH, e)
+        SERVER_ID = SERVER_ID or "01KJNFXWYBWZR7H71SSXX5BQ7A"
+        CHANNEL_ID = CHANNEL_ID or "01KJNFXWYB20VJNDG10A947HW9"
 
 
 async def main() -> None:

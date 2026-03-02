@@ -11,6 +11,22 @@ export interface ReactionData {
   userIds: string[];
 }
 
+// TASK-0018: Tool call/result tracking for display
+export interface ToolCallData {
+  callId: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface ToolResultData {
+  callId: string;
+  toolName: string;
+  content: string;
+  isError: boolean;
+  timestamp: string;
+}
+
 export interface MessagePayload {
   id: string;
   channelId: string;
@@ -24,6 +40,8 @@ export interface MessagePayload {
   thinkingPhase?: string;
   thinkingTimeline?: Array<{ phase: string; timestamp: string }>; // TASK-0011
   metadata?: Record<string, unknown> | null; // Agent execution metadata: model, tokens, latency (TASK-0039)
+  toolCalls?: ToolCallData[]; // TASK-0018: active tool calls
+  toolResults?: ToolResultData[]; // TASK-0018: completed tool results
   sequence: string;
   createdAt: string;
   reactions: ReactionData[];
@@ -51,6 +69,14 @@ export interface PresenceUser {
   status: string;
 }
 
+// TASK-0020: Charter/swarm state for live header display
+export interface CharterState {
+  swarmMode: string;
+  currentTurn: number;
+  maxTurns: number;
+  status: string; // "INACTIVE" | "ACTIVE" | "PAUSED" | "COMPLETED"
+}
+
 interface UseChannelReturn {
   messages: MessagePayload[];
   sendMessage: (content: string) => void;
@@ -64,6 +90,8 @@ interface UseChannelReturn {
   sendTyping: () => void;
   presenceMap: Map<string, PresenceUser>;
   activeStreamCount: number; // TASK-0012: number of concurrently streaming messages
+  charterState: CharterState | null; // TASK-0020: live charter status
+  sendCharterControl: (action: "pause" | "end") => void; // TASK-0020
 }
 
 /**
@@ -78,6 +106,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceUser>>(
     new Map()
   );
+  const [charterState, setCharterState] = useState<CharterState | null>(null); // TASK-0020
 
   const channelRef = useRef<Channel | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -369,12 +398,96 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         );
       });
 
+      // stream_tool_call: track tool execution in progress (TASK-0018)
+      channel.on("stream_tool_call", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          messageId: string;
+          callId: string;
+          toolName: string;
+          arguments: Record<string, unknown>;
+          timestamp: string;
+        };
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.messageId
+              ? {
+                  ...m,
+                  thinkingPhase: `Using ${payload.toolName}`,
+                  toolCalls: [
+                    ...(m.toolCalls || []),
+                    {
+                      callId: payload.callId,
+                      toolName: payload.toolName,
+                      arguments: payload.arguments,
+                      timestamp: payload.timestamp,
+                    },
+                  ],
+                }
+              : m
+          )
+        );
+      });
+
+      // stream_tool_result: record tool result (TASK-0018)
+      channel.on("stream_tool_result", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          messageId: string;
+          callId: string;
+          toolName: string;
+          content: string;
+          isError: boolean;
+          timestamp: string;
+        };
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === payload.messageId
+              ? {
+                  ...m,
+                  toolResults: [
+                    ...(m.toolResults || []),
+                    {
+                      callId: payload.callId,
+                      toolName: payload.toolName,
+                      content: payload.content,
+                      isError: payload.isError,
+                      timestamp: payload.timestamp,
+                    },
+                  ],
+                }
+              : m
+          )
+        );
+      });
+
       // ---- Typed messages (TASK-0039) ----
       // Agents can send typed messages (TOOL_CALL, TOOL_RESULT, CODE_BLOCK, etc.)
       channel.on("typed_message", (raw: unknown) => {
         if (!mounted) return;
         const payload = raw as MessagePayload;
         addMessages([{ ...payload, reactions: payload.reactions || [] }]);
+      });
+
+      // ---- Charter status events (TASK-0020) ----
+      channel.on("charter_status", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          channelId: string;
+          currentTurn: number;
+          maxTurns: number;
+          status: string;
+          swarmMode?: string;
+        };
+
+        setCharterState((prev) => ({
+          swarmMode: payload.swarmMode || prev?.swarmMode || "HUMAN_IN_THE_LOOP",
+          currentTurn: payload.currentTurn,
+          maxTurns: payload.maxTurns,
+          status: payload.status,
+        }));
       });
 
       // ---- Edit & Delete events (TASK-0014) ----
@@ -554,6 +667,15 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     [messages]
   );
 
+  // TASK-0020: Send charter control action (pause/end)
+  const sendCharterControl = useCallback(
+    (action: "pause" | "end") => {
+      if (!channelRef.current) return;
+      channelRef.current.push("charter_control", { action });
+    },
+    []
+  );
+
   return {
     messages,
     sendMessage,
@@ -567,5 +689,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     sendTyping,
     presenceMap,
     activeStreamCount,
+    charterState,
+    sendCharterControl,
   };
 }

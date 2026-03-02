@@ -27,6 +27,7 @@ import (
 	"github.com/TavokAI/Tavok/streaming/internal/health"
 	"github.com/TavokAI/Tavok/streaming/internal/provider"
 	"github.com/TavokAI/Tavok/streaming/internal/stream"
+	"github.com/TavokAI/Tavok/streaming/internal/tools"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -74,9 +75,18 @@ func main() {
 	// Create provider registry
 	registry := provider.NewRegistry()
 
+	// Create tool registry (TASK-0018)
+	toolRegistry := tools.NewRegistry()
+	toolRegistry.Register(tools.NewCurrentTime())
+	toolRegistry.Register(tools.NewWebSearch(tools.WebSearchConfig{
+		APIEndpoint: os.Getenv("STREAMING_SEARCH_API_URL"),
+		APIKey:      os.Getenv("STREAMING_SEARCH_API_KEY"),
+	}))
+	slog.Info("Tool registry initialized", "toolCount", toolRegistry.Count())
+
 	// Create stream manager
 	maxConcurrentStreams := getEnvInt("STREAMING_MAX_CONCURRENT_STREAMS", 32)
-	manager := stream.NewManager(logger, gwClient, loader, registry, maxConcurrentStreams)
+	manager := stream.NewManager(logger, gwClient, loader, registry, toolRegistry, maxConcurrentStreams)
 
 	// Start stream manager in background
 	managerCtx, managerCancel := context.WithCancel(ctx)

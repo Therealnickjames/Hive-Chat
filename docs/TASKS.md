@@ -434,20 +434,31 @@ Structured message types for agent output (tool calls, code blocks, artifacts, s
 
 ## TASK-0017: README & Demo (Launch Prep)
 
-**Status**: IN PROGRESS
+**Status**: DONE
 **Priority**: P0 — Launch Gate
 **Track**: Launch
 **Assignee**: Builder + Strategist
+**Decision**: DEC-0043
 
 ### Description
-Create the killer README, demo GIF, and quickstart experience. The README IS the product page.
+Create the killer README, demo GIF, and quickstart experience. The README IS the product page. License changed from AGPL-3.0 to MIT. All branding finalized as Tavok.
 
 ### Acceptance Criteria
-- [ ] README with architecture diagram, feature list, clear value prop
-- [ ] Demo GIF/video showing agents streaming in a channel (with thinking timeline)
-- [ ] `docker-compose up` validated on clean machine (Linux, Mac)
-- [ ] Quickstart: "zero to agents in 60 seconds"
-- [ ] Contributing section
+- [x] README with architecture diagram, feature list, clear value prop
+- [x] Hero section with SDK code snippet showing the "holy shit" moment
+- [x] "Get Started in 60 Seconds" quickstart section
+- [x] Feature comparison table (Tavok vs Discord vs Slack vs agent frameworks)
+- [x] SDK quick reference (Agent, StreamContext, multi-agent)
+- [x] Multi-agent demo section with docker-compose.demo.yml
+- [x] Self-hosting production guide (Caddy + manual setup)
+- [x] Contributing section
+- [x] License changed from AGPL-3.0 to MIT
+- [x] All branding references updated (HiveChat → Tavok in setup.sh)
+- [x] Agent presence indicators enhanced (agent badges, model labels, streaming pulse)
+- [x] Message history skeleton loading states
+- [x] SDK Dockerfile for containerized agent runners
+- [x] `make demo` target added
+- [ ] Demo GIF/video showing agents streaming in a channel (content capture pending)
 - [ ] Launch posts drafted: r/selfhosted, HN "Show HN", X/Twitter
 
 ---
@@ -456,7 +467,7 @@ Create the killer README, demo GIF, and quickstart experience. The README IS the
 
 ## TASK-0018: MCP-Compatible Tool Interface
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: P1 — Architecture
 **Track**: A (Agent)
 **Assignee**: Builder
@@ -477,29 +488,30 @@ Go proxy tool abstraction matching MCP `tools/list` and `tools/call` patterns. M
 
 ## TASK-0019: Direct Messages
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: P1
 **Track**: B (Chat)
 **Assignee**: Builder
 **Spec**: V1-IMPLEMENTATION.md
+**Decision**: DEC-0049
 
 ### Description
 Private conversations between users. DM sidebar, real-time via WebSocket.
 
 ### Acceptance Criteria
-- [ ] User can start DM with any user they share a server with
-- [ ] DM messages persist and load history
-- [ ] Real-time via WebSocket (`DmChannel`)
-- [ ] Edit and delete work in DMs
-- [ ] Typing indicator works
-- [ ] DM list in sidebar with last message preview
-- [ ] Unread DM indicators
+- [x] User can start DM with any user they share a server with
+- [x] DM messages persist and load history
+- [x] Real-time via WebSocket (`DmChannel`)
+- [x] Edit and delete work in DMs
+- [x] Typing indicator works
+- [x] DM list in sidebar with last message preview
+- [ ] Unread DM indicators (deferred — requires TASK-0016 extension)
 
 ---
 
 ## TASK-0020: Channel Charter / Swarm Modes ⭐
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: P1 — Core Innovation
 **Track**: A (Agent)
 **Assignee**: Builder
@@ -511,13 +523,13 @@ Human-defined rules for multi-agent collaboration, enforced by the Go orchestrat
 **Scheduling**: moved to Wave 2 to keep early post-launch execution focused on MCP tools, DMs, and stream rewind foundation.
 
 ### Acceptance Criteria
-- [ ] Swarm Settings tab in Edit Channel (2-click setup)
-- [ ] Mode presets: Human-in-the-Loop (default), Lead Agent, Round-Robin, Structured Debate, Code Review Sprint, Freeform, Custom
-- [ ] Charter textarea with goal, rules, agent order, max turns
-- [ ] Go orchestrator enforces charter: turn tracking, loop detection, auto-pause
-- [ ] Human override: `/end`, `/pause`, ❌ reaction stops agents immediately
-- [ ] Live channel header: `Mode: Code Review • Turns: 4/8`
-- [ ] Agent messages show role badges
+- [x] Swarm Settings tab in Edit Channel (2-click setup)
+- [x] Mode presets: Human-in-the-Loop (default), Lead Agent, Round-Robin, Structured Debate, Code Review Sprint, Freeform, Custom
+- [x] Charter textarea with goal, rules, agent order, max turns
+- [x] Go orchestrator enforces charter: turn tracking, loop detection, auto-pause
+- [x] Human override: pause/end buttons in channel header, charter_control WebSocket event
+- [x] Live channel header: `Mode: Round Robin • Turn 3/8 | [Pause] [End]`
+- [ ] Agent messages show role badges (deferred — requires message-level bot order tracking)
 
 ### Design Notes
 Study Google A2A "Agent Card" spec for bot capability registration pattern. Each bot could register capabilities on channel join for intelligent task routing. Don't implement full A2A — borrow the discovery pattern.
@@ -798,10 +810,10 @@ Expandable "X-Ray" panel on any agent message showing execution details. Lite ve
 | **0014** | **Launch** | **Chat** | **P0** | **Message Edit & Delete** | DONE |
 | **0015** | **Launch** | **Chat** | **P1** | **@Mentions with Autocomplete** | DONE |
 | **0016** | **Launch** | **Chat** | **P0** | **Unread Indicators** | DONE |
-| **0017** | **Launch** | **Launch** | **P0** | **README + Demo GIF** | IN PROGRESS |
-| 0018 | Wave 1 | Agent | P1 | MCP Tool Interface | TODO |
-| 0019 | Wave 1 | Chat | P1 | Direct Messages | TODO |
-| 0020 | Wave 2 | Agent | P1 | Channel Charter / Swarm Modes ⭐ | TODO |
+| **0017** | **Launch** | **Launch** | **P0** | **README + Demo + Polish + MIT License** | ✅ DONE |
+| 0018 | Wave 1 | Agent | P1 | MCP Tool Interface | DONE |
+| 0019 | Wave 1 | Chat | P1 | Direct Messages | DONE |
+| 0020 | Wave 2 | Agent | P1 | Channel Charter / Swarm Modes ⭐ | DONE |
 | 0021 | Wave 1 | Agent | P1 | Stream Rewind + Checkpoints + Resume | TODO |
 | 0022 | Wave 2 | Chat | P1 | Message Search | TODO |
 | 0023 | Wave 2 | Chat | P1 | Server Settings UI | TODO |

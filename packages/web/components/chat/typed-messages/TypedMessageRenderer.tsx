@@ -13,7 +13,7 @@ import type {
   CodeBlockContent,
   ArtifactContent,
   StatusContent,
-} from "@tavok/shared/types/typed-messages";
+} from "@tavok/shared/typed-messages";
 
 interface TypedMessageRendererProps {
   message: MessagePayload;

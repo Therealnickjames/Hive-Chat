@@ -1,6 +1,6 @@
 "use client";
 
-import type { StatusContent } from "@tavok/shared/types/typed-messages";
+import type { StatusContent } from "@tavok/shared/typed-messages";
 
 interface StatusIndicatorProps {
   content: StatusContent;

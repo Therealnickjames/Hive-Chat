@@ -66,6 +66,7 @@ export async function GET(
           maxTokensSec: true,
           lastHealthCheck: true,
           lastHealthOk: true,
+          connectionMethod: true,
         },
       },
     },
@@ -92,6 +93,7 @@ export async function GET(
     maxTokensSec: bot.agentRegistration.maxTokensSec,
     lastHealthCheck: bot.agentRegistration.lastHealthCheck,
     lastHealthOk: bot.agentRegistration.lastHealthOk,
+    connectionMethod: bot.agentRegistration.connectionMethod,
     createdAt: bot.createdAt,
   });
 }

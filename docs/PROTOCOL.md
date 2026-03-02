@@ -1,6 +1,6 @@
 # PROTOCOL.md — Tavok Cross-Service Message Contracts
 
-> **Version**: Protocol v2
+> **Version**: Protocol v3.3
 > **Status**: Active
 > **Last updated**: 2026-03-01
 
@@ -18,6 +18,7 @@ If a payload shape is not defined here, it does not exist.
 4. [Streaming Lifecycle State Machine](#4-streaming-lifecycle-state-machine)
 5. [Reconnection Sync Protocol](#5-reconnection-sync-protocol)
 6. [Authentication Flow](#6-authentication-flow)
+7. [Agent Connectivity](#7-agent-connectivity-dec-0044-through-dec-0046)
 
 ---
 
@@ -107,6 +108,8 @@ On failure: socket connection is rejected.
 | `stream_complete` | [StreamCompletePayload](#streamcompletepayload) | Streaming finished successfully |
 | `stream_error` | [StreamErrorPayload](#streamerrorpayload) | Streaming failed |
 | `stream_thinking` | [StreamThinkingPayload](#streamthinkingpayload) | Agent thinking phase changed (TASK-0011) |
+| `stream_tool_call` | [StreamToolCallPayload](#streamtoolcallpayload) | Agent requested tool execution (TASK-0018) |
+| `stream_tool_result` | [StreamToolResultPayload](#streamtoolresultpayload) | Tool execution completed (TASK-0018) |
 | `message_edited` | [MessageEditedPayload](#messageeditedpayload) | Message content was edited (TASK-0014) |
 | `message_deleted` | [MessageDeletedPayload](#messagedeletedpayload) | Message was soft-deleted (TASK-0014) |
 | `typed_message` | [TypedMessagePayload](#typedmessagepayload) | Structured typed message from agent (TASK-0039) |
@@ -206,6 +209,35 @@ On failure: socket connection is rejected.
 Lifecycle: Go Proxy emits phase[0] from bot config's `thinkingSteps` after loading bot config (about to call LLM), then phase[1] when the first token arrives. Default phases: `["Thinking","Writing"]`. Custom phases (e.g. `["Planning","Researching","Drafting","Reviewing"]`) are configurable per bot. The frontend clears the phase on `stream_complete` or `stream_error`. See DEC-0037.
 
 The Go Proxy accumulates all phase transitions into a `thinkingTimeline` array and includes it in the `PUT /api/internal/messages/{messageId}` finalization payload for post-completion replay.
+
+#### StreamToolCallPayload
+
+```json
+{
+  "messageId": "01HXY...",
+  "callId": "toolu_01ABC...",
+  "toolName": "current_time",
+  "arguments": {},
+  "timestamp": "2026-03-01T12:00:01.456Z"
+}
+```
+
+Published when the LLM requests a tool execution. The Go Proxy detects `stop_reason: "tool_use"` from the provider, publishes this event, then executes the tool. The frontend uses this to show "Using current_time" in the thinking phase. (TASK-0018, DEC-0048)
+
+#### StreamToolResultPayload
+
+```json
+{
+  "messageId": "01HXY...",
+  "callId": "toolu_01ABC...",
+  "toolName": "current_time",
+  "content": "Current time: 2026-03-01T12:00:01Z\nDate: 2026-03-01\nDay: Sunday",
+  "isError": false,
+  "timestamp": "2026-03-01T12:00:01.789Z"
+}
+```
+
+Published after tool execution completes. The Go Proxy then feeds the tool result back into the LLM context and starts a new provider iteration. The tool execution loop is capped at 10 iterations to prevent infinite loops. (TASK-0018, DEC-0048)
 
 #### TypedMessagePush
 
@@ -372,6 +404,8 @@ All Redis messages are JSON-encoded strings.
 | `hive:stream:tokens:{channelId}:{messageId}` | Go Proxy | Gateway | Individual tokens from LLM |
 | `hive:stream:status:{channelId}:{messageId}` | Go Proxy | Gateway | Stream completion or error |
 | `hive:stream:thinking:{channelId}:{messageId}` | Go Proxy | Gateway | Agent thinking phase change (TASK-0011) |
+| `hive:stream:tool_call:{channelId}:{messageId}` | Go Proxy | Gateway | Tool call requested by LLM (TASK-0018) |
+| `hive:stream:tool_result:{channelId}:{messageId}` | Go Proxy | Gateway | Tool execution result (TASK-0018) |
 
 ### Stream Request Payload
 
@@ -843,6 +877,38 @@ Get unread state for all channels in a server. Compares each channel's `lastSequ
 
 **Errors:** `401` (not authenticated), `403` (not a member)
 
+#### GET/PATCH /api/servers/{serverId}/agent-settings (DEC-0047)
+
+Server-level agent registration settings.
+
+**Auth:** NextAuth session (cookie). `GET` requires membership. `PATCH` requires `MANAGE_BOTS`.
+
+**PATCH body:**
+```json
+{
+  "allowAgentRegistration": true,
+  "registrationApprovalRequired": true
+}
+```
+
+**Response:** `200 OK` — `{ allowAgentRegistration, registrationApprovalRequired }`
+
+#### POST /api/servers/{serverId}/bots/{botId}/approve (DEC-0047)
+
+Approve a pending self-registered agent. Sets `approvalStatus: APPROVED`, activates bot.
+
+**Auth:** NextAuth session. Requires `MANAGE_BOTS`.
+
+**Response:** `200 OK` — `{ success: true, approvalStatus: "APPROVED" }`
+
+#### POST /api/servers/{serverId}/bots/{botId}/reject (DEC-0047)
+
+Reject a pending self-registered agent. Sets `approvalStatus: REJECTED`, bot stays inactive.
+
+**Auth:** NextAuth session. Requires `MANAGE_BOTS`.
+
+**Response:** `200 OK` — `{ success: true, approvalStatus: "REJECTED" }`
+
 ---
 
 ## 4. Streaming Lifecycle State Machine
@@ -1015,6 +1081,466 @@ In production, these endpoints are not exposed to the public internet.
 
 ---
 
+## 7. Agent Connectivity (DEC-0044 through DEC-0046)
+
+Tavok supports 6 connection methods for agents. All methods converge to the same Phoenix Channel events via the Gateway Broadcast Controller — the UI never changes regardless of how an agent connects.
+
+### 7a. Connection Methods
+
+| # | Method | Direction | Streaming | Use Case |
+| --- | --- | --- | --- | --- |
+| 1 | **WebSocket** | Bidirectional | Native | Python SDK, TS SDK, any WS client (existing) |
+| 2 | **Inbound Webhook** | Agent → Tavok | Yes (batch POST) | curl, CI/CD, n8n, Zapier, monitoring, scripts |
+| 3 | **HTTP Webhook** | Tavok → Agent | Yes (SSE response or async callback) | LangGraph, CrewAI, Slack/Telegram-style bots |
+| 4 | **REST Polling** | Agent polls Tavok | Yes (REST stream endpoint) | Serverless (Lambda), cron, Telegram getUpdates |
+| 5 | **SSE** | Tavok pushes events | Yes (receive via SSE) | Browser agents, restrictive proxies |
+| 6 | **OpenAI-Compatible** | Standard API | Yes (SSE relay) | LiteLLM, LangChain, any OpenAI SDK client |
+
+### 7b. Architecture — Adapter Layer
+
+All non-WebSocket connection methods converge to the same Phoenix Channel events via a single REST endpoint on the Gateway:
+
+```
+Agent (any method) → Next.js Adapter → POST /api/internal/broadcast → Phoenix PubSub → Browser
+```
+
+The Gateway Broadcast Controller accepts `{topic, event, payload}` and calls `Broadcast.endpoint_broadcast!/3`.
+
+### 7c. Auth Model
+
+All methods use the same `sk-tvk-...` API key. Inbound webhooks additionally use `whk_...` tokens embedded in URLs.
+
+| Method | Auth | Validated By |
+| --- | --- | --- |
+| WebSocket | `?api_key=sk-tvk-...` | Gateway → internal verify |
+| Inbound Webhook | `whk_...` in URL path | Next.js token lookup |
+| HTTP Webhook (outbound) | `X-Tavok-Signature: sha256=HMAC` | Agent verifies |
+| REST Polling | `Authorization: Bearer sk-tvk-...` | Next.js hash lookup |
+| SSE | Header or `?api_key=sk-tvk-...` | Next.js hash lookup |
+| OpenAI-Compatible | `Authorization: Bearer sk-tvk-...` | Next.js hash lookup |
+
+### 7d. Inbound Webhook API
+
+Discord-style "URL is the auth" pattern. The `whk_...` token in the URL path serves as both identifier and credential.
+
+#### POST /api/v1/webhooks
+
+Create a new inbound webhook. Requires `Authorization: Bearer sk-tvk-...`.
+
+**Request body:**
+
+```json
+{
+  "channelId": "01HXY...",
+  "name": "CI Notifier"
+}
+```
+
+**Response:** `201 Created`
+
+```json
+{
+  "id": "01HXY...",
+  "token": "whk_...",
+  "url": "http://localhost:3000/api/v1/webhooks/whk_...",
+  "channelId": "01HXY...",
+  "name": "CI Notifier"
+}
+```
+
+#### GET /api/v1/webhooks
+
+List webhooks. Requires `Authorization: Bearer sk-tvk-...`. Query param: `serverId` (required). Tokens are NOT returned.
+
+#### DELETE /api/v1/webhooks?webhookId={id}
+
+Delete a webhook. Requires `Authorization: Bearer sk-tvk-...`.
+
+#### POST /api/v1/webhooks/{token}
+
+Send a message via inbound webhook. No auth header needed — the token IS the auth.
+
+**Request body:**
+
+```json
+{
+  "content": "Build passed!",
+  "username": "CI Bot",
+  "avatarUrl": "https://example.com/ci.png"
+}
+```
+
+**Response:** `200 OK` with `{messageId, sequence}`.
+
+For streaming, send `{"streaming": true}` to get a `{messageId, streamUrl}` response.
+
+#### POST /api/v1/webhooks/{token}/stream
+
+Stream tokens via inbound webhook.
+
+**Request body:**
+
+```json
+{"tokens": ["Hello ", "world!"], "done": false}
+```
+
+Final: `{"tokens": ["!"], "done": true, "finalContent": "Hello world!", "metadata": {...}}`
+
+### 7e. HTTP Webhook (Outbound)
+
+When a WEBHOOK-method agent is triggered by a message, the Gateway calls `WebClient.dispatch_webhook/2` which POSTs to Next.js `POST /api/internal/agents/{botId}/dispatch`. Next.js then POSTs to the agent's `webhookUrl` with HMAC-SHA256 signing.
+
+**Outbound payload (Tavok → Agent):**
+
+```json
+{
+  "event": "message",
+  "channelId": "01HXY...",
+  "triggerMessage": {"id": "...", "content": "...", "authorName": "...", "authorType": "USER"},
+  "contextMessages": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}],
+  "callbackUrl": "http://localhost:3000/api/v1/webhooks/{auto_token}/stream"
+}
+```
+
+**Headers:** `X-Tavok-Signature: sha256=<HMAC_hex>`, `X-Tavok-Event: message`, `Content-Type: application/json`
+
+**Agent response patterns:**
+
+- **Sync:** Return `200` with `{"content": "..."}` → broadcast as `message_new`
+- **Async:** Return `202 Accepted`, later POST to `callbackUrl`
+
+### 7f. REST Polling API
+
+#### GET /api/v1/agents/{id}/messages
+
+Poll for messages. Requires `Authorization: Bearer sk-tvk-...`.
+
+**Query params:**
+
+- `channel_id` — optional channel filter
+- `limit` — max messages (default 50, max 100)
+- `ack` — if `true`, mark returned messages as delivered
+- `wait` — long-polling timeout in seconds (0-30, default 0)
+
+**Response:** `200 OK`
+
+```json
+{
+  "messages": [
+    {
+      "id": "01HXY...",
+      "channelId": "01HXY...",
+      "messageId": "01HXY...",
+      "content": "Hello!",
+      "authorId": "01HXY...",
+      "authorName": "Alice",
+      "authorType": "USER",
+      "createdAt": "2026-03-01T12:00:00.000Z"
+    }
+  ],
+  "hasMore": false,
+  "pollAgainAfterMs": 1000
+}
+```
+
+#### POST /api/v1/agents/{id}/messages
+
+Send a message or start streaming. Requires `Authorization: Bearer sk-tvk-...`.
+
+**Simple message:** `{"channelId": "...", "content": "Hello!"}`
+**Start streaming:** `{"channelId": "...", "streaming": true}` → returns `{messageId, sequence, streamUrl}`
+
+#### POST /api/v1/agents/{id}/messages/{messageId}/stream
+
+Stream tokens. Requires `Authorization: Bearer sk-tvk-...`.
+
+**Tokens:** `{"tokens": ["Hello ", "world!"], "done": false, "channelId": "..."}`
+**Complete:** `{"tokens": [], "done": true, "finalContent": "...", "channelId": "...", "metadata": {...}}`
+**Thinking:** `{"thinking": {"phase": "Searching", "detail": "..."}, "channelId": "..."}`
+**Error:** `{"error": "Something went wrong", "channelId": "..."}`
+
+### 7g. SSE Event Stream
+
+#### GET /api/v1/agents/{id}/events
+
+Server-Sent Events stream. Auth via `Authorization: Bearer sk-tvk-...` header or `?api_key=sk-tvk-...` query param.
+
+**Query params:** `channels` (required, comma-separated channel IDs)
+
+**Events:**
+
+| Event | Data | Description |
+| --- | --- | --- |
+| `connected` | `{agentId, channels, timestamp}` | Initial connection confirmation |
+| `message_new` | `{id, channelId, content, authorId, authorType, streamingStatus, ...}` | New message in subscribed channel |
+| `heartbeat` | `{timestamp}` | Keepalive (every 15s) |
+
+Agent sends responses via REST (POST /api/v1/agents/{id}/messages).
+
+### 7h. OpenAI-Compatible API
+
+#### POST /api/v1/chat/completions
+
+OpenAI Chat Completions format. Auth: `Authorization: Bearer sk-tvk-...`.
+
+The `model` field encodes the target channel: `tavok-channel-{channelId}`.
+
+**Request:**
+
+```json
+{
+  "model": "tavok-channel-01HXY...",
+  "messages": [{"role": "user", "content": "Hello"}],
+  "stream": false
+}
+```
+
+**Non-streaming response:** Standard OpenAI `chat.completion` format with `usage` including token counts from bot metadata.
+
+**Streaming:** Set `"stream": true`. Returns SSE chunks in `chat.completion.chunk` format terminated with `data: [DONE]`.
+
+#### GET /api/v1/models
+
+List available channels as "models" in OpenAI format. Auth: `Authorization: Bearer sk-tvk-...`.
+
+**Response:**
+
+```json
+{
+  "object": "list",
+  "data": [
+    {"id": "tavok-channel-01HXY...", "object": "model", "created": 1708700000, "owned_by": "tavok", "permission": []}
+  ]
+}
+```
+
+### 7i. Internal Dispatch Endpoints
+
+Called by the Gateway (internal network only). Require `X-Internal-Secret`.
+
+#### POST /api/internal/broadcast
+
+Gateway Broadcast Controller. Accepts `{topic, event, payload}`, calls `Broadcast.endpoint_broadcast!/3`.
+
+#### POST /api/internal/agents/{botId}/dispatch
+
+Dispatches a trigger to a WEBHOOK agent. Called by Gateway when `connectionMethod=WEBHOOK`. Includes trigger message and context messages. Next.js handles HMAC signing and outbound HTTP call.
+
+#### POST /api/internal/agents/{botId}/enqueue
+
+Queues a message for a REST_POLL agent. Called by Gateway when `connectionMethod=REST_POLL`. Creates an `AgentMessage` row with 24h TTL.
+
+---
+
+## §8 Direct Messages (TASK-0019, DEC-0049)
+
+DMs are private 1:1 conversations outside the server/channel hierarchy.
+
+### 8a. WebSocket Topic
+
+Topic pattern: `dm:{dmChannelId}`
+
+**Join params**: `{ lastSequence?: string }` — for reconnection sync (same pattern as `room:*`).
+
+**Authorization**: Gateway calls `GET /api/internal/dms/verify?dmId={id}&userId={userId}` to verify participant membership. BOT connections are rejected with `{reason: "bots_cannot_join_dms"}`.
+
+### 8b. Client → Server Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `new_message` | `{ content: string }` | Send a DM. Max 4000 chars. |
+| `typing` | `{}` | Typing indicator (2s throttle server-side) |
+| `message_edit` | `{ messageId, content }` | Edit own message |
+| `message_delete` | `{ messageId }` | Delete own message |
+| `sync` | `{ lastSequence }` | Request missed messages |
+| `history` | `{ before?: messageId, limit?: number }` | Load older messages (max 100) |
+
+### 8c. Server → Client Events
+
+| Event | Payload |
+|-------|---------|
+| `message_new` | `{ id, dmId, authorId, authorType:"USER", authorName, content, type:"STANDARD", sequence, createdAt, reactions:[] }` |
+| `typing` | `{ userId, username, displayName }` |
+| `message_edited` | `{ messageId, content, editedAt }` |
+| `message_deleted` | `{ messageId, deletedBy }` |
+| `sync_messages` | `{ messages: MessagePayload[] }` |
+| `presence_state` | Phoenix Presence state map |
+
+### 8d. DM Internal APIs (Gateway → Web)
+
+#### GET /api/internal/dms/verify
+
+Verify a user is a DM participant.
+
+Query: `dmId`, `userId`
+Response: `{ valid: boolean, dmId, otherUser: { id, username, displayName } }`
+
+#### POST /api/internal/dms/messages
+
+Persist a DM message.
+
+Body: `{ id, dmId, authorId, content, sequence }`
+Response: `{ id, dmId, authorId, content, sequence, createdAt }`
+
+#### GET /api/internal/dms/messages
+
+Fetch DM messages with pagination.
+
+Query: `dmId`, `afterSequence?`, `before?`, `limit?`
+Response: `{ messages: DirectMessage[], hasMore: boolean }`
+
+#### PATCH /api/internal/dms/messages/{messageId}
+
+Edit a DM message.
+
+Body: `{ content }`
+Response: `{ id, content, editedAt }`
+
+#### DELETE /api/internal/dms/messages/{messageId}
+
+Soft-delete a DM message (sets `isDeleted: true`).
+
+Response: `{ id, isDeleted: true }`
+
+### 8e. DM Client APIs (Session-Authenticated)
+
+#### GET /api/dms
+
+List user's DM conversations with last message preview, sorted by recent activity.
+
+Response: `{ dms: [{ id, participant, lastMessage, updatedAt }] }`
+
+#### POST /api/dms
+
+Create or get existing DM channel.
+
+Body: `{ userId }` — the target user.
+Validation: Users must share at least one server.
+Response: `{ dm: { id, participant, isNew } }`
+
+#### GET /api/dms/{dmId}/messages
+
+DM message history with cursor pagination.
+
+Query: `before?`, `limit?` (default 50, max 100)
+Response: `{ messages: DirectMessage[], hasMore: boolean }`
+
+### 8f. Redis Keys
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `hive:dm:{dmId}:seq` | INCR counter | Message sequence per DM channel |
+
+---
+
+## 9. Channel Charter / Swarm Modes (TASK-0020, DEC-0050)
+
+Multi-agent collaboration modes with human-defined rules, enforced by the Go orchestrator.
+
+### 9a. Swarm Modes
+
+| Mode | Description |
+|------|-------------|
+| `HUMAN_IN_THE_LOOP` | Default. Agents respond only when mentioned/triggered. No charter enforcement. |
+| `LEAD_AGENT` | First agent in order leads. Others assist when asked. |
+| `ROUND_ROBIN` | Agents take turns in defined order. Go rejects out-of-turn requests. |
+| `STRUCTURED_DEBATE` | Agents present opposing viewpoints. |
+| `CODE_REVIEW_SPRINT` | Sequential code review pattern. Go enforces turn order. |
+| `FREEFORM` | Any agent can respond anytime. |
+| `CUSTOM` | User-defined rules via charter text. |
+
+### 9b. Charter Session Lifecycle
+
+```
+INACTIVE → [start] → ACTIVE → [pause] → PAUSED → [resume] → ACTIVE
+                        ↓                                       ↓
+                      [end]                                   [end]
+                        ↓                                       ↓
+                    COMPLETED ← ← ← ← ← ← ← ← ← ← ← ← COMPLETED
+                        ↑
+             (auto: maxTurns reached)
+```
+
+### 9c. Channel Charter API (Session-Authenticated)
+
+**PATCH** `/api/servers/{serverId}/channels/{channelId}`
+
+Extended with charter fields:
+- `swarmMode` — enum string (see 9a)
+- `charterGoal` — text (nullable)
+- `charterRules` — text (nullable)
+- `charterAgentOrder` — JSON array of bot IDs (nullable)
+- `charterMaxTurns` — integer >= 0 (0 = unlimited)
+
+Requires `MANAGE_CHANNELS` permission.
+
+**POST** `/api/servers/{serverId}/channels/{channelId}/charter`
+
+Charter session control:
+- Body: `{ action: "start" | "pause" | "resume" | "end" }`
+- State machine validation (see 9b)
+- Requires `MANAGE_CHANNELS` permission
+
+### 9d. Internal Charter APIs
+
+**GET** `/api/internal/channels/{channelId}` — Extended response:
+```json
+{
+  "channelId": "...",
+  "serverId": "...",
+  "lastSequence": "42",
+  "swarmMode": "ROUND_ROBIN",
+  "charterGoal": "Review the auth module",
+  "charterRules": "Each agent focuses on one concern",
+  "charterAgentOrder": ["bot1", "bot2", "bot3"],
+  "charterMaxTurns": 8,
+  "charterCurrentTurn": 3,
+  "charterStatus": "ACTIVE"
+}
+```
+
+**POST** `/api/internal/channels/{channelId}/charter-turn` — Turn increment:
+- Atomically increments `charterCurrentTurn`
+- Auto-completes if `maxTurns > 0 && currentTurn >= maxTurns`
+- Response: `{ currentTurn, maxTurns, completed }`
+
+**POST** `/api/internal/channels/{channelId}/charter-control` — Internal charter control:
+- Body: `{ action, serverId }`
+- Used by Gateway for WebSocket-initiated charter actions
+
+### 9e. WebSocket Events
+
+**Client → Server:**
+
+| Event | Payload | Notes |
+|-------|---------|-------|
+| `charter_control` | `{ action: "pause" \| "end" }` | User pauses/ends active charter |
+
+**Server → Client:**
+
+| Event | Payload | Notes |
+|-------|---------|-------|
+| `charter_status` | `{ channelId, currentTurn, maxTurns, status, timestamp }` | Charter state change |
+
+### 9f. Redis Keys
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `hive:stream:charter_status:{channelId}` | PUB/SUB | Charter status updates for live UI |
+
+### 9g. Go Proxy Charter Enforcement
+
+After loading bot config, the Go proxy:
+1. Fetches charter config via `GET /api/internal/channels/{channelId}`
+2. If charter is active and mode != `HUMAN_IN_THE_LOOP`:
+   - Checks max turns (rejects if exceeded)
+   - Checks turn order for `ROUND_ROBIN`/`CODE_REVIEW_SPRINT`
+3. Injects charter context into system prompt
+4. After stream completes: `POST /api/internal/channels/{channelId}/charter-turn`
+5. Publishes `charter_status` event to Redis
+
+---
+
 ## Changelog
 
 | Date | Version | Change |
@@ -1030,3 +1556,7 @@ In production, these endpoints are not exposed to the public internet.
 | 2026-03-01 | v1.8 | Add agent self-registration API (POST/GET/PATCH/DELETE /api/v1/agents), dual WebSocket auth (JWT + API key), GET /api/internal/agents/verify, agent channel authorization (DEC-0040) |
 | 2026-03-01 | v1.9 | Add agent-originated streaming events (stream_start/token/complete/error/thinking as client events for BOT connections), Python SDK (tavok-sdk v0.1.0) |
 | 2026-03-01 | v2.0 | Add typed messages (TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS), metadata field on Message, typed_message channel event, metadata in stream_complete (TASK-0039, DEC-0042) |
+| 2026-03-01 | v3.0 | Add §7 Agent Connectivity — 6 connection methods (Inbound Webhook, HTTP Webhook, REST Polling, SSE, OpenAI-Compatible), Gateway Broadcast Controller, adapter layer architecture (DEC-0044 through DEC-0046) |
+| 2026-03-01 | v3.1 | Add MCP-compatible tool interface — stream_tool_call/stream_tool_result events, tool execution loop in Go proxy, enabledTools on Bot, built-in current_time and web_search tools (TASK-0018, DEC-0048) |
+| 2026-03-01 | v3.2 | Add §8 Direct Messages — dm:{dmChannelId} topic, DmChannel module, internal DM APIs, client DM APIs, separate Prisma models (DirectMessageChannel, DmParticipant, DirectMessage), frontend DM hooks and components (TASK-0019, DEC-0049) |
+| 2026-03-01 | v3.3 | Add §9 Channel Charter / Swarm Modes — 7 swarm modes, charter session lifecycle, Go-enforced turn order, charter injection into system prompt, charter_status WebSocket events, frontend swarm settings + live header (TASK-0020, DEC-0050) |

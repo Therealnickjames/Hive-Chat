@@ -92,10 +92,21 @@ export function MessageList({
     >
       {/* Loading indicator at top */}
       {hasMoreHistory && messages.length > 0 && (
-        <div className="flex justify-center py-4">
-          <span className="text-xs text-text-muted">
-            Scroll up to load more...
-          </span>
+        <div className="px-4 py-3 space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-start gap-3 animate-pulse">
+              <div className="h-8 w-8 rounded-full bg-background-tertiary flex-shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-24 rounded bg-background-tertiary" />
+                <div className="h-3 rounded bg-background-tertiary" style={{ width: `${60 + i * 10}%` }} />
+              </div>
+            </div>
+          ))}
+          <div className="flex justify-center">
+            <span className="text-[10px] text-text-dim font-mono tracking-wider">
+              LOADING HISTORY
+            </span>
+          </div>
         </div>
       )}
 

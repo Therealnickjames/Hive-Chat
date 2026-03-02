@@ -41,26 +41,53 @@ func (a *Anthropic) Name() string {
 
 // anthropicRequest is the POST body for /v1/messages
 type anthropicRequest struct {
-	Model       string             `json:"model"`
-	MaxTokens   int                `json:"max_tokens"`
-	System      string             `json:"system,omitempty"`
-	Messages    []anthropicMessage `json:"messages"`
-	Stream      bool               `json:"stream"`
-	Temperature float64            `json:"temperature,omitempty"`
+	Model       string                   `json:"model"`
+	MaxTokens   int                      `json:"max_tokens"`
+	System      string                   `json:"system,omitempty"`
+	Messages    []anthropicMessage       `json:"messages"`
+	Stream      bool                     `json:"stream"`
+	Temperature float64                  `json:"temperature,omitempty"`
+	Tools       []map[string]interface{} `json:"tools,omitempty"` // TASK-0018: tool definitions
 }
 
 type anthropicMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string      `json:"role"`
+	Content interface{} `json:"content"` // string or []anthropicContentBlock (for tool_result)
+}
+
+// anthropicContentBlock is used for structured content (tool_use, tool_result).
+type anthropicContentBlock struct {
+	Type      string `json:"type"`
+	ID        string `json:"id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Input     interface{} `json:"input,omitempty"`
+	Text      string `json:"text,omitempty"`
+	ToolUseID string `json:"tool_use_id,omitempty"` // for tool_result
+	Content   string `json:"content,omitempty"`     // for tool_result
+	IsError   bool   `json:"is_error,omitempty"`    // for tool_result
 }
 
 // anthropicDelta is the content_block_delta event payload
 type anthropicDelta struct {
 	Type  string `json:"type"`
+	Index int    `json:"index"`
 	Delta struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
+		Type         string `json:"type"`
+		Text         string `json:"text"`
+		PartialJSON  string `json:"partial_json,omitempty"` // TASK-0018: input_json_delta
 	} `json:"delta"`
+}
+
+// anthropicBlockStart is the content_block_start event payload
+type anthropicBlockStart struct {
+	Type         string `json:"type"`
+	Index        int    `json:"index"`
+	ContentBlock struct {
+		Type  string `json:"type"` // "text" or "tool_use"
+		ID    string `json:"id,omitempty"`
+		Name  string `json:"name,omitempty"`
+		Input interface{} `json:"input,omitempty"`
+	} `json:"content_block"`
 }
 
 func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<- Token) (*StreamResult, error) {
@@ -95,6 +122,19 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 		Messages:    messages,
 		Stream:      true,
 		Temperature: req.Temperature,
+	}
+
+	// TASK-0018: Include tool definitions if provided
+	if len(req.Tools) > 0 {
+		anthropicTools := make([]map[string]interface{}, len(req.Tools))
+		for i, t := range req.Tools {
+			anthropicTools[i] = map[string]interface{}{
+				"name":         t.Name,
+				"description":  t.Description,
+				"input_schema": t.InputSchema,
+			}
+		}
+		body.Tools = anthropicTools
 	}
 
 	bodyJSON, err := json.Marshal(body)
@@ -141,10 +181,41 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 	emptyTextDeltas := 0
 	var stopReason string
 
+	// TASK-0018: Tool call tracking
+	// Track active tool_use blocks by content block index
+	type activeToolUse struct {
+		ID        string
+		Name      string
+		ArgsJSON  strings.Builder // accumulates input_json_delta partial_json chunks
+	}
+	activeTools := make(map[int]*activeToolUse)     // blockIndex → tool data
+	var completedToolCalls []ToolCall                 // finalized tool calls
+
 	err = sse.Parse(respBody, func(event sse.Event) {
 		eventCounts[event.EventType]++
 
 		switch event.EventType {
+		case "content_block_start":
+			// TASK-0018: Detect tool_use content blocks
+			var blockStart anthropicBlockStart
+			if err := json.Unmarshal([]byte(event.Data), &blockStart); err != nil {
+				slog.Warn("Failed to parse content_block_start", "error", err, "data", event.Data)
+				return
+			}
+
+			if blockStart.ContentBlock.Type == "tool_use" {
+				activeTools[blockStart.Index] = &activeToolUse{
+					ID:   blockStart.ContentBlock.ID,
+					Name: blockStart.ContentBlock.Name,
+				}
+				slog.Info("Anthropic tool_use block started",
+					"blockIndex", blockStart.Index,
+					"toolId", blockStart.ContentBlock.ID,
+					"toolName", blockStart.ContentBlock.Name,
+				)
+			}
+			// text blocks: no action needed on start
+
 		case "content_block_delta":
 			var delta anthropicDelta
 			if err := json.Unmarshal([]byte(event.Data), &delta); err != nil {
@@ -152,10 +223,18 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 				return
 			}
 
+			// TASK-0018: Handle input_json_delta for tool argument streaming
+			if delta.Delta.Type == "input_json_delta" {
+				if tool, ok := activeTools[delta.Index]; ok {
+					tool.ArgsJSON.WriteString(delta.Delta.PartialJSON)
+				}
+				return
+			}
+
+			// Regular text_delta handling
 			text := delta.Delta.Text
 			if text == "" {
 				emptyTextDeltas++
-				// Log first empty delta for diagnostics
 				if emptyTextDeltas == 1 {
 					slog.Warn("Anthropic content_block_delta with empty text",
 						"deltaType", delta.Delta.Type,
@@ -179,12 +258,53 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 				return
 			}
 
+		case "content_block_stop":
+			// TASK-0018: Finalize tool_use blocks when their content_block_stop fires
+			var blockStop struct {
+				Type  string `json:"type"`
+				Index int    `json:"index"`
+			}
+			if err := json.Unmarshal([]byte(event.Data), &blockStop); err != nil {
+				return
+			}
+
+			if tool, ok := activeTools[blockStop.Index]; ok {
+				// Parse accumulated JSON arguments
+				var args map[string]interface{}
+				argsStr := tool.ArgsJSON.String()
+				if argsStr != "" {
+					if err := json.Unmarshal([]byte(argsStr), &args); err != nil {
+						slog.Warn("Failed to parse tool arguments",
+							"toolId", tool.ID,
+							"toolName", tool.Name,
+							"argsJSON", argsStr,
+							"error", err,
+						)
+						args = map[string]interface{}{"_raw": argsStr}
+					}
+				} else {
+					args = make(map[string]interface{})
+				}
+
+				completedToolCalls = append(completedToolCalls, ToolCall{
+					ID:        tool.ID,
+					Name:      tool.Name,
+					Arguments: args,
+				})
+
+				slog.Info("Anthropic tool_use block completed",
+					"toolId", tool.ID,
+					"toolName", tool.Name,
+				)
+				delete(activeTools, blockStop.Index)
+			}
+
 		case "message_stop":
 			// Stream is done
 			return
 
 		case "message_delta":
-			// Capture stop_reason for diagnostics
+			// Capture stop_reason for diagnostics and tool detection
 			var md struct {
 				Delta struct {
 					StopReason string `json:"stop_reason"`
@@ -195,7 +315,7 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 			}
 			return
 
-		case "message_start", "content_block_start", "content_block_stop", "ping":
+		case "message_start", "ping":
 			// Expected events, no action needed
 			return
 
@@ -220,6 +340,7 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 		"eventCounts", eventCounts,
 		"finalContentLen", finalContent.Len(),
 		"stopReason", stopReason,
+		"toolCalls", len(completedToolCalls),
 	)
 
 	if err != nil {
@@ -244,7 +365,8 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 	// Detect empty responses — model returned valid SSE stream but no content blocks.
 	// This happens intermittently and can cascade if empty content is persisted and
 	// included in future context. Log a warning for monitoring. (ISSUE-027)
-	if tokenIndex == 0 && finalContent.Len() == 0 {
+	// Skip this warning when the model stopped for tool_use (no text is expected). (TASK-0018)
+	if tokenIndex == 0 && finalContent.Len() == 0 && stopReason != "tool_use" {
 		slog.Warn("Anthropic returned empty response (no content blocks)",
 			"stopReason", stopReason,
 			"eventCounts", eventCounts,
@@ -256,6 +378,8 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 		FinalContent: finalContent.String(),
 		TokenCount:   tokenIndex,
 		DurationMs:   time.Since(startTime).Milliseconds(),
+		ToolCalls:    completedToolCalls,
+		StopReason:   stopReason,
 	}, nil
 }
 
@@ -266,7 +390,8 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 //   - Multiple users posted without bot responses between them
 //   - Messages were deleted leaving gaps
 //
-// Without consolidation, the model intermittently returns empty responses. (ISSUE-027)
+// Only merges messages with string content — structured content blocks (tool_result)
+// are left as-is. (ISSUE-027, TASK-0018)
 func consolidateMessages(messages []anthropicMessage) []anthropicMessage {
 	if len(messages) == 0 {
 		return messages
@@ -277,9 +402,12 @@ func consolidateMessages(messages []anthropicMessage) []anthropicMessage {
 
 	for i := 1; i < len(messages); i++ {
 		last := &consolidated[len(consolidated)-1]
-		if messages[i].Role == last.Role {
+		// Only merge if both have string content (not structured content blocks)
+		lastStr, lastIsStr := last.Content.(string)
+		curStr, curIsStr := messages[i].Content.(string)
+		if messages[i].Role == last.Role && lastIsStr && curIsStr {
 			// Merge: append content with newline separator
-			last.Content += "\n\n" + messages[i].Content
+			last.Content = lastStr + "\n\n" + curStr
 		} else {
 			consolidated = append(consolidated, messages[i])
 		}
@@ -302,4 +430,40 @@ func consolidateMessages(messages []anthropicMessage) []anthropicMessage {
 	}
 
 	return consolidated
+}
+
+// BuildAnthropicToolResultMessages creates the Anthropic-format messages
+// needed to continue a conversation after tool execution.
+// Returns an assistant message (with the tool_use blocks) and a user message
+// (with the tool_result blocks).
+func BuildAnthropicToolResultMessages(toolCalls []ToolCall, results []ToolResult) (anthropicMessage, anthropicMessage) {
+	// Assistant message: reconstruct the tool_use content blocks
+	assistantBlocks := make([]anthropicContentBlock, len(toolCalls))
+	for i, tc := range toolCalls {
+		assistantBlocks[i] = anthropicContentBlock{
+			Type:  "tool_use",
+			ID:    tc.ID,
+			Name:  tc.Name,
+			Input: tc.Arguments,
+		}
+	}
+
+	// User message: tool_result content blocks
+	resultBlocks := make([]anthropicContentBlock, len(results))
+	for i, r := range results {
+		resultBlocks[i] = anthropicContentBlock{
+			Type:      "tool_result",
+			ToolUseID: r.ToolUseID,
+			Content:   r.Content,
+			IsError:   r.IsError,
+		}
+	}
+
+	return anthropicMessage{
+			Role:    "assistant",
+			Content: assistantBlocks,
+		}, anthropicMessage{
+			Role:    "user",
+			Content: resultBlocks,
+		}
 }

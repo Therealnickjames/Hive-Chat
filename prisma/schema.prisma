@@ -81,6 +81,8 @@ model User {
   attachments    Attachment[]
   mentions       MessageMention[]
   readStates     ChannelReadState[]
+  dmParticipants DmParticipant[]
+  directMessages DirectMessage[]  @relation("DirectMessageAuthor")
 }
 
 model Server {
@@ -88,6 +90,11 @@ model Server {
   name      String
   iconUrl   String?
   ownerId   String   @db.VarChar(26)
+
+  // Agent registration settings (DEC-0047)
+  allowAgentRegistration       Boolean @default(false) // whether external agents can self-register
+  registrationApprovalRequired Boolean @default(true)  // require owner approval for self-registered agents
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -114,12 +121,22 @@ model Channel {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  // Swarm / Charter fields (TASK-0020, DEC-0050)
+  swarmMode          SwarmMode      @default(HUMAN_IN_THE_LOOP)
+  charterGoal        String?        @db.Text     // What agents should accomplish
+  charterRules       String?        @db.Text     // Custom rules / instructions
+  charterAgentOrder  String?        @db.Text     // JSON array of botIds for ordered modes
+  charterMaxTurns    Int            @default(0)  // 0 = unlimited
+  charterCurrentTurn Int            @default(0)  // Current turn counter
+  charterStatus      CharterStatus  @default(INACTIVE)
+
   // Relations
-  server      Server       @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  defaultBot  Bot?         @relation("ChannelDefaultBot", fields: [defaultBotId], references: [id], onDelete: SetNull)
-  messages    Message[]
-  channelBots ChannelBot[]
-  readStates  ChannelReadState[]
+  server           Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  defaultBot       Bot?             @relation("ChannelDefaultBot", fields: [defaultBotId], references: [id], onDelete: SetNull)
+  messages         Message[]
+  channelBots      ChannelBot[]
+  readStates       ChannelReadState[]
+  inboundWebhooks  InboundWebhook[] // Discord-style incoming webhooks (DEC-0043)
 
   @@index([serverId, position])
 }
@@ -254,15 +271,18 @@ model Bot {
   maxTokens       Int         @default(4096)
   isActive        Boolean     @default(true)
   triggerMode     TriggerMode @default(MENTION)
-  thinkingSteps   String?     @db.Text // JSON array of phase labels e.g. ["Planning","Researching","Drafting","Reviewing"]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  thinkingSteps    String?           @db.Text // JSON array of phase labels e.g. ["Planning","Researching","Drafting","Reviewing"]
+  enabledTools     String?           @db.Text // JSON array of tool names e.g. ["current_time","web_search"] — null/empty = all tools (TASK-0018)
+  connectionMethod ConnectionMethod? // null = BYOK (UI-configured), non-null = SDK/webhook/etc (DEC-0047)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   // Relations
   server            Server             @relation(fields: [serverId], references: [id], onDelete: Cascade)
   defaultChannels   Channel[]          @relation("ChannelDefaultBot")
   channelBots       ChannelBot[]
   agentRegistration AgentRegistration? // null for UI-configured bots (DEC-0040)
+  inboundWebhooks   InboundWebhook[]   // Discord-style incoming webhooks (DEC-0043)
 
   @@index([serverId])
 }
@@ -283,6 +303,19 @@ model AgentRegistration {
   lastHealthOk    Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Universal agent connectivity (DEC-0043)
+  connectionMethod   ConnectionMethod @default(WEBSOCKET)
+  webhookSecret      String?  @db.VarChar(64)  // HMAC-SHA256 signing secret for outbound webhook payloads
+  webhookTimeout     Int      @default(30000)   // ms timeout for webhook HTTP responses
+  inboundWebhookToken String? @db.VarChar(64)  // separate URL-safe token for simple webhook auth
+  sseEnabled         Boolean  @default(false)   // whether SSE event endpoint is active for this agent
+  openaiSystemPrompt String?  @db.Text          // override system prompt for OpenAI-compat mode
+
+  // Approval flow (DEC-0047)
+  approvalStatus ApprovalStatus @default(APPROVED) // APPROVED default = backward compat for existing agents
+  reviewedBy     String?        @db.VarChar(26)    // userId of who approved/rejected
+  reviewedAt     DateTime?
 
   // Relation: each AgentRegistration owns exactly one Bot
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
@@ -305,6 +338,47 @@ model ChannelBot {
 
   @@unique([channelId, botId])
   @@index([channelId])
+}
+
+// Discord-style incoming webhooks (DEC-0045)
+// One URL per channel, token embedded in URL. No headers needed.
+// Any system (curl, CI/CD, n8n) can POST a message by hitting the URL.
+model InboundWebhook {
+  id        String   @id @db.VarChar(26)
+  channelId String   @db.VarChar(26)
+  botId     String   @db.VarChar(26)
+  token     String   @unique @db.VarChar(64) // whk_... token — the URL IS the auth
+  name      String                           // display name for messages sent through this webhook
+  avatarUrl String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  bot     Bot     @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([channelId])
+}
+
+// Agent message queue for REST polling (DEC-0043)
+// When a message triggers a REST_POLL or WEBHOOK bot, a row is inserted here.
+// The agent picks it up on next poll. Ephemeral — auto-cleanup after 24h.
+model AgentMessage {
+  id         String   @id @db.VarChar(26)
+  botId      String   @db.VarChar(26)
+  channelId  String   @db.VarChar(26)
+  messageId  String   @db.VarChar(26) // reference to the original Message
+  content    String   @db.Text
+  authorId   String   @db.VarChar(26)
+  authorName String
+  authorType String   // "USER" | "BOT"
+  delivered  Boolean  @default(false)
+  expiresAt  DateTime // TTL — auto-cleanup after 24h
+  createdAt  DateTime @default(now())
+
+  // Primary polling query: undelivered messages for a bot, ordered by time
+  @@index([botId, delivered, createdAt])
+  @@index([botId, channelId])
 }
 
 // Mention persistence (TASK-0015)
@@ -337,6 +411,55 @@ model ChannelReadState {
 
   @@unique([userId, channelId])
   @@index([userId])
+}
+
+// ============================================================
+// DIRECT MESSAGES (TASK-0019)
+// ============================================================
+
+// DM channel — a private conversation between two users.
+// Lives outside the server hierarchy. No serverId, no bots.
+model DirectMessageChannel {
+  id        String   @id @db.VarChar(26)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants DmParticipant[]
+  messages     DirectMessage[]
+}
+
+// DM participant — tracks who is in a DM conversation.
+// Enables future multi-user DMs (group DMs) without schema changes.
+model DmParticipant {
+  id     String @id @db.VarChar(26)
+  dmId   String @db.VarChar(26)
+  userId String @db.VarChar(26)
+
+  dm   DirectMessageChannel @relation(fields: [dmId], references: [id], onDelete: Cascade)
+  user User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dmId, userId])
+  @@index([userId])
+}
+
+// Direct message — a message within a DM channel.
+// Mirrors Message model structure but scoped to DMs, not server channels.
+model DirectMessage {
+  id        String    @id @db.VarChar(26)
+  dmId      String    @db.VarChar(26)
+  authorId  String    @db.VarChar(26)
+  content   String    @db.Text
+  editedAt  DateTime?
+  isDeleted Boolean   @default(false)
+  sequence  BigInt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  dm     DirectMessageChannel @relation(fields: [dmId], references: [id], onDelete: Cascade)
+  author User                 @relation("DirectMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([dmId, sequence])
+  @@index([dmId, id])
 }
 
 // ============================================================
@@ -375,4 +498,40 @@ enum TriggerMode {
   ALWAYS
   MENTION
   KEYWORD
+}
+
+// Agent registration approval status (DEC-0047)
+enum ApprovalStatus {
+  PENDING   // Awaiting server owner approval
+  APPROVED  // Approved and active
+  REJECTED  // Rejected by server owner
+}
+
+// Agent connection method — how an agent communicates with Tavok (DEC-0043)
+enum ConnectionMethod {
+  WEBSOCKET       // Existing: Phoenix Channel V2 (Python SDK, TS SDK)
+  WEBHOOK         // Tavok calls agent's URL on trigger (Slack/Telegram pattern)
+  INBOUND_WEBHOOK // Agent POSTs into Tavok (Discord incoming webhooks pattern)
+  REST_POLL       // Agent polls for messages (serverless/Lambda pattern)
+  SSE             // Agent receives events via SSE, sends via REST
+  OPENAI_COMPAT   // Agent speaks OpenAI Chat Completions format
+}
+
+// Swarm collaboration mode — how agents interact in a channel (TASK-0020, DEC-0050)
+enum SwarmMode {
+  HUMAN_IN_THE_LOOP   // Default — agents only respond when mentioned/triggered
+  LEAD_AGENT          // One agent leads, others assist when asked
+  ROUND_ROBIN         // Agents take turns in defined order
+  STRUCTURED_DEBATE   // Agents present opposing viewpoints
+  CODE_REVIEW_SPRINT  // Sequential review pattern
+  FREEFORM            // Any agent can respond anytime
+  CUSTOM              // User-defined rules via charter text
+}
+
+// Charter session status (TASK-0020)
+enum CharterStatus {
+  INACTIVE   // No active swarm session
+  ACTIVE     // Swarm is running
+  PAUSED     // Paused by human override
+  COMPLETED  // Max turns reached or /end issued
 }

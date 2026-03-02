@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { CodeBlockContent } from "@tavok/shared/types/typed-messages";
+import type { CodeBlockContent } from "@tavok/shared/typed-messages";
 
 interface CodeBlockMessageProps {
   content: CodeBlockContent;

@@ -473,6 +473,45 @@ defmodule TavokGatewayWeb.RoomChannel do
     {:reply, {:error, %{reason: "invalid_payload", event: "message_delete"}}, socket}
   end
 
+  # ---------- Charter Control (TASK-0020) ----------
+  # Allows channel members with MANAGE_CHANNELS to pause/end charter sessions.
+  # Delegates to the Web API: POST /api/servers/{serverId}/channels/{channelId}/charter
+
+  @valid_charter_actions ~w(pause end)
+
+  @impl true
+  def handle_in("charter_control", %{"action" => action}, socket)
+      when action in @valid_charter_actions do
+    channel_id = socket.assigns.channel_id
+
+    # Fetch channel info to get serverId for the API call
+    case WebClient.get_channel_info(channel_id) do
+      {:ok, %{"serverId" => server_id}} ->
+        Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
+          case WebClient.charter_control(server_id, channel_id, action, socket.assigns.user_id) do
+            {:ok, response} ->
+              # Broadcast charter_status to all clients in the room
+              Broadcast.endpoint_broadcast!("room:#{channel_id}", "charter_status", response)
+              Logger.info("Charter #{action}: channel=#{channel_id}")
+
+            {:error, reason} ->
+              Logger.error("Charter control failed: channel=#{channel_id} action=#{action} reason=#{inspect(reason)}")
+          end
+        end)
+
+        {:reply, {:ok, %{action: action}}, socket}
+
+      {:error, reason} ->
+        Logger.error("Charter control channel lookup failed: #{inspect(reason)}")
+        {:reply, {:error, %{reason: "channel_lookup_failed"}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("charter_control", _payload, socket) do
+    {:reply, {:error, %{reason: "invalid_payload", event: "charter_control"}}, socket}
+  end
+
   # ---------- Agent-Originated Streaming (DEC-0040 / Session 2) ----------
   # These handlers allow agents connected via API key to stream tokens
   # directly through the WebSocket, bypassing the Go streaming proxy.
@@ -520,6 +559,55 @@ defmodule TavokGatewayWeb.RoomChannel do
       _ ->
         {:reply, {:error, %{reason: "only_agents_can_stream"}}, socket}
     end
+  end
+
+  # Also handle stream_thinking from agents
+  @impl true
+  def handle_in("stream_thinking", %{"messageId" => message_id, "phase" => phase} = payload, socket) do
+    case socket.assigns[:author_type] do
+      "BOT" ->
+        Broadcast.broadcast_pre_serialized!(socket, "stream_thinking", %{
+          messageId: message_id,
+          phase: phase,
+          detail: Map.get(payload, "detail", ""),
+          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+        })
+
+        {:noreply, socket}
+
+      _ ->
+        {:reply, {:error, %{reason: "only_agents_can_stream"}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("stream_thinking", _payload, socket) do
+    {:reply, {:error, %{reason: "invalid_payload", event: "stream_thinking"}}, socket}
+  end
+
+  # ---------- Typed Messages (TASK-0039) ----------
+  # Agents can send structured messages (TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS)
+  # These are standalone messages (not part of a stream) with JSON content.
+
+  @valid_typed_message_types ~w(TOOL_CALL TOOL_RESULT CODE_BLOCK ARTIFACT STATUS)
+
+  @impl true
+  def handle_in("typed_message", %{"type" => msg_type, "content" => content} = payload, socket) do
+    case socket.assigns[:author_type] do
+      "BOT" when msg_type in @valid_typed_message_types ->
+        handle_agent_typed_message(msg_type, content, payload, socket)
+
+      "BOT" ->
+        {:reply, {:error, %{reason: "invalid_message_type", type: msg_type}}, socket}
+
+      _ ->
+        {:reply, {:error, %{reason: "only_agents_can_send_typed_messages"}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("typed_message", _payload, socket) do
+    {:reply, {:error, %{reason: "invalid_payload", event: "typed_message"}}, socket}
   end
 
   defp handle_agent_stream_start(_payload, socket) do
@@ -666,55 +754,6 @@ defmodule TavokGatewayWeb.RoomChannel do
     {:reply, {:error, %{reason: "invalid_payload", event: "stream_error"}}, socket}
   end
 
-  # Also handle stream_thinking from agents
-  @impl true
-  def handle_in("stream_thinking", %{"messageId" => message_id, "phase" => phase} = payload, socket) do
-    case socket.assigns[:author_type] do
-      "BOT" ->
-        Broadcast.broadcast_pre_serialized!(socket, "stream_thinking", %{
-          messageId: message_id,
-          phase: phase,
-          detail: Map.get(payload, "detail", ""),
-          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-        })
-
-        {:noreply, socket}
-
-      _ ->
-        {:reply, {:error, %{reason: "only_agents_can_stream"}}, socket}
-    end
-  end
-
-  @impl true
-  def handle_in("stream_thinking", _payload, socket) do
-    {:reply, {:error, %{reason: "invalid_payload", event: "stream_thinking"}}, socket}
-  end
-
-  # ---------- Typed Messages (TASK-0039) ----------
-  # Agents can send structured messages (TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS)
-  # These are standalone messages (not part of a stream) with JSON content.
-
-  @valid_typed_message_types ~w(TOOL_CALL TOOL_RESULT CODE_BLOCK ARTIFACT STATUS)
-
-  @impl true
-  def handle_in("typed_message", %{"type" => msg_type, "content" => content} = payload, socket) do
-    case socket.assigns[:author_type] do
-      "BOT" when msg_type in @valid_typed_message_types ->
-        handle_agent_typed_message(msg_type, content, payload, socket)
-
-      "BOT" ->
-        {:reply, {:error, %{reason: "invalid_message_type", type: msg_type}}, socket}
-
-      _ ->
-        {:reply, {:error, %{reason: "only_agents_can_send_typed_messages"}}, socket}
-    end
-  end
-
-  @impl true
-  def handle_in("typed_message", _payload, socket) do
-    {:reply, {:error, %{reason: "invalid_payload", event: "typed_message"}}, socket}
-  end
-
   defp handle_agent_typed_message(msg_type, content, payload, socket) do
     channel_id = socket.assigns.channel_id
     bot_id = socket.assigns.user_id
@@ -782,9 +821,11 @@ defmodule TavokGatewayWeb.RoomChannel do
   # ---------- Bot trigger helpers ----------
 
   # Evaluate trigger condition and run bot if matched (TASK-0012)
+  # Branches on connectionMethod to dispatch via the appropriate channel (DEC-0043)
   defp maybe_trigger_bot(socket, bot_config, trigger_message_id, content) do
     trigger_mode = Map.get(bot_config, "triggerMode", "ALWAYS")
     bot_name = Map.get(bot_config, "name", "")
+    connection_method = Map.get(bot_config, "connectionMethod", "WEBSOCKET")
 
     should_trigger =
       case trigger_mode do
@@ -794,7 +835,20 @@ defmodule TavokGatewayWeb.RoomChannel do
       end
 
     if should_trigger do
-      run_bot_trigger(socket, bot_config, trigger_message_id, content)
+      case connection_method do
+        "WEBSOCKET" ->
+          run_bot_trigger(socket, bot_config, trigger_message_id, content)
+
+        "WEBHOOK" ->
+          run_webhook_trigger(socket, bot_config, trigger_message_id, content)
+
+        "REST_POLL" ->
+          run_poll_trigger(socket, bot_config, trigger_message_id, content)
+
+        _ ->
+          # INBOUND_WEBHOOK, SSE, OPENAI_COMPAT are agent-initiated — no server-side trigger
+          :noop
+      end
     end
   end
 
@@ -867,6 +921,63 @@ defmodule TavokGatewayWeb.RoomChannel do
       {:error, reason} ->
         Logger.error("Redis INCR failed for streaming message: #{inspect(reason)}")
     end
+  end
+
+  # Dispatch trigger to agent's webhook URL (DEC-0043: WEBHOOK connectionMethod)
+  # The Next.js dispatch endpoint handles HMAC signing, agent HTTP call,
+  # and response broadcasting (sync, SSE stream, or async callback).
+  defp run_webhook_trigger(socket, bot_config, trigger_message_id, trigger_content) do
+    channel_id = socket.assigns.channel_id
+    bot_id = Map.get(bot_config, "id")
+    context_messages = fetch_context_messages(channel_id, trigger_content)
+
+    Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
+      case WebClient.dispatch_webhook(bot_id, %{
+             channelId: channel_id,
+             triggerMessageId: trigger_message_id,
+             triggerContent: trigger_content,
+             contextMessages: context_messages
+           }) do
+        {:ok, _} ->
+          Logger.info(
+            "Webhook dispatched: channel=#{channel_id} bot=#{bot_id}"
+          )
+
+        {:error, reason} ->
+          Logger.error(
+            "Webhook dispatch failed: channel=#{channel_id} bot=#{bot_id} reason=#{inspect(reason)}"
+          )
+      end
+    end)
+  end
+
+  # Enqueue message for REST polling agents (DEC-0043: REST_POLL connectionMethod)
+  # The message is queued in AgentMessage table for the agent to pick up
+  # via GET /api/v1/agents/{id}/messages.
+  defp run_poll_trigger(socket, bot_config, trigger_message_id, trigger_content) do
+    channel_id = socket.assigns.channel_id
+    bot_id = Map.get(bot_config, "id")
+
+    Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
+      case WebClient.enqueue_agent_message(bot_id, %{
+             channelId: channel_id,
+             messageId: trigger_message_id,
+             content: trigger_content,
+             authorId: socket.assigns.user_id,
+             authorName: socket.assigns.display_name,
+             authorType: socket.assigns[:author_type] || "USER"
+           }) do
+        {:ok, _} ->
+          Logger.info(
+            "Message enqueued for polling: channel=#{channel_id} bot=#{bot_id}"
+          )
+
+        {:error, reason} ->
+          Logger.error(
+            "Enqueue failed: channel=#{channel_id} bot=#{bot_id} reason=#{inspect(reason)}"
+          )
+      end
+    end)
   end
 
   defp fetch_context_messages(channel_id, trigger_content) do

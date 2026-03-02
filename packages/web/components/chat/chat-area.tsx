@@ -56,6 +56,8 @@ export function ChatArea({
     sendTyping,
     presenceMap,
     activeStreamCount,
+    charterState,
+    sendCharterControl,
   } = useChannel(channelId);
 
   // Delete modal state (TASK-0014)
@@ -115,7 +117,13 @@ export function ChatArea({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <ChannelHeader channelName={channelName} topic={channelTopic} />
+      <ChannelHeader
+        channelName={channelName}
+        topic={channelTopic}
+        charterState={charterState}
+        onCharterPause={() => sendCharterControl("pause")}
+        onCharterEnd={() => sendCharterControl("end")}
+      />
       <MessageList
         messages={messages}
         hasMoreHistory={hasMoreHistory}

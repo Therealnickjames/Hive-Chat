@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { useWorkspaceContext } from "@/components/providers/workspace-provider";
 import { CreateServerModal } from "@/components/modals/create-server-modal";
 import { CreateChannelModal } from "@/components/modals/create-channel-modal";
 import { Permissions } from "@/lib/permissions";
 import { passthroughImageLoader } from "@/lib/image-loader";
+import { useDmList } from "@/lib/hooks/use-dm-list";
 
 export function LeftPanel() {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     servers,
     currentServerId,
@@ -23,9 +25,17 @@ export function LeftPanel() {
   } = useChatContext();
   const { openPanel, panels, activeStreams, removePanelsForServer } =
     useWorkspaceContext();
-  const [activeTab, setActiveTab] = useState<"servers" | "channels">("channels");
+  const [activeTab, setActiveTab] = useState<"servers" | "channels" | "messages">(
+    pathname.startsWith("/dms") ? "messages" : "channels"
+  );
   const [showCreateServer, setShowCreateServer] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+
+  // TASK-0019: DM conversations list
+  const { conversations: dmConversations, isLoading: dmsLoading } = useDmList();
+
+  // Derive active DM from URL
+  const activeDmId = pathname.match(/\/dms\/([^/]+)/)?.[1] || null;
 
   // Derive which channels have active panels
   const openChannelIds = new Set(
@@ -81,6 +91,16 @@ export function LeftPanel() {
           >
             CHANNELS
           </button>
+          <button
+            onClick={() => setActiveTab("messages")}
+            className={`flex-1 p-2 text-center text-xs font-mono transition-colors ${
+              activeTab === "messages"
+                ? "border-b-2 border-brand text-brand"
+                : "text-text-dim hover:text-text-secondary"
+            }`}
+          >
+            DMs
+          </button>
         </div>
 
         {/* Content */}
@@ -130,6 +150,58 @@ export function LeftPanel() {
                 </div>
                 <span>New Server</span>
               </button>
+            </div>
+          ) : activeTab === "messages" ? (
+            /* TASK-0019: DM Conversations List */
+            <div className="space-y-1">
+              <div className="mb-2 px-2">
+                <span className="text-[10px] font-bold uppercase text-text-dim tracking-wider">
+                  Direct Messages
+                </span>
+              </div>
+
+              {dmsLoading ? (
+                <div className="px-2 text-xs text-text-dim">Loading...</div>
+              ) : dmConversations.length === 0 ? (
+                <div className="px-2 text-xs text-text-dim text-center mt-4">
+                  No direct messages yet.
+                  <br />
+                  <span className="text-text-muted">
+                    Click a member to start a conversation.
+                  </span>
+                </div>
+              ) : (
+                dmConversations.map((dm) => {
+                  const isActive = activeDmId === dm.id;
+                  return (
+                    <button
+                      key={dm.id}
+                      onClick={() => router.push(`/dms/${dm.id}`)}
+                      className={`flex w-full items-center gap-2.5 rounded px-2 py-2 text-xs transition-colors ${
+                        isActive
+                          ? "bg-background-secondary text-text-primary"
+                          : "text-text-secondary hover:bg-background-secondary hover:text-text-primary"
+                      }`}
+                    >
+                      {/* Avatar */}
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-background-tertiary text-xs font-semibold text-text-primary">
+                        {dm.otherUser.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      {/* Name + preview */}
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="truncate font-medium font-mono">
+                          {dm.otherUser.displayName}
+                        </div>
+                        {dm.lastMessage && (
+                          <div className="truncate text-[10px] text-text-dim mt-0.5">
+                            {dm.lastMessage.content.slice(0, 50)}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
           ) : (
             <div className="space-y-4">

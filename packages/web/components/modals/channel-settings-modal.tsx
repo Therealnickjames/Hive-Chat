@@ -12,6 +12,17 @@ interface Bot {
   llmModel: string;
 }
 
+// TASK-0020: Swarm mode options
+const SWARM_MODES = [
+  { value: "HUMAN_IN_THE_LOOP", label: "Human in the Loop", description: "Agents only respond when mentioned or triggered" },
+  { value: "LEAD_AGENT", label: "Lead Agent", description: "One agent leads, others assist when asked" },
+  { value: "ROUND_ROBIN", label: "Round Robin", description: "Agents take turns in defined order" },
+  { value: "STRUCTURED_DEBATE", label: "Structured Debate", description: "Agents present opposing viewpoints" },
+  { value: "CODE_REVIEW_SPRINT", label: "Code Review Sprint", description: "Sequential code review pattern" },
+  { value: "FREEFORM", label: "Freeform", description: "Any agent can respond anytime" },
+  { value: "CUSTOM", label: "Custom", description: "User-defined rules via charter text" },
+] as const;
+
 interface ChannelSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,6 +46,12 @@ export function ChannelSettingsModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // TASK-0020: Swarm mode state
+  const [swarmMode, setSwarmMode] = useState("HUMAN_IN_THE_LOOP");
+  const [charterGoal, setCharterGoal] = useState("");
+  const [charterRules, setCharterRules] = useState("");
+  const [charterMaxTurns, setCharterMaxTurns] = useState(0);
+
   const fetchBots = useCallback(async () => {
     if (!currentServerId) return;
     try {
@@ -53,9 +70,27 @@ export function ChannelSettingsModal({
     }
   }, [currentServerId]);
 
+  // Fetch channel charter data on open
+  const fetchChannelData = useCallback(async () => {
+    if (!currentServerId || !channelId) return;
+    try {
+      const res = await fetch(`/api/servers/${currentServerId}/channels/${channelId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSwarmMode(data.swarmMode || "HUMAN_IN_THE_LOOP");
+        setCharterGoal(data.charterGoal || "");
+        setCharterRules(data.charterRules || "");
+        setCharterMaxTurns(data.charterMaxTurns || 0);
+      }
+    } catch {
+      // Silently fail — defaults are fine
+    }
+  }, [currentServerId, channelId]);
+
   useEffect(() => {
     if (isOpen) {
       fetchBots();
+      fetchChannelData();
       // Initialize from currentBotIds or fall back to single defaultBotId
       if (currentBotIds && currentBotIds.length > 0) {
         setSelectedBotIds(new Set(currentBotIds));
@@ -66,7 +101,7 @@ export function ChannelSettingsModal({
       }
       setError("");
     }
-  }, [isOpen, fetchBots, currentBotIds, currentDefaultBotId]);
+  }, [isOpen, fetchBots, fetchChannelData, currentBotIds, currentDefaultBotId]);
 
   function toggleBot(botId: string) {
     setSelectedBotIds((prev) => {
@@ -94,6 +129,10 @@ export function ChannelSettingsModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             botIds: Array.from(selectedBotIds),
+            swarmMode,
+            charterGoal: charterGoal || null,
+            charterRules: charterRules || null,
+            charterMaxTurns,
           }),
         }
       );
@@ -155,6 +194,80 @@ export function ChannelSettingsModal({
             </div>
           )}
         </div>
+
+        {/* TASK-0020: Swarm Mode Settings — only visible when 2+ bots selected */}
+        {selectedBotIds.size >= 2 && (
+          <div className="border-t border-background-tertiary pt-4">
+            <label className="mb-2 block text-sm font-medium text-text-primary">
+              Swarm Mode
+            </label>
+            <p className="mb-3 text-xs text-text-muted">
+              Choose how agents collaborate when multiple are active.
+            </p>
+
+            <select
+              value={swarmMode}
+              onChange={(e) => setSwarmMode(e.target.value)}
+              className="w-full rounded border border-background-tertiary bg-background-primary px-3 py-2 text-sm text-text-primary focus:border-accent-cyan focus:outline-none"
+            >
+              {SWARM_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-text-muted">
+              {SWARM_MODES.find((m) => m.value === swarmMode)?.description}
+            </p>
+
+            {/* Goal */}
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-text-secondary">
+                Goal
+              </label>
+              <input
+                type="text"
+                value={charterGoal}
+                onChange={(e) => setCharterGoal(e.target.value)}
+                placeholder="What should the agents accomplish?"
+                className="w-full rounded border border-background-tertiary bg-background-primary px-3 py-2 text-sm text-text-primary placeholder-text-dim focus:border-accent-cyan focus:outline-none"
+              />
+            </div>
+
+            {/* Rules */}
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-text-secondary">
+                Rules
+              </label>
+              <textarea
+                value={charterRules}
+                onChange={(e) => setCharterRules(e.target.value)}
+                placeholder="Custom rules for agents to follow..."
+                rows={3}
+                className="w-full rounded border border-background-tertiary bg-background-primary px-3 py-2 text-sm text-text-primary placeholder-text-dim focus:border-accent-cyan focus:outline-none resize-none"
+              />
+            </div>
+
+            {/* Max turns */}
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-text-secondary">
+                Max Turns
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={charterMaxTurns}
+                  onChange={(e) => setCharterMaxTurns(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-20 rounded border border-background-tertiary bg-background-primary px-3 py-2 text-sm text-text-primary focus:border-accent-cyan focus:outline-none"
+                />
+                <span className="text-xs text-text-muted">
+                  {charterMaxTurns === 0 ? "Unlimited" : `${charterMaxTurns} turns`}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && <p className="text-sm text-status-danger">{error}</p>}
 

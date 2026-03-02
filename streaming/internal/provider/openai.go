@@ -46,26 +46,51 @@ func (o *OpenAI) Name() string {
 
 // openaiRequest is the POST body for /v1/chat/completions
 type openaiRequest struct {
-	Model       string          `json:"model"`
-	Messages    []openaiMessage `json:"messages"`
-	Stream      bool            `json:"stream"`
-	Temperature float64         `json:"temperature,omitempty"`
-	MaxTokens   int             `json:"max_tokens,omitempty"`
+	Model       string                   `json:"model"`
+	Messages    []openaiMessage          `json:"messages"`
+	Stream      bool                     `json:"stream"`
+	Temperature float64                  `json:"temperature,omitempty"`
+	MaxTokens   int                      `json:"max_tokens,omitempty"`
+	Tools       []map[string]interface{} `json:"tools,omitempty"` // TASK-0018: tool definitions
 }
 
 type openaiMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string                `json:"role"`
+	Content    string                `json:"content,omitempty"`
+	ToolCalls  []openaiToolCallMsg   `json:"tool_calls,omitempty"`  // for assistant messages with tool calls
+	ToolCallID string                `json:"tool_call_id,omitempty"` // for tool result messages
+}
+
+// openaiToolCallMsg is an assistant's tool call in messages (for context replay)
+type openaiToolCallMsg struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
 // openaiChunk is the SSE data shape for streaming responses
 type openaiChunk struct {
 	Choices []struct {
 		Delta struct {
-			Content string `json:"content"`
+			Content   string              `json:"content"`
+			ToolCalls []openaiToolCallDelta `json:"tool_calls,omitempty"` // TASK-0018
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
+}
+
+// openaiToolCallDelta is the incremental tool call data in streaming
+type openaiToolCallDelta struct {
+	Index    int `json:"index"`
+	ID       string `json:"id,omitempty"` // Only set on first delta for this call
+	Type     string `json:"type,omitempty"`
+	Function struct {
+		Name      string `json:"name,omitempty"`
+		Arguments string `json:"arguments,omitempty"` // Incremental JSON string
+	} `json:"function"`
 }
 
 func (o *OpenAI) Stream(ctx context.Context, req StreamRequest, tokens chan<- Token) (*StreamResult, error) {
@@ -89,6 +114,22 @@ func (o *OpenAI) Stream(ctx context.Context, req StreamRequest, tokens chan<- To
 		Stream:      true,
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
+	}
+
+	// TASK-0018: Include tool definitions if provided
+	if len(req.Tools) > 0 {
+		openaiTools := make([]map[string]interface{}, len(req.Tools))
+		for i, t := range req.Tools {
+			openaiTools[i] = map[string]interface{}{
+				"type": "function",
+				"function": map[string]interface{}{
+					"name":        t.Name,
+					"description": t.Description,
+					"parameters":  t.InputSchema,
+				},
+			}
+		}
+		body.Tools = openaiTools
 	}
 
 	bodyJSON, err := json.Marshal(body)
@@ -129,6 +170,17 @@ func (o *OpenAI) Stream(ctx context.Context, req StreamRequest, tokens chan<- To
 	// Parse SSE stream
 	var finalContent strings.Builder
 	tokenIndex := 0
+	var finishReason string
+
+	// TASK-0018: Tool call tracking
+	// OpenAI streams tool calls incrementally via choices[0].delta.tool_calls
+	type activeToolCall struct {
+		ID       string
+		Name     string
+		ArgsJSON strings.Builder
+	}
+	activeToolCalls := make(map[int]*activeToolCall) // delta index → tool data
+	var completedToolCalls []ToolCall
 
 	err = sse.Parse(sseBody, func(event sse.Event) {
 		// OpenAI uses "data: [DONE]" to signal end
@@ -143,25 +195,83 @@ func (o *OpenAI) Stream(ctx context.Context, req StreamRequest, tokens chan<- To
 			return
 		}
 
+		if len(chunk.Choices) == 0 {
+			return
+		}
+
+		choice := chunk.Choices[0]
+
+		// Capture finish_reason
+		if choice.FinishReason != nil {
+			finishReason = *choice.FinishReason
+		}
+
 		// Extract token text from choices[0].delta.content
-		if len(chunk.Choices) > 0 {
-			content := chunk.Choices[0].Delta.Content
-			if content != "" {
-				finalContent.WriteString(content)
-				// Context-aware channel send — prevents goroutine leak if manager
-				// stops reading (timeout, cancel). (ISSUE-005)
-				select {
-				case tokens <- Token{
-					Text:  content,
-					Index: tokenIndex,
-				}:
-					tokenIndex++
-				case <-ctx.Done():
-					return
-				}
+		content := choice.Delta.Content
+		if content != "" {
+			finalContent.WriteString(content)
+			// Context-aware channel send — prevents goroutine leak if manager
+			// stops reading (timeout, cancel). (ISSUE-005)
+			select {
+			case tokens <- Token{
+				Text:  content,
+				Index: tokenIndex,
+			}:
+				tokenIndex++
+			case <-ctx.Done():
+				return
 			}
 		}
+
+		// TASK-0018: Handle tool call deltas
+		for _, tc := range choice.Delta.ToolCalls {
+			if _, ok := activeToolCalls[tc.Index]; !ok {
+				activeToolCalls[tc.Index] = &activeToolCall{
+					ID:   tc.ID,
+					Name: tc.Function.Name,
+				}
+			}
+			active := activeToolCalls[tc.Index]
+			if tc.ID != "" {
+				active.ID = tc.ID
+			}
+			if tc.Function.Name != "" {
+				active.Name = tc.Function.Name
+			}
+			active.ArgsJSON.WriteString(tc.Function.Arguments)
+		}
 	})
+
+	// Finalize any accumulated tool calls
+	for _, tc := range activeToolCalls {
+		var args map[string]interface{}
+		argsStr := tc.ArgsJSON.String()
+		if argsStr != "" {
+			if err := json.Unmarshal([]byte(argsStr), &args); err != nil {
+				slog.Warn("Failed to parse OpenAI tool arguments",
+					"toolId", tc.ID,
+					"toolName", tc.Name,
+					"argsJSON", argsStr,
+					"error", err,
+				)
+				args = map[string]interface{}{"_raw": argsStr}
+			}
+		} else {
+			args = make(map[string]interface{})
+		}
+
+		completedToolCalls = append(completedToolCalls, ToolCall{
+			ID:        tc.ID,
+			Name:      tc.Name,
+			Arguments: args,
+		})
+	}
+
+	// Map OpenAI finish_reason to normalized stop reason
+	stopReason := finishReason
+	if finishReason == "tool_calls" {
+		stopReason = "tool_use" // Normalize to match our internal convention
+	}
 
 	if err != nil {
 		return &StreamResult{
@@ -176,5 +286,38 @@ func (o *OpenAI) Stream(ctx context.Context, req StreamRequest, tokens chan<- To
 		FinalContent: finalContent.String(),
 		TokenCount:   tokenIndex,
 		DurationMs:   time.Since(startTime).Milliseconds(),
+		ToolCalls:    completedToolCalls,
+		StopReason:   stopReason,
 	}, nil
+}
+
+// BuildOpenAIToolResultMessages creates OpenAI-format messages for tool results.
+// Returns an assistant message (with tool_calls) and individual tool result messages.
+func BuildOpenAIToolResultMessages(toolCalls []ToolCall, results []ToolResult) []openaiMessage {
+	// First: assistant message echoing the tool calls
+	assistantToolCalls := make([]openaiToolCallMsg, len(toolCalls))
+	for i, tc := range toolCalls {
+		argsJSON, _ := json.Marshal(tc.Arguments)
+		assistantToolCalls[i] = openaiToolCallMsg{
+			ID:   tc.ID,
+			Type: "function",
+		}
+		assistantToolCalls[i].Function.Name = tc.Name
+		assistantToolCalls[i].Function.Arguments = string(argsJSON)
+	}
+	msgs := []openaiMessage{{
+		Role:      "assistant",
+		ToolCalls: assistantToolCalls,
+	}}
+
+	// Then: one "tool" message per result
+	for _, r := range results {
+		msgs = append(msgs, openaiMessage{
+			Role:       "tool",
+			ToolCallID: r.ToolUseID,
+			Content:    r.Content,
+		})
+	}
+
+	return msgs
 }

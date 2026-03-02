@@ -22,6 +22,7 @@ type BotConfig struct {
 	MaxTokens      int      `json:"maxTokens"`
 	TriggerMode    string   `json:"triggerMode"`    // "ALWAYS" | "MENTION" | "KEYWORD"
 	ThinkingSteps  []string `json:"thinkingSteps"`  // configurable phase labels (TASK-0011)
+	EnabledTools   []string `json:"enabledTools"`   // tool names to make available (TASK-0018), empty = all tools
 }
 
 // GetThinkingPhase returns the thinking step at the given index,

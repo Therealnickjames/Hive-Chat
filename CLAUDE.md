@@ -39,7 +39,7 @@ make down      # Stop
 5. `docs/V1-IMPLEMENTATION.md` — detailed chat task specs (data models, APIs, file lists)
 6. `docs/Tavok.md` — full product spec and vision
 7. `docs/OPERATIONS.md` — workflow rules, validation, conventions
-8. `docs/DECISIONS.md` — architectural decision log (append-only, DEC-0001 through DEC-0026)
+8. `docs/DECISIONS.md` — architectural decision log (append-only, DEC-0001 through DEC-0043)
 
 ## Project Structure
 
@@ -51,8 +51,11 @@ Tavok/
 │   └── shared/               # Shared TypeScript types
 ├── gateway/                  # Elixir/Phoenix real-time gateway (TRANSPORT)
 ├── streaming/                # Go LLM streaming proxy (ORCHESTRATOR)
+├── sdk/
+│   └── python/               # Python SDK (tavok-sdk)
 ├── prisma/                   # Database schema
 ├── docker-compose.yml        # Infrastructure
+├── docker-compose.demo.yml   # Multi-agent demo
 ├── Makefile                  # Developer commands
 └── .env.example              # Environment template
 ```

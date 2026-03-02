@@ -2,6 +2,15 @@
 
 export type TriggerMode = "ALWAYS" | "MENTION" | "KEYWORD";
 
+// Agent connection method — how an agent communicates with Tavok (DEC-0043)
+export type ConnectionMethod =
+  | "WEBSOCKET"       // Phoenix Channel V2 (Python SDK, TS SDK)
+  | "WEBHOOK"         // Tavok calls agent's URL on trigger
+  | "INBOUND_WEBHOOK" // Agent POSTs into Tavok (Discord pattern)
+  | "REST_POLL"       // Agent polls for messages
+  | "SSE"             // Agent receives via SSE, sends via REST
+  | "OPENAI_COMPAT";  // OpenAI Chat Completions format
+
 export type LLMProvider =
   | "anthropic"
   | "openai"
@@ -43,4 +52,5 @@ export interface BotConfig {
   temperature: number;
   maxTokens: number;
   triggerMode: TriggerMode;
+  connectionMethod?: ConnectionMethod; // DEC-0043
 }

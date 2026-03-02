@@ -1,0 +1,66 @@
+# Tavok Demo — Multi-Agent Collaboration
+#
+# Starts Tavok with two demo agents pre-configured:
+#   1. Echo Agent — echoes back @mentions
+#   2. Claude Agent — streams AI responses (requires ANTHROPIC_API_KEY)
+#
+# Usage:
+#   # Start the platform:
+#   docker compose up -d
+#
+#   # Wait for services to be healthy, then start demo agents:
+#   docker compose -f docker-compose.demo.yml up
+#
+#   # Or run everything together:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up
+#
+# Prerequisites:
+#   - Tavok services running (docker compose up)
+#   - A server created in the UI (note the server ID)
+#   - A channel created (note the channel ID)
+#
+# Environment:
+#   TAVOK_SERVER_ID   — the server for agents to join
+#   TAVOK_CHANNEL_ID  — the channel for agents to listen in
+#   ANTHROPIC_API_KEY  — (optional) for the Claude agent
+
+services:
+  echo-agent:
+    build:
+      context: ./sdk/python
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      TAVOK_WS_URL: ws://gateway:4001
+      TAVOK_API_URL: http://web:3000
+      TAVOK_SERVER_ID: ${TAVOK_SERVER_ID:?Set TAVOK_SERVER_ID to your server ID}
+      TAVOK_CHANNEL_ID: ${TAVOK_CHANNEL_ID:?Set TAVOK_CHANNEL_ID to your channel ID}
+      AGENT_SCRIPT: examples/echo_agent.py
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - tavok-net
+
+  claude-agent:
+    build:
+      context: ./sdk/python
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      TAVOK_WS_URL: ws://gateway:4001
+      TAVOK_API_URL: http://web:3000
+      TAVOK_SERVER_ID: ${TAVOK_SERVER_ID:?Set TAVOK_SERVER_ID to your server ID}
+      TAVOK_CHANNEL_ID: ${TAVOK_CHANNEL_ID:?Set TAVOK_CHANNEL_ID to your channel ID}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AGENT_SCRIPT: examples/llm_agent.py
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - tavok-net
+
+networks:
+  tavok-net:
+    external: true
+    name: hive-chat_tavok-net

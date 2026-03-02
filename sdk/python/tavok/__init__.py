@@ -20,6 +20,7 @@ Quick start::
 
 from .agent import Agent
 from .auth import deregister_agent, register_agent, update_agent
+from .rest import PollMessage, RestAgent, RestStream
 from .stream import StreamContext
 from .types import (
     AuthorType,
@@ -32,22 +33,29 @@ from .types import (
     StreamStatus,
     StreamToken,
 )
+from .webhook import WebhookEvent, WebhookHandler, WebhookVerificationError
 
 __all__ = [
     "Agent",
     "AuthorType",
     "Message",
     "MessageType",
+    "PollMessage",
     "RegistrationResult",
+    "RestAgent",
+    "RestStream",
     "StreamComplete",
     "StreamContext",
     "StreamError",
     "StreamStart",
     "StreamStatus",
     "StreamToken",
+    "WebhookEvent",
+    "WebhookHandler",
+    "WebhookVerificationError",
     "deregister_agent",
     "register_agent",
     "update_agent",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

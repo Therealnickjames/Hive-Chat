@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { ToolCallContent } from "@tavok/shared/types/typed-messages";
+import type { ToolCallContent } from "@tavok/shared/typed-messages";
 
 interface ToolCallCardProps {
   content: ToolCallContent;

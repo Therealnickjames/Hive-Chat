@@ -23,6 +23,7 @@ defmodule TavokGatewayWeb.UserSocket do
 
   # Channel routing — topic patterns mapped to channel modules
   channel "room:*", TavokGatewayWeb.RoomChannel
+  channel "dm:*", TavokGatewayWeb.DmChannel  # TASK-0019: Direct messages
 
   # ---- Path 1: Human auth via JWT ----
 

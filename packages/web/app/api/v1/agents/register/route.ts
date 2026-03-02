@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     serverId,
     systemPrompt,
     avatarUrl,
+    connectionMethod,
   } = body as {
     displayName?: string;
     model?: string;
@@ -44,7 +45,16 @@ export async function POST(request: NextRequest) {
     serverId?: string;
     systemPrompt?: string;
     avatarUrl?: string;
+    connectionMethod?: string;
   };
+
+  // Validate connectionMethod if provided (DEC-0043)
+  const validMethods = [
+    "WEBSOCKET", "WEBHOOK", "INBOUND_WEBHOOK", "REST_POLL", "SSE", "OPENAI_COMPAT",
+  ];
+  const resolvedMethod = connectionMethod && validMethods.includes(connectionMethod)
+    ? connectionMethod
+    : "WEBSOCKET";
 
   // Validate required fields
   if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
@@ -61,10 +71,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Verify server exists
+  // Verify server exists and check registration settings (DEC-0047)
   const server = await prisma.server.findUnique({
     where: { id: serverId },
-    select: { id: true },
+    select: {
+      id: true,
+      allowAgentRegistration: true,
+      registrationApprovalRequired: true,
+    },
   });
 
   if (!server) {
@@ -73,6 +87,18 @@ export async function POST(request: NextRequest) {
       { status: 404 }
     );
   }
+
+  // Check if server allows external agent registration
+  if (!server.allowAgentRegistration) {
+    return NextResponse.json(
+      { error: "This server does not accept agent registrations" },
+      { status: 403 }
+    );
+  }
+
+  // Determine approval status
+  const needsApproval = server.registrationApprovalRequired;
+  const approvalStatus = needsApproval ? "PENDING" : "APPROVED";
 
   // Generate API key: sk-tvk- prefix + 32 random bytes base64url
   const randomBytes = crypto.randomBytes(32);
@@ -103,10 +129,22 @@ export async function POST(request: NextRequest) {
           systemPrompt: (systemPrompt as string) || "",
           temperature: 0.7,
           maxTokens: 4096,
-          isActive: true,
+          isActive: approvalStatus === "APPROVED", // Inactive until approved (DEC-0047)
           triggerMode: "MENTION",
+          connectionMethod: resolvedMethod as
+            | "WEBSOCKET"
+            | "WEBHOOK"
+            | "INBOUND_WEBHOOK"
+            | "REST_POLL"
+            | "SSE"
+            | "OPENAI_COMPAT",
         },
       });
+
+      // Generate webhook secret for WEBHOOK agents (DEC-0043)
+      const webhookSecret = resolvedMethod === "WEBHOOK"
+        ? crypto.randomBytes(32).toString("hex")
+        : undefined;
 
       const registration = await tx.agentRegistration.create({
         data: {
@@ -116,27 +154,56 @@ export async function POST(request: NextRequest) {
           capabilities: Array.isArray(capabilities) ? capabilities : [],
           healthUrl: healthUrl as string | undefined,
           webhookUrl: webhookUrl as string | undefined,
+          connectionMethod: resolvedMethod as
+            | "WEBSOCKET"
+            | "WEBHOOK"
+            | "INBOUND_WEBHOOK"
+            | "REST_POLL"
+            | "SSE"
+            | "OPENAI_COMPAT",
+          webhookSecret,
+          approvalStatus: approvalStatus as "PENDING" | "APPROVED",
         },
       });
 
-      return { bot, registration };
+      return { bot, registration, webhookSecret };
     });
 
-    // Build WebSocket URL
+    // Build connection-method-specific URLs (DEC-0043)
     const gatewayUrl =
       process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:4001/socket";
-    const wsUrl = `${gatewayUrl}/websocket`;
+    const webUrl =
+      process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-    return NextResponse.json(
-      {
-        agentId: result.bot.id,
-        apiKey, // Shown ONCE — never stored raw
-        websocketUrl: wsUrl,
-        serverId,
-        capabilities: result.registration.capabilities,
-      },
-      { status: 201 }
-    );
+    const response: Record<string, unknown> = {
+      agentId: result.bot.id,
+      apiKey, // Shown ONCE — never stored raw
+      serverId,
+      connectionMethod: resolvedMethod,
+      capabilities: result.registration.capabilities,
+      approvalStatus, // DEC-0047: "PENDING" or "APPROVED"
+    };
+
+    // Add method-specific connection info
+    if (resolvedMethod === "WEBSOCKET") {
+      response.websocketUrl = `${gatewayUrl}/websocket`;
+    }
+    if (resolvedMethod === "WEBHOOK" && result.webhookSecret) {
+      response.webhookUrl = webhookUrl;
+      response.webhookSecret = result.webhookSecret; // Shown ONCE
+    }
+    if (resolvedMethod === "REST_POLL") {
+      response.pollUrl = `${webUrl}/api/v1/agents/${result.bot.id}/messages`;
+    }
+    if (resolvedMethod === "SSE") {
+      response.eventsUrl = `${webUrl}/api/v1/agents/${result.bot.id}/events`;
+    }
+    if (resolvedMethod === "OPENAI_COMPAT") {
+      response.chatCompletionsUrl = `${webUrl}/api/v1/chat/completions`;
+      response.modelsUrl = `${webUrl}/api/v1/models`;
+    }
+
+    return NextResponse.json(response, { status: 201 });
   } catch (error) {
     console.error("Agent registration failed:", error);
     return NextResponse.json(

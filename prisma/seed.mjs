@@ -224,6 +224,8 @@ async function main() {
       id: IDS.server,
       name: "AI Research Lab",
       ownerId: demoUser.id,
+      allowAgentRegistration: true,
+      registrationApprovalRequired: false,
     },
   });
   console.log("  ✓ Server: AI Research Lab");
@@ -743,6 +745,22 @@ async function main() {
     },
   });
   console.log("  ✓ Invite: code DEMO2026");
+
+  // -----------------------------------------------------------------------
+  // 13. Write seed IDs for test scripts
+  // -----------------------------------------------------------------------
+  const fs = await import("node:fs");
+  const seedIds = {
+    serverId: server.id,
+    generalChannelId: generalChannel.id,
+    researchChannelId: researchChannel.id,
+    devChannelId: devChannel.id,
+  };
+  fs.writeFileSync(
+    path.join(__dirname, ".seed-ids.json"),
+    JSON.stringify(seedIds, null, 2)
+  );
+  console.log("  ✓ Wrote prisma/.seed-ids.json");
 
   // -----------------------------------------------------------------------
   // Summary

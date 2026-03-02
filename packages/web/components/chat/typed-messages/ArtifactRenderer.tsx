@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ArtifactContent } from "@tavok/shared/types/typed-messages";
+import type { ArtifactContent } from "@tavok/shared/typed-messages";
 
 interface ArtifactRendererProps {
   content: ArtifactContent;

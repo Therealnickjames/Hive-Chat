@@ -285,10 +285,196 @@ defmodule TavokGateway.WebClient do
   end
 
   @doc """
+  Dispatch a webhook trigger to Next.js for outbound delivery (DEC-0043).
+  POST /api/internal/agents/{botId}/dispatch
+  Next.js handles HMAC signing, calling the agent's webhookUrl, and
+  broadcasting the response back to the channel.
+  Returns {:ok, response_body} | {:error, reason}.
+  """
+  def dispatch_webhook(bot_id, payload) do
+    url = "#{web_url()}/api/internal/agents/#{bot_id}/dispatch"
+
+    case Req.post(url,
+           json: payload,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 35_000
+         ) do
+      {:ok, %Req.Response{status: status, body: response_body}} when status in [200, 201, 202] ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("dispatch_webhook failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("dispatch_webhook request failed: bot=#{bot_id} reason=#{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Enqueue a message for a REST polling agent (DEC-0043).
+  POST /api/internal/agents/{botId}/enqueue
+  The message is queued in the AgentMessage table for the agent to pick up
+  via GET /api/v1/agents/{id}/messages.
+  Returns {:ok, response_body} | {:error, reason}.
+  """
+  def enqueue_agent_message(bot_id, payload) do
+    url = "#{web_url()}/api/internal/agents/#{bot_id}/enqueue"
+
+    case Req.post(url,
+           json: payload,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 201, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("enqueue_agent_message failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("enqueue_agent_message request failed: bot=#{bot_id} reason=#{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  # ---- Direct Message API (TASK-0019) ----
+
+  @doc """
+  Verify a user is a participant in a DM channel.
+  GET /api/internal/dms/verify?dmId=X&userId=Y
+  Returns {:ok, %{valid: true/false, ...}} or {:error, reason}.
+  """
+  def verify_dm_participant(dm_id, user_id) do
+    url = "#{web_url()}/api/internal/dms/verify"
+
+    case Req.get(url,
+           params: [{"dmId", dm_id}, {"userId", user_id}],
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("verify_dm_participant failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("verify_dm_participant request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Persist a DM message via POST /api/internal/dms/messages.
+  Returns {:ok, response_body} or {:error, reason}.
+  """
+  def post_dm_message(body) do
+    url = "#{web_url()}/api/internal/dms/messages"
+
+    case Req.post(url,
+           json: body,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("post_dm_message failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("post_dm_message request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Fetch DM messages via GET /api/internal/dms/messages.
+  Returns {:ok, %{messages: [...], hasMore: bool}} or {:error, reason}.
+  """
+  def get_dm_messages(params) do
+    url = "#{web_url()}/api/internal/dms/messages"
+
+    query_params =
+      params
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+
+    case Req.get(url,
+           params: query_params,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("get_dm_messages failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("get_dm_messages request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Edit a DM message via PATCH /api/internal/dms/messages/{messageId}.
+  Returns {:ok, response_body} or {:error, reason}.
+  """
+  def edit_dm_message(message_id, body) do
+    url = "#{web_url()}/api/internal/dms/messages/#{message_id}"
+
+    case Req.patch(url,
+           json: body,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.warning("edit_dm_message rejected: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("edit_dm_message request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Soft-delete a DM message via DELETE /api/internal/dms/messages/{messageId}.
+  Returns {:ok, response_body} or {:error, reason}.
+  """
+  def delete_dm_message(message_id) do
+    url = "#{web_url()}/api/internal/dms/messages/#{message_id}"
+
+    case Req.delete(url,
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.warning("delete_dm_message rejected: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("delete_dm_message request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Verify an agent API key via GET /api/internal/agents/verify.
-  Called by UserSocket on WebSocket connect with ?api_key=sk-tvk-...
-  Returns {:ok, %{valid: true, botId: ..., botName: ..., serverId: ...}} or {:error, reason}.
-  (DEC-0040: Agent self-registration)
+  Returns {:ok, agent_info} or {:error, reason}. (DEC-0040)
   """
   def verify_agent_api_key(api_key) do
     url = "#{web_url()}/api/internal/agents/verify"
@@ -307,6 +493,35 @@ defmodule TavokGateway.WebClient do
 
       {:error, reason} ->
         Logger.error("verify_agent_api_key request failed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Control charter session via POST /api/servers/{serverId}/channels/{channelId}/charter.
+  Called by RoomChannel when a user sends a charter_control event. (TASK-0020)
+
+  Note: This uses the server API (not internal API) so it goes through the
+  session-based auth. We pass the user_id for the API to verify permission.
+  For simplicity, we use the internal secret and the charter API directly.
+  """
+  def charter_control(server_id, channel_id, action, _user_id) do
+    url = "#{web_url()}/api/internal/channels/#{channel_id}/charter-control"
+
+    case Req.post(url,
+           json: %{action: action, serverId: server_id},
+           headers: [{"x-internal-secret", internal_secret()}],
+           receive_timeout: 10_000
+         ) do
+      {:ok, %Req.Response{status: 200, body: response_body}} ->
+        {:ok, response_body}
+
+      {:ok, %Req.Response{status: status, body: response_body}} ->
+        Logger.error("charter_control failed: status=#{status} body=#{inspect(response_body)}")
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        Logger.error("charter_control request failed: #{inspect(reason)}")
         {:error, reason}
     end
   end

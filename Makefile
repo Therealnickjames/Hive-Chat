@@ -3,7 +3,7 @@
 
 .PHONY: help dev up down logs logs-web logs-gateway logs-stream \
         db-migrate db-studio db-seed clean health build regression-harness \
-        test-web test-sdk test-all
+        test-web test-sdk test-all demo
 
 # Default target
 help: ## Show this help
@@ -33,7 +33,7 @@ build: ## Build all Docker images without starting
 # TESTS
 # ============================================================
 
-test-web: ## Run web unit tests (vitest — 161 tests)
+test-web: ## Run web unit tests (vitest — 174 tests)
 	cd packages/web && npx vitest run
 
 test-sdk: ## Run Python SDK E2E test (requires Docker services running)
@@ -42,6 +42,13 @@ test-sdk: ## Run Python SDK E2E test (requires Docker services running)
 test-all: ## Run all tests (web unit + SDK E2E)
 	cd packages/web && npx vitest run
 	python scripts/test-sdk.py
+
+# ============================================================
+# DEMO
+# ============================================================
+
+demo: ## Start demo agents (requires TAVOK_SERVER_ID and TAVOK_CHANNEL_ID)
+	docker-compose -f docker-compose.demo.yml up --build
 
 # ============================================================
 # REGRESSION HARNESS

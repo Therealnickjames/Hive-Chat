@@ -255,3 +255,69 @@ func (l *Loader) FinalizeMessageWithRetryCtx(ctx context.Context, messageID, con
 	)
 	return lastErr
 }
+
+// GetChannelCharter fetches channel charter config from the internal API.
+// GET /api/internal/channels/{channelId}
+// Parses the charter fields from the response. (TASK-0020)
+func (l *Loader) GetChannelCharter(ctx context.Context, channelID string) (*CharterConfig, error) {
+	url := fmt.Sprintf("%s/api/internal/channels/%s", l.webURL, channelID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("x-internal-secret", l.internalSecret)
+
+	resp, err := l.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("web API returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var charter CharterConfig
+	if err := json.NewDecoder(resp.Body).Decode(&charter); err != nil {
+		return nil, fmt.Errorf("decode charter response: %w", err)
+	}
+
+	return &charter, nil
+}
+
+// IncrementCharterTurn increments the charter turn counter via the internal API.
+// POST /api/internal/channels/{channelId}/charter-turn
+// Returns the new turn count and whether the charter is completed. (TASK-0020)
+func (l *Loader) IncrementCharterTurn(ctx context.Context, channelID string) (currentTurn int, completed bool, err error) {
+	url := fmt.Sprintf("%s/api/internal/channels/%s/charter-turn", l.webURL, channelID)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("x-internal-secret", l.internalSecret)
+
+	resp, err := l.client.Do(req)
+	if err != nil {
+		return 0, false, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return 0, false, fmt.Errorf("web API returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		CurrentTurn int  `json:"currentTurn"`
+		MaxTurns    int  `json:"maxTurns"`
+		Completed   bool `json:"completed"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, false, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.CurrentTurn, result.Completed, nil
+}

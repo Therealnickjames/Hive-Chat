@@ -40,7 +40,18 @@ defmodule TavokGateway.StreamListener do
         {:ok, _ref_thinking} =
           Redix.PubSub.psubscribe(pubsub, "hive:stream:thinking:*", self())
 
-        Logger.info("[StreamListener] Started — listening for stream tokens, status, and thinking")
+        # TASK-0018: Tool call and result events
+        {:ok, _ref_tool_call} =
+          Redix.PubSub.psubscribe(pubsub, "hive:stream:tool_call:*", self())
+
+        {:ok, _ref_tool_result} =
+          Redix.PubSub.psubscribe(pubsub, "hive:stream:tool_result:*", self())
+
+        # TASK-0020: Charter status events
+        {:ok, _ref_charter} =
+          Redix.PubSub.psubscribe(pubsub, "hive:stream:charter_status:*", self())
+
+        Logger.info("[StreamListener] Started — listening for stream tokens, status, thinking, tool_call, tool_result, charter_status")
         {:ok, %{pubsub: pubsub}}
 
       {:error, reason} ->
@@ -88,6 +99,17 @@ defmodule TavokGateway.StreamListener do
 
     {:ok, _ref_thinking} =
       Redix.PubSub.psubscribe(state.pubsub, "hive:stream:thinking:*", self())
+
+    # TASK-0018: Re-subscribe to tool events
+    {:ok, _ref_tool_call} =
+      Redix.PubSub.psubscribe(state.pubsub, "hive:stream:tool_call:*", self())
+
+    {:ok, _ref_tool_result} =
+      Redix.PubSub.psubscribe(state.pubsub, "hive:stream:tool_result:*", self())
+
+    # TASK-0020: Re-subscribe to charter status events
+    {:ok, _ref_charter} =
+      Redix.PubSub.psubscribe(state.pubsub, "hive:stream:charter_status:*", self())
 
     {:noreply, state}
   end
@@ -151,6 +173,33 @@ defmodule TavokGateway.StreamListener do
       _ ->
         Logger.error("[StreamListener] Invalid thinking channel format: hive:stream:thinking:#{rest}")
     end
+  end
+
+  # TASK-0018: Tool call events — broadcast to room for UI display
+  defp handle_stream_message("hive:stream:tool_call:" <> rest, payload) do
+    case String.split(rest, ":", parts: 2) do
+      [channel_id, _message_id] ->
+        Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_tool_call", payload)
+
+      _ ->
+        Logger.error("[StreamListener] Invalid tool_call channel format: hive:stream:tool_call:#{rest}")
+    end
+  end
+
+  # TASK-0018: Tool result events — broadcast to room for UI display
+  defp handle_stream_message("hive:stream:tool_result:" <> rest, payload) do
+    case String.split(rest, ":", parts: 2) do
+      [channel_id, _message_id] ->
+        Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_tool_result", payload)
+
+      _ ->
+        Logger.error("[StreamListener] Invalid tool_result channel format: hive:stream:tool_result:#{rest}")
+    end
+  end
+
+  # TASK-0020: Charter status events — broadcast to room for live header updates
+  defp handle_stream_message("hive:stream:charter_status:" <> channel_id, payload) do
+    Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "charter_status", payload)
   end
 
   defp handle_stream_message(channel, _payload) do

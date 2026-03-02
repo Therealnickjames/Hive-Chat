@@ -10,4 +10,12 @@ defmodule TavokGatewayWeb.Router do
 
     get "/health", HealthController, :index
   end
+
+  # Internal APIs — authenticated by x-internal-secret header (DEC-0044)
+  # Used by non-WebSocket agent connectivity adapters in Next.js
+  scope "/api/internal", TavokGatewayWeb do
+    pipe_through :api
+
+    post "/broadcast", BroadcastController, :create
+  end
 end

@@ -54,6 +54,7 @@ export async function GET(
       maxTokens: bot.maxTokens,
       triggerMode: bot.triggerMode,
       thinkingSteps: bot.thinkingSteps ? JSON.parse(bot.thinkingSteps) : [], // TASK-0011
+      enabledTools: bot.enabledTools ? JSON.parse(bot.enabledTools) : [], // TASK-0018
     });
   } catch (error) {
     console.error("[Internal] Failed to get bot:", error);
