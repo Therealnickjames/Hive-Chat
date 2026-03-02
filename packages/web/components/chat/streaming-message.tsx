@@ -54,7 +54,7 @@ export function StreamingMessage({
   const isActive = message.streamingStatus === "ACTIVE";
   const isError = message.streamingStatus === "ERROR";
   const isComplete = message.streamingStatus === "COMPLETE";
-  const hasTimeline = isComplete && message.thinkingTimeline && message.thinkingTimeline.length > 0;
+  const hasTimeline = message.thinkingTimeline && message.thinkingTimeline.length > 0;
 
   // Delete only when not actively streaming, not already deleted, and user has MANAGE_MESSAGES
   const canDelete = !isActive && !message.isDeleted && !!canManageMessages;
@@ -98,7 +98,7 @@ export function StreamingMessage({
       <div className={`group relative flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 ${isActive ? 'bg-accent-cyan/5 border-l-2 border-accent-cyan/50' : 'border-l-2 border-transparent'}`}>
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          {isActive && message.thinkingPhase && !message.content && (
+          {isActive && message.thinkingPhase && (
             <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20 mb-1">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
               {message.thinkingPhase}
@@ -126,15 +126,22 @@ export function StreamingMessage({
           )}
           {hasTimeline && (
             <div className="flex items-center gap-1 mt-1.5">
-              {message.thinkingTimeline!.map((entry, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  {i > 0 && <span className="w-3 h-px bg-text-muted/30" />}
-                  <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-background-secondary text-text-muted border border-border">
-                    <span className="w-1 h-1 rounded-full bg-accent-cyan/50" />
-                    {entry.phase}
-                  </span>
-                </div>
-              ))}
+              {message.thinkingTimeline!.map((entry, i) => {
+                const isCurrent = isActive && i === message.thinkingTimeline!.length - 1;
+                return (
+                  <div key={i} className="flex items-center gap-1">
+                    {i > 0 && <span className="w-3 h-px bg-text-muted/30" />}
+                    <span className={`inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                      isCurrent
+                        ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
+                        : 'bg-background-secondary text-text-muted border border-border'
+                    }`}>
+                      <span className={`w-1 h-1 rounded-full ${isCurrent ? 'bg-accent-cyan animate-pulse' : 'bg-accent-cyan/50'}`} />
+                      {entry.phase}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
           {isComplete && message.metadata && (
@@ -227,15 +234,22 @@ export function StreamingMessage({
         )}
         {hasTimeline && (
           <div className="flex items-center gap-1 mt-1.5">
-            {message.thinkingTimeline!.map((entry, i) => (
-              <div key={i} className="flex items-center gap-1">
-                {i > 0 && <span className="w-3 h-px bg-text-muted/30" />}
-                <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-background-secondary text-text-muted border border-border">
-                  <span className="w-1 h-1 rounded-full bg-accent-cyan/50" />
-                  {entry.phase}
-                </span>
-              </div>
-            ))}
+            {message.thinkingTimeline!.map((entry, i) => {
+              const isCurrent = isActive && i === message.thinkingTimeline!.length - 1;
+              return (
+                <div key={i} className="flex items-center gap-1">
+                  {i > 0 && <span className="w-3 h-px bg-text-muted/30" />}
+                  <span className={`inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                    isCurrent
+                      ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
+                      : 'bg-background-secondary text-text-muted border border-border'
+                  }`}>
+                    <span className={`w-1 h-1 rounded-full ${isCurrent ? 'bg-accent-cyan animate-pulse' : 'bg-accent-cyan/50'}`} />
+                    {entry.phase}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
         {isComplete && message.metadata && (

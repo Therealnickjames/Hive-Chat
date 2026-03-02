@@ -343,7 +343,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                   streamingStatus: "COMPLETE",
                   type: "STREAMING",
                   thinkingPhase: undefined,
-                  thinkingTimeline: payload.thinkingTimeline,
+                  thinkingTimeline: payload.thinkingTimeline || m.thinkingTimeline,
                   metadata: payload.metadata || m.metadata,
                 }
               : m
@@ -381,18 +381,26 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         streamBufferRef.current.delete(payload.messageId);
       });
 
-      // stream_thinking: update thinking phase badge (TASK-0011)
+      // stream_thinking: update thinking phase badge + accumulate timeline progressively (TASK-0011)
       channel.on("stream_thinking", (raw: unknown) => {
         if (!mounted) return;
         const payload = raw as {
           messageId: string;
           phase: string;
+          timestamp?: string;
         };
 
         setMessages((prev) =>
           prev.map((m) =>
             m.id === payload.messageId
-              ? { ...m, thinkingPhase: payload.phase }
+              ? {
+                  ...m,
+                  thinkingPhase: payload.phase,
+                  thinkingTimeline: [
+                    ...(m.thinkingTimeline || []),
+                    { phase: payload.phase, timestamp: payload.timestamp || new Date().toISOString() },
+                  ],
+                }
               : m
           )
         );
