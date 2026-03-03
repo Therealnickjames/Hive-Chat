@@ -77,5 +77,10 @@ export const authOptions: NextAuthOptions = {
     newUser: "/register",
   },
 
+  // Explicitly disable secure cookies when running over HTTP (Docker dev/CI).
+  // NextAuth auto-detects from NEXTAUTH_URL but NODE_ENV=production in Docker
+  // can cause ambiguity. This ensures session cookies work over plain HTTP.
+  useSecureCookies: process.env.NEXTAUTH_URL?.startsWith("https://") ?? false,
+
   secret: process.env.NEXTAUTH_SECRET,
 };
