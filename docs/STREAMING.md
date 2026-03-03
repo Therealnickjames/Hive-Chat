@@ -2,7 +2,7 @@
 
 > This is the detailed reference for Tavok's streaming system.
 > For the wire-level contracts, see `docs/PROTOCOL.md` §4.
-> For the product vision, see `docs/Tavok.md`.
+> For the product vision, see `docs/internal/Tavok.md` (local only).
 
 ---
 

@@ -59,6 +59,9 @@ yarn-error.log*
 coverage/
 .nyc_output/
 
+# === Internal documentation (not public) ===
+docs/internal/
+
 # === Misc ===
 *.tsbuildinfo
 uploads/

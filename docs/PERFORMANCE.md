@@ -63,12 +63,13 @@ Different transports have different latency characteristics:
 `scripts/stress-harness.ps1` — simulates concurrent message sending and streaming.
 `scripts/regression-harness.ps1` — validates core flows haven't regressed.
 
-### Load Testing (V1)
-*TODO: Add k6 or artillery load test configuration for:*
-- Concurrent WebSocket connections ramp-up
-- Concurrent LLM stream throughput
-- Message broadcast latency under load
-- Memory usage per connection/stream
+### Load Testing (k6)
+Load test scripts exist at `tests/load/`:
+- `k6-messaging.js` — WebSocket connect → join → send messages (0→5→20→0 VUs)
+- `k6-streaming.js` — Trigger agent streaming, measure first-token latency
+- `k6-typing-storm.js` — 50 VUs firing typing events, validates server-side throttle
+
+Run: `make test-load` (requires services running + k6 installed)
 
 ---
 

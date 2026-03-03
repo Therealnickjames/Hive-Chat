@@ -341,20 +341,17 @@ Tavok/
 | Document | Purpose |
 |----------|---------|
 | [PROTOCOL.md](docs/PROTOCOL.md) | Cross-service message contracts (the source of truth) |
-| [ROADMAP.md](docs/ROADMAP.md) | V2+ feature plans |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and service overview |
 | [STREAMING.md](docs/STREAMING.md) | Token streaming lifecycle |
 | [DECISIONS.md](docs/DECISIONS.md) | Architectural decision log |
-| [AGENTS.md](docs/AGENTS.md) | Guide for AI agents working on this codebase |
-| [OPERATIONS.md](docs/OPERATIONS.md) | Development workflow and conventions |
-| [TASKS.md](docs/TASKS.md) | Active work tracker |
-| [DEMO-RUNBOOK.md](docs/DEMO-RUNBOOK.md) | Golden capture script, scenes, prompts |
-| [DEMO-ASSETS.md](docs/DEMO-ASSETS.md) | Asset inventory, naming, and placement map |
+| [PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmarks and targets |
+| [KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) | Confirmed issues and resolutions |
 
 ---
 
 ## Contributing
 
-Read [docs/OPERATIONS.md](docs/OPERATIONS.md) for workflow rules and conventions.
+Clone the repo and check `docs/` for public documentation. Internal workflow docs are in `docs/internal/` (not included in the public repo).
 
 Key principles:
 - `docs/PROTOCOL.md` is the contract bible — change the doc first, then the code
