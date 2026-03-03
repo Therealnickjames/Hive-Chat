@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { login } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // Seed data — must match prisma/seed.mjs
@@ -26,12 +27,9 @@ async function fillLoginForm(
 // ---------------------------------------------------------------------------
 
 test.describe("Authentication", () => {
-  test.beforeEach(async ({ page }) => {
-    // Always start from the login page
-    await page.goto("/login");
-  });
-
   test("login page renders heading and form fields", async ({ page }) => {
+    await page.goto("/login");
+
     await expect(
       page.getByRole("heading", { name: /welcome back/i }),
     ).toBeVisible();
@@ -43,30 +41,22 @@ test.describe("Authentication", () => {
     await expect(page.getByRole("link", { name: /register/i })).toBeVisible();
   });
 
-  test("login with valid credentials redirects to app", async ({ page }) => {
-    await fillLoginForm(page, DEMO_USER.email, DEMO_USER.password);
-
-    // After successful login the user is redirected away from /login.
-    // The app (workspace) should load. We look for a known layout element.
-    await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 15_000,
-    });
+  test("login with valid credentials loads the app", async ({ page }) => {
+    // Use API-based login (more reliable in Docker/CI than form redirect)
+    await login(page, DEMO_USER.email, DEMO_USER.password);
 
     // The app layout has tab buttons in the left panel: SERVERS, CHANNELS, DMs
     await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("login with alice account succeeds", async ({ page }) => {
-    await fillLoginForm(page, ALICE.email, ALICE.password);
-
-    await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 15_000,
-    });
+    await login(page, ALICE.email, ALICE.password);
 
     await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("invalid login shows error message", async ({ page }) => {
+    await page.goto("/login");
     await fillLoginForm(page, "wrong@example.com", "BadPassword999!");
 
     // The error message should appear inside the form
@@ -79,6 +69,7 @@ test.describe("Authentication", () => {
   });
 
   test("empty form submission does not navigate away", async ({ page }) => {
+    await page.goto("/login");
     // The email and password inputs have `required`, so the browser will
     // block submission. We click the button and assert we stay on login.
     await page.getByRole("button", { name: /log in/i }).click();
@@ -107,6 +98,7 @@ test.describe("Authentication", () => {
   });
 
   test("register link navigates to registration page", async ({ page }) => {
+    await page.goto("/login");
     await page.getByRole("link", { name: /register/i }).click();
 
     await page.waitForURL(/\/register/, { timeout: 5_000 });

@@ -2,31 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { login } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // Seed data — must match prisma/seed.mjs
 // ---------------------------------------------------------------------------
 const DEMO_USER = { email: "demo@tavok.ai", password: "DemoPass123!" };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function login(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /log in/i }).click();
-
-  await page.waitForURL((url) => !url.pathname.includes("/login"), {
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({ timeout: 10_000 });
-}
 
 async function openChannel(page: Page, channelName: string): Promise<void> {
   await page.getByText("CHANNELS", { exact: true }).click();

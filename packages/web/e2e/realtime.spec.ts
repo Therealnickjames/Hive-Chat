@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Browser } from "@playwright/test";
+import { login } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // Seed data — must match prisma/seed.mjs
@@ -6,29 +7,6 @@ import { test, expect, type Page, type Browser } from "@playwright/test";
 const DEMO_USER = { email: "demo@tavok.ai", password: "DemoPass123!" };
 const ALICE = { email: "alice@tavok.ai", password: "DemoPass123!" };
 const BOB = { email: "bob@tavok.ai", password: "DemoPass123!" };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Log in via the credentials form and wait for the app layout to appear.
- */
-async function login(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /log in/i }).click();
-
-  await page.waitForURL((url) => !url.pathname.includes("/login"), {
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({ timeout: 10_000 });
-}
 
 /**
  * Navigate to a specific channel by clicking through the sidebar.
