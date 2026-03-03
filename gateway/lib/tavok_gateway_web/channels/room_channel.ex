@@ -217,9 +217,12 @@ defmodule TavokGatewayWeb.RoomChannel do
       case ConfigCache.get_channel_bots(channel_id) do
         {:ok, bots} when is_list(bots) and length(bots) > 0 ->
           # Evaluate trigger condition for each bot independently
-          Enum.each(bots, fn bot_config ->
-            maybe_trigger_bot(socket, bot_config, trigger_message_id, content)
-          end)
+          any_triggered =
+            Enum.reduce(bots, false, fn bot_config, acc ->
+              maybe_trigger_bot(socket, bot_config, trigger_message_id, content) or acc
+            end)
+
+          maybe_emit_trigger_hint(socket, bots, content, any_triggered)
 
         {:ok, _empty} ->
           # No bots in ChannelBot table — fall back to single defaultBot (backward compat)
@@ -228,7 +231,8 @@ defmodule TavokGatewayWeb.RoomChannel do
               :noop
 
             {:ok, bot_config} ->
-              maybe_trigger_bot(socket, bot_config, trigger_message_id, content)
+              any_triggered = maybe_trigger_bot(socket, bot_config, trigger_message_id, content)
+              maybe_emit_trigger_hint(socket, [bot_config], content, any_triggered)
 
             {:error, reason} ->
               Logger.error("Failed to fetch channel bot: #{inspect(reason)}")
@@ -906,33 +910,76 @@ defmodule TavokGatewayWeb.RoomChannel do
   # Evaluate trigger condition and run bot if matched (TASK-0012)
   # Branches on connectionMethod to dispatch via the appropriate channel (DEC-0043)
   defp maybe_trigger_bot(socket, bot_config, trigger_message_id, content) do
+    channel_id = socket.assigns.channel_id
     trigger_mode = Map.get(bot_config, "triggerMode", "ALWAYS")
     bot_name = Map.get(bot_config, "name", "")
+    bot_id = Map.get(bot_config, "id", "")
     connection_method = Map.get(bot_config, "connectionMethod", "WEBSOCKET")
+    has_mention = String.contains?(content, "@#{bot_name}")
 
     should_trigger =
       case trigger_mode do
         "ALWAYS" -> true
-        "MENTION" -> String.contains?(content, "@#{bot_name}")
+        "MENTION" -> has_mention
         _ -> false
       end
+
+    Logger.info(
+      "[TriggerDecision] channel=#{channel_id} bot=#{bot_id} mode=#{trigger_mode} method=#{connection_method} " <>
+        "should_trigger=#{should_trigger} has_mention=#{has_mention} content_len=#{String.length(content)}"
+    )
 
     if should_trigger do
       case connection_method do
         "WEBSOCKET" ->
           run_bot_trigger(socket, bot_config, trigger_message_id, content)
+          true
 
         "WEBHOOK" ->
           run_webhook_trigger(socket, bot_config, trigger_message_id, content)
+          true
 
         "REST_POLL" ->
           run_poll_trigger(socket, bot_config, trigger_message_id, content)
+          true
 
         _ ->
           # INBOUND_WEBHOOK, SSE, OPENAI_COMPAT are agent-initiated — no server-side trigger
-          :noop
+          Logger.info(
+            "[TriggerDecision] channel=#{channel_id} bot=#{bot_id} skipping dispatch for connectionMethod=#{connection_method}"
+          )
+          false
       end
+    else
+      false
     end
+  end
+
+  defp maybe_emit_trigger_hint(_socket, _bots, _content, true), do: :ok
+
+  defp maybe_emit_trigger_hint(socket, bots, content, false) do
+    channel_id = socket.assigns.channel_id
+
+    mention_bot =
+      Enum.find(bots, fn bot ->
+        trigger_mode = Map.get(bot, "triggerMode", "ALWAYS")
+        bot_name = Map.get(bot, "name", "")
+        has_name = String.trim(bot_name) != ""
+        not_mentioned = not String.contains?(content, "@#{bot_name}")
+
+        trigger_mode == "MENTION" and has_name and not_mentioned
+      end)
+
+    if mention_bot do
+      Broadcast.endpoint_broadcast!("room:#{channel_id}", "bot_trigger_skipped", %{
+        botId: Map.get(mention_bot, "id", ""),
+        botName: Map.get(mention_bot, "name", ""),
+        triggerMode: "MENTION",
+        reason: "mention_required"
+      })
+    end
+
+    :ok
   end
 
   defp run_bot_trigger(socket, bot_config, trigger_message_id, trigger_content) do

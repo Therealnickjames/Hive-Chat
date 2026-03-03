@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useChatContext } from "@/components/providers/chat-provider";
 import type { MessagePayload, ReactionData } from "@/lib/hooks/use-channel";
@@ -41,6 +41,7 @@ export function StreamingMessage({
   onDelete,
 }: StreamingMessageProps) {
   const [showRewind, setShowRewind] = useState(false);
+  const loggedErrorRenderIdsRef = useRef<Set<string>>(new Set());
   const { members, bots } = useChatContext();
   const mentionNames = useMemo(
     () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
@@ -63,6 +64,34 @@ export function StreamingMessage({
 
   // Delete only when not actively streaming, not already deleted, and user has MANAGE_MESSAGES
   const canDelete = !isActive && !message.isDeleted && !!canManageMessages;
+
+  useEffect(() => {
+    if (!isError || loggedErrorRenderIdsRef.current.has(message.id)) return;
+    loggedErrorRenderIdsRef.current.add(message.id);
+
+    // #region agent log
+    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "e9a21d",
+      },
+      body: JSON.stringify({
+        sessionId: "e9a21d",
+        runId: "post-fix",
+        hypothesisId: "H5",
+        location: "streaming-message.tsx:isErrorRender",
+        message: "Streaming error message rendered",
+        data: {
+          messageId: message.id,
+          contentLen: (message.content || "").length,
+          hasApiKeyPhrase: (message.content || "").includes("API key"),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [isError, message.id, message.content]);
 
   // Deleted streaming message placeholder
   if (message.isDeleted) {

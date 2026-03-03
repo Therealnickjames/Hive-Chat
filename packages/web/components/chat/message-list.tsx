@@ -65,11 +65,48 @@ export function MessageList({
     const hasActiveStream = messages.some(
       (m) => m.streamingStatus === "ACTIVE"
     );
+    const latestMessage = messages[messages.length - 1];
+    const isLatestBotStream = Boolean(
+      latestMessage &&
+        latestMessage.authorType === "BOT" &&
+        latestMessage.type === "STREAMING"
+    );
+    const shouldFollowNewBotStreamOutcome = isNewMessage && isLatestBotStream;
+    const willScroll =
+      (isNewMessage && isAtBottomRef.current) ||
+      hasActiveStream ||
+      shouldFollowNewBotStreamOutcome;
 
-    if (isNewMessage && isAtBottomRef.current) {
-      el.scrollTop = el.scrollHeight;
-    } else if (hasActiveStream) {
-      // Always follow active streams — don't let token growth outrun the viewport
+    if (isLatestBotStream) {
+      // #region agent log
+      fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "e9a21d",
+        },
+        body: JSON.stringify({
+          sessionId: "e9a21d",
+          runId: "post-fix",
+          hypothesisId: "H9",
+          location: "message-list.tsx:auto_scroll_decision",
+          message: "Auto-scroll decision for latest bot stream message",
+          data: {
+            latestMessageId: latestMessage?.id || null,
+            latestStatus: latestMessage?.streamingStatus || null,
+            isNewMessage,
+            isAtBottom: isAtBottomRef.current,
+            hasActiveStream,
+            shouldFollowNewBotStreamOutcome,
+            willScroll,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+    }
+
+    if (willScroll) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);

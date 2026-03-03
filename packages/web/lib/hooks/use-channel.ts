@@ -81,6 +81,7 @@ export interface CharterState {
 
 interface UseChannelReturn {
   messages: MessagePayload[];
+  botTriggerHint: string | null;
   sendMessage: (content: string) => void;
   editMessage: (messageId: string, content: string) => Promise<boolean>;
   deleteMessage: (messageId: string) => Promise<boolean>;
@@ -88,6 +89,7 @@ interface UseChannelReturn {
   updateReactions: (messageId: string, reactions: ReactionData[]) => void;
   hasMoreHistory: boolean;
   isConnected: boolean;
+  hasJoinedOnce: boolean;
   typingUsers: TypingUser[];
   sendTyping: () => void;
   presenceMap: Map<string, PresenceUser>;
@@ -102,8 +104,10 @@ interface UseChannelReturn {
  */
 export function useChannel(channelId: string | null): UseChannelReturn {
   const [messages, setMessages] = useState<MessagePayload[]>([]);
+  const [botTriggerHint, setBotTriggerHint] = useState<string | null>(null);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [hasJoinedOnce, setHasJoinedOnce] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceUser>>(
     new Map()
@@ -114,9 +118,23 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const socketRef = useRef<Socket | null>(null);
   const lastSequenceRef = useRef<string>("0");
   const messageIdsRef = useRef<Set<string>>(new Set());
+  const pendingStreamMetaRef = useRef<
+    Map<
+      string,
+      {
+        botId: string;
+        botName: string;
+        botAvatarUrl: string | null;
+        sequence: string;
+      }
+    >
+  >(new Map());
   const typingTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
   const loadingHistoryRef = useRef(false);
+  const lastStreamErrorIdRef = useRef<string | null>(null);
+  const loggedStateCheckIdsRef = useRef<Set<string>>(new Set());
+  const botHintTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Streaming: accumulate tokens and flush via rAF for smooth 60fps rendering
   const streamBufferRef = useRef<Map<string, string>>(new Map());
@@ -182,13 +200,38 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
     // Reset state for new channel
     setMessages([]);
+    setBotTriggerHint(null);
+    // #region agent log
+    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "e9a21d",
+      },
+      body: JSON.stringify({
+        sessionId: "e9a21d",
+        runId: "post-fix",
+        hypothesisId: "H13",
+        location: "use-channel.ts:channel_init_hint_reset",
+        message: "Hint reset during channel initialization",
+        data: { channelId },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     setHasMoreHistory(true);
     setIsConnected(false);
+    setHasJoinedOnce(false);
     setTypingUsers([]);
     setPresenceMap(new Map());
     messageIdsRef.current = new Set();
+    pendingStreamMetaRef.current = new Map();
     lastSequenceRef.current = "0";
     loadingHistoryRef.current = false;
+    if (botHintTimerRef.current) {
+      clearTimeout(botHintTimerRef.current);
+      botHintTimerRef.current = null;
+    }
 
     async function joinChannel() {
       const socket = await getSocket();
@@ -205,6 +248,46 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         lastSequence:
           lastSequenceRef.current !== "0" ? lastSequenceRef.current : undefined,
       });
+
+      // #region agent log
+      channel.onError(() => {
+        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "e9a21d",
+          },
+          body: JSON.stringify({
+            sessionId: "e9a21d",
+            runId: "post-fix",
+            hypothesisId: "H4",
+            location: "use-channel.ts:channel.onError",
+            message: "Channel error callback fired",
+            data: { channelId },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      });
+
+      channel.onClose(() => {
+        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "e9a21d",
+          },
+          body: JSON.stringify({
+            sessionId: "e9a21d",
+            runId: "post-fix",
+            hypothesisId: "H4",
+            location: "use-channel.ts:channel.onClose",
+            message: "Channel close callback fired",
+            data: { channelId },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      });
+      // #endregion
 
       // Set up presence
       const presence = new Presence(channel);
@@ -253,6 +336,45 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         }
       });
 
+      // bot_trigger_skipped: show inline hint for mention-only bots
+      channel.on("bot_trigger_skipped", (raw: unknown) => {
+        if (!mounted) return;
+        const payload = raw as {
+          botId: string;
+          botName: string;
+          reason: string;
+          triggerMode: string;
+        };
+
+        if (payload.reason === "mention_required" && payload.botName) {
+          setBotTriggerHint(`No bot triggered. Mention @${payload.botName} to trigger it.`);
+
+          // #region agent log
+          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "e9a21d",
+            },
+            body: JSON.stringify({
+              sessionId: "e9a21d",
+              runId: "post-fix",
+              hypothesisId: "H3",
+              location: "use-channel.ts:bot_trigger_skipped",
+              message: "Mention hint displayed",
+              data: {
+                channelId,
+                botId: payload.botId,
+                triggerMode: payload.triggerMode,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
+
+        }
+      });
+
       // Listen for typing indicators
       channel.on("user_typing", (raw: unknown) => {
         if (!mounted) return;
@@ -294,6 +416,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           sequence: string;
         };
 
+        pendingStreamMetaRef.current.set(payload.messageId, {
+          botId: payload.botId,
+          botName: payload.botName,
+          botAvatarUrl: payload.botAvatarUrl,
+          sequence: payload.sequence,
+        });
+
         const placeholder: MessagePayload = {
           id: payload.messageId,
           channelId: channelId!,
@@ -308,6 +437,29 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           createdAt: new Date().toISOString(),
           reactions: [],
         };
+
+        // #region agent log
+        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "e9a21d",
+          },
+          body: JSON.stringify({
+            sessionId: "e9a21d",
+            runId: "post-fix",
+            hypothesisId: "H2",
+            location: "use-channel.ts:stream_start",
+            message: "Stream start placeholder received",
+            data: {
+              channelId,
+              messageId: payload.messageId,
+              botId: payload.botId,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
 
         addMessages([placeholder]);
       });
@@ -335,6 +487,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           thinkingTimeline?: Array<{ phase: string; timestamp: string }>;
           metadata?: Record<string, unknown>;
         };
+
+        pendingStreamMetaRef.current.delete(payload.messageId);
 
         setMessages((prev) =>
           prev.map((m) =>
@@ -365,22 +519,166 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           partialContent: string | null;
         };
 
+        // #region agent log
+        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "e9a21d",
+          },
+          body: JSON.stringify({
+            sessionId: "e9a21d",
+            runId: "post-fix",
+            hypothesisId: "H2",
+            location: "use-channel.ts:stream_error",
+            message: "Stream error received",
+            data: {
+              channelId,
+              messageId: payload.messageId,
+              hasPlaceholder: messageIdsRef.current.has(payload.messageId),
+              hasPartial: Boolean(payload.partialContent),
+              errorLen: (payload.error || "").length,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === payload.messageId
-              ? {
-                  ...m,
-                  content:
-                    payload.partialContent || m.content || "[Error: " + payload.error + "]",
-                  streamingStatus: "ERROR",
-                  thinkingPhase: undefined,
-                }
-              : m
-          )
+          {
+            const hasMatch = prev.some((m) => m.id === payload.messageId);
+            const streamMeta = pendingStreamMetaRef.current.get(payload.messageId);
+            const matchedBefore = prev.find((m) => m.id === payload.messageId);
+
+            // #region agent log
+            fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Debug-Session-Id": "e9a21d",
+              },
+              body: JSON.stringify({
+                sessionId: "e9a21d",
+                runId: "post-fix",
+                hypothesisId: "H6",
+                location: "use-channel.ts:stream_error_upsert",
+                message: "stream_error state update path",
+                data: {
+                  channelId,
+                  messageId: payload.messageId,
+                  hasMatch,
+                  hasStreamMeta: Boolean(streamMeta),
+                  matchedTypeBefore: matchedBefore?.type || null,
+                  matchedStatusBefore: matchedBefore?.streamingStatus || null,
+                },
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {});
+            // #endregion
+
+            if (hasMatch) {
+              pendingStreamMetaRef.current.delete(payload.messageId);
+              lastStreamErrorIdRef.current = payload.messageId;
+              const updated = prev.map((m) =>
+                m.id === payload.messageId
+                  ? {
+                      ...m,
+                      content:
+                        payload.partialContent || m.content || "[Error: " + payload.error + "]",
+                      type: "STREAMING",
+                      streamingStatus: "ERROR",
+                      thinkingPhase: undefined,
+                    }
+                  : m
+              );
+
+              const matchedAfter = updated.find((m) => m.id === payload.messageId);
+
+              // #region agent log
+              fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Debug-Session-Id": "e9a21d",
+                },
+                body: JSON.stringify({
+                  sessionId: "e9a21d",
+                  runId: "post-fix",
+                  hypothesisId: "H8",
+                  location: "use-channel.ts:stream_error_post_update",
+                  message: "stream_error produced updated state entry",
+                  data: {
+                    channelId,
+                    messageId: payload.messageId,
+                    matchedTypeAfter: matchedAfter?.type || null,
+                    matchedStatusAfter: matchedAfter?.streamingStatus || null,
+                    matchedContentLenAfter: (matchedAfter?.content || "").length,
+                  },
+                  timestamp: Date.now(),
+                }),
+              }).catch(() => {});
+              // #endregion
+
+              return updated;
+            }
+
+            // Race fallback: stream_error can arrive before stream_start placeholder commit.
+            // Upsert an errored message so the user still sees a visible outcome.
+            const fallback: MessagePayload = {
+              id: payload.messageId,
+              channelId: channelId!,
+              authorId: streamMeta?.botId || "",
+              authorType: "BOT",
+              authorName: streamMeta?.botName || "Agent",
+              authorAvatarUrl: streamMeta?.botAvatarUrl || null,
+              content: payload.partialContent || "[Error: " + payload.error + "]",
+              type: "STREAMING",
+              streamingStatus: "ERROR",
+              sequence: streamMeta?.sequence || lastSequenceRef.current,
+              createdAt: new Date().toISOString(),
+              reactions: [],
+            };
+
+            messageIdsRef.current.add(payload.messageId);
+            pendingStreamMetaRef.current.delete(payload.messageId);
+            lastStreamErrorIdRef.current = payload.messageId;
+            return [...prev, fallback].sort((a, b) =>
+              compareSequences(a.sequence, b.sequence)
+            );
+          }
         );
 
         // Clear any buffered tokens for this message
         streamBufferRef.current.delete(payload.messageId);
+
+        // Surface stream failures inline near the input, not only in the message list.
+        const errorText = (payload.error || "").trim();
+        if (errorText) {
+          setBotTriggerHint(`Bot response failed: ${errorText}`);
+
+          // #region agent log
+          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "e9a21d",
+            },
+            body: JSON.stringify({
+              sessionId: "e9a21d",
+              runId: "post-fix",
+              hypothesisId: "H11",
+              location: "use-channel.ts:stream_error_inline_hint",
+              message: "Inline bot error hint set from stream_error",
+              data: {
+                channelId,
+                messageId: payload.messageId,
+                errorLen: errorText.length,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
+        }
       });
 
       // stream_thinking: update thinking phase badge + accumulate timeline progressively (TASK-0011)
@@ -592,7 +890,27 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         .receive("ok", () => {
           if (!mounted) return;
           setIsConnected(true);
+          setHasJoinedOnce(true);
           channelRef.current = channel;
+
+          // #region agent log
+          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "e9a21d",
+            },
+            body: JSON.stringify({
+              sessionId: "e9a21d",
+              runId: "post-fix",
+              hypothesisId: "H21",
+              location: "use-channel.ts:join_ok",
+              message: "Channel join completed",
+              data: { channelId },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
 
           // Load initial history if no sync was triggered
           if (lastSequenceRef.current === "0") {
@@ -620,6 +938,10 @@ export function useChannel(channelId: string | null): UseChannelReturn {
       typingTimers.clear();
       // Clear stream buffer and cancel rAF
       streamBuffer.clear();
+      if (botHintTimerRef.current) {
+        clearTimeout(botHintTimerRef.current);
+        botHintTimerRef.current = null;
+      }
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -627,13 +949,103 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     };
   }, [channelId, addMessages, flushStreamBuffer]);
 
+  useEffect(() => {
+    const id = lastStreamErrorIdRef.current;
+    if (!id || loggedStateCheckIdsRef.current.has(id)) return;
+    const msg = messages.find((m) => m.id === id);
+    if (!msg) return;
+
+    loggedStateCheckIdsRef.current.add(id);
+
+    // #region agent log
+    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "e9a21d",
+      },
+      body: JSON.stringify({
+        sessionId: "e9a21d",
+        runId: "post-fix",
+        hypothesisId: "H7",
+        location: "use-channel.ts:errored_message_in_state",
+        message: "Errored stream message materialized in local state",
+        data: {
+          channelId,
+          messageId: id,
+          type: msg.type,
+          status: msg.streamingStatus,
+          contentLen: (msg.content || "").length,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [messages, channelId]);
+
   // Send a message
   const sendMessage = useCallback(
     (content: string) => {
-      if (!channelRef.current || !content.trim()) return;
-      channelRef.current.push("new_message", { content: content.trim() });
+      const trimmed = content.trim();
+      if (!trimmed) return;
+
+      if (!channelRef.current) {
+        setBotTriggerHint("Disconnected from channel gateway. Reconnecting...");
+
+        // #region agent log
+        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "e9a21d",
+          },
+          body: JSON.stringify({
+            sessionId: "e9a21d",
+            runId: "pre-fix",
+            hypothesisId: "H17",
+            location: "use-channel.ts:send_message_blocked_no_channel",
+            message: "sendMessage dropped because channelRef is null",
+            data: {
+              channelId,
+              isConnected,
+              contentLen: trimmed.length,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        return;
+      }
+
+      setBotTriggerHint((prev) => {
+        if (prev) {
+          // #region agent log
+          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "e9a21d",
+            },
+            body: JSON.stringify({
+              sessionId: "e9a21d",
+              runId: "post-fix",
+              hypothesisId: "H12",
+              location: "use-channel.ts:send_message_hint_clear",
+              message: "Hint cleared on sendMessage",
+              data: {
+                channelId,
+                prevHintLen: prev.length,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
+        }
+        return null;
+      });
+      channelRef.current.push("new_message", { content: trimmed });
     },
-    []
+    [channelId, isConnected]
   );
 
   // Load older messages (history)
@@ -738,6 +1150,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
   return {
     messages,
+    botTriggerHint,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -745,6 +1158,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     updateReactions,
     hasMoreHistory,
     isConnected,
+    hasJoinedOnce,
     typingUsers,
     sendTyping,
     presenceMap,

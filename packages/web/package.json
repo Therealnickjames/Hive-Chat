@@ -15,7 +15,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "debug:automate": "node scripts/automation-full-cycle.mjs",
+    "debug:multi-actor": "node scripts/automation-multi-actor.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0",
