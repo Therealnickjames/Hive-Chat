@@ -58,6 +58,7 @@ yarn-error.log*
 # === Test ===
 coverage/
 .nyc_output/
+**/test-results/
 
 # === Internal documentation (not public) ===
 docs/internal/
@@ -81,6 +82,7 @@ test_*.py
 
 # === Build artifacts ===
 build-log.txt
+artifacts/
 
 # === PowerShell dev scripts (harness scripts tracked for CI) ===
 # scripts/**/*.ps1
