@@ -18,6 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install bcryptjs for regression harness
+        run: npm install --no-save bcryptjs
+        working-directory: packages/web
+
       - name: Generate .env for CI
         run: |
           cp .env.example .env
