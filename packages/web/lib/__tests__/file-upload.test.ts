@@ -54,11 +54,12 @@ function makeUploadRequest(
   content?: Buffer
 ) {
   const buf = content ?? Buffer.alloc(sizeBytes, 0x41); // fill with 'A'
-  const file = new File([buf], fileName, { type: mimeType });
+  const fileBytes = new Uint8Array(buf);
+  const file = new File([fileBytes], fileName, { type: mimeType });
 
   // Override the size getter for tests that need to exceed limits
   // without actually allocating huge buffers
-  if (sizeBytes !== buf.length) {
+  if (sizeBytes !== fileBytes.byteLength) {
     Object.defineProperty(file, "size", { value: sizeBytes });
   }
 
