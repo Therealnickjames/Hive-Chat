@@ -2,10 +2,12 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 /**
- * Log in via the credentials form and wait for the app to load.
- * Uses the form UI (not API) to match real user flows. Handles
- * Docker/CI environments where page load may be slow by using
- * domcontentloaded instead of the default 'load' wait condition.
+ * Log in via the credentials form.
+ *
+ * In Docker/CI the signIn() redirect may not fire because the
+ * window.location.assign navigation never completes (page load
+ * blocks on WebSocket/SSR in production mode). This helper detects
+ * that case and navigates manually after verifying no error appeared.
  */
 export async function login(
   page: Page,
@@ -17,13 +19,34 @@ export async function login(
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /log in/i }).click();
 
-  // Wait for URL to change from /login. Use domcontentloaded instead
-  // of load since the app page may hold the load event for WebSocket
-  // or data fetching that takes time in Docker environments.
-  await page.waitForURL((url) => !url.pathname.includes("/login"), {
-    timeout: 30_000,
-    waitUntil: "domcontentloaded",
-  });
+  // Give signIn() time to complete the API call
+  await page.waitForTimeout(3000);
+
+  // Check current state
+  const currentUrl = page.url();
+  if (currentUrl.includes("/login")) {
+    // Check for error message — if present, login actually failed
+    const errorVisible = await page
+      .getByText(/invalid email or password/i)
+      .isVisible()
+      .catch(() => false);
+
+    if (errorVisible) {
+      throw new Error(`Login failed for ${email}: invalid credentials`);
+    }
+
+    // No error visible = signIn succeeded but redirect didn't fire.
+    // Navigate directly — the session cookie should already be set
+    // by the signIn API response.
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+  }
+
+  // If we got redirected back to /login, the cookie wasn't set
+  if (page.url().includes("/login")) {
+    throw new Error(
+      `Login failed for ${email}: session cookie not persisted (redirected back to /login)`,
+    );
+  }
 
   // Wait for the app layout to render
   await expect(
