@@ -1,52 +1,56 @@
-import type { Page, APIRequestContext } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 /**
  * Log in via NextAuth API (bypasses form → more reliable in CI).
- * Sets the session cookie on the browser context so subsequent
- * navigations are authenticated.
+ * Uses page.evaluate to run fetch() in the browser context, ensuring
+ * cookies are handled correctly by the browser's cookie jar.
  */
 export async function login(
   page: Page,
   email: string,
   password: string,
 ): Promise<void> {
-  const baseURL = "http://localhost:3000";
-  const context = page.context();
+  // Navigate to login page first to establish the page origin
+  await page.goto("/login");
 
-  // 1. Get CSRF token
-  const csrfRes = await context.request.get(`${baseURL}/api/auth/csrf`);
-  const { csrfToken } = await csrfRes.json();
+  // Run the login flow inside the browser context so cookies are
+  // handled by the browser's native cookie jar (not Playwright's API client).
+  const loginResult = await page.evaluate(
+    async ({ email, password }) => {
+      // 1. Get CSRF token
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
 
-  // 2. Sign in via credentials callback
-  const signInRes = await context.request.post(
-    `${baseURL}/api/auth/callback/credentials`,
-    {
-      form: {
-        csrfToken,
-        email,
-        password,
-        json: "true",
-      },
+      // 2. Sign in via credentials callback
+      const signInRes = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          csrfToken,
+          email,
+          password,
+          json: "true",
+        }),
+        redirect: "follow",
+      });
+
+      return {
+        status: signInRes.status,
+        ok: signInRes.ok,
+        url: signInRes.url,
+      };
     },
+    { email, password },
   );
 
-  // The response sets the session cookie on the context automatically.
-  // Verify we got a session cookie.
-  const cookies = await context.cookies(baseURL);
-  const sessionCookie = cookies.find(
-    (c) =>
-      c.name === "next-auth.session-token" ||
-      c.name === "__Secure-next-auth.session-token",
-  );
-
-  if (!sessionCookie) {
+  if (!loginResult.ok && loginResult.status !== 200) {
     throw new Error(
-      `Login failed for ${email}: no session cookie set. Status: ${signInRes.status()}`,
+      `Login API failed for ${email}: status ${loginResult.status}`,
     );
   }
 
-  // 3. Navigate to app — should be authenticated now
+  // 3. Navigate to app — browser now has the session cookie
   await page.goto("/");
   await expect(
     page.getByRole("button", { name: "SERVERS" }),
