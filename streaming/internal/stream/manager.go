@@ -198,6 +198,17 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		return
 	}
 
+	// Fail fast on missing/demo placeholder API keys to avoid opaque provider 401s.
+	apiKey := strings.TrimSpace(botConfig.APIKey)
+	if apiKey == "" || strings.Contains(apiKey, "placeholder-key-not-real") {
+		m.logger.Warn("Bot API key is missing or placeholder",
+			"botId", req.BotID,
+			"provider", botConfig.LLMProvider,
+		)
+		m.publishError(ctx, req, "", "Bot API key is not configured. Update the bot API key in settings.", 0, startTime)
+		return
+	}
+
 	// 1b. Fetch channel charter config (TASK-0020)
 	var charter *config.CharterConfig
 	charter, err = m.loader.GetChannelCharter(ctx, req.ChannelID)

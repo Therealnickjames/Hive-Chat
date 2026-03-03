@@ -40,8 +40,10 @@ export function ChatPanel({ panel }: ChatPanelProps) {
   const canManageMessages = hasPermission(Permissions.MANAGE_MESSAGES);
   const [showChannelSettings, setShowChannelSettings] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MessagePayload | null>(null);
+  const hintRef = useRef<HTMLDivElement | null>(null);
   const {
     messages,
+    botTriggerHint,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -49,6 +51,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     updateReactions,
     hasMoreHistory,
     isConnected,
+    hasJoinedOnce,
     typingUsers,
     sendTyping,
     activeStreamCount,
@@ -271,11 +274,81 @@ export function ChatPanel({ panel }: ChatPanelProps) {
   }, [serverDataById, panel.serverId, panel.channelId]);
 
   const hasActiveStream = messages.some((m) => m.streamingStatus === "ACTIVE");
+  const isErrorHint =
+    typeof botTriggerHint === "string" &&
+    botTriggerHint.startsWith("Bot response failed:");
+
+  useEffect(() => {
+    if (!botTriggerHint) return;
+    const node = hintRef.current;
+    const rect = node?.getBoundingClientRect();
+    const style = node ? window.getComputedStyle(node) : null;
+
+    // #region agent log
+    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "e9a21d",
+      },
+      body: JSON.stringify({
+        sessionId: "e9a21d",
+        runId: "post-fix",
+        hypothesisId: "H15",
+        location: "chat-panel.tsx:hint_rendered",
+        message: "Hint rendered in ChatPanel",
+        data: {
+          channelId: panel.channelId,
+          hintLen: botTriggerHint.length,
+          inViewport: rect
+            ? rect.bottom > 0 &&
+              rect.right > 0 &&
+              rect.left < window.innerWidth &&
+              rect.top < window.innerHeight
+            : false,
+          fontSize: style?.fontSize || null,
+          lineHeight: style?.lineHeight || null,
+          opacity: style?.opacity || null,
+          textColor: style?.color || null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [botTriggerHint, panel.channelId]);
 
   useEffect(() => {
     setStreamState(panel.channelId, hasActiveStream);
     return () => setStreamState(panel.channelId, false);
   }, [hasActiveStream, panel.channelId, setStreamState]);
+
+  useEffect(() => {
+    if (isConnected) return;
+    const status = hasJoinedOnce ? "disconnected" : "connecting";
+
+    // #region agent log
+    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "e9a21d",
+      },
+      body: JSON.stringify({
+        sessionId: "e9a21d",
+        runId: "post-fix",
+        hypothesisId: "H22",
+        location: "chat-panel.tsx:connection_status_visible",
+        message: "ChatPanel rendered channel connection status",
+        data: {
+          channelId: panel.channelId,
+          hasJoinedOnce,
+          status,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [isConnected, hasJoinedOnce, panel.channelId]);
 
   if (panel.isMinimized || panel.isClosed) return null;
 
@@ -400,16 +473,38 @@ export function ChatPanel({ panel }: ChatPanelProps) {
           activeStreamCount={activeStreamCount}
         />
         <TypingIndicator typingUsers={typingUsers} />
+        {botTriggerHint && (
+          <div
+            ref={hintRef}
+            role="status"
+            aria-live="polite"
+            className={
+              isErrorHint
+                ? "border-t border-status-dnd/50 bg-status-dnd/10 px-4 py-2 text-xs font-semibold tracking-wide text-status-dnd"
+                : "border-t border-brand/40 bg-brand/10 px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary"
+            }
+          >
+            {botTriggerHint}
+          </div>
+        )}
         {!isConnected && (
-          <div className="border-t border-border px-4 py-1 text-[10px] font-bold tracking-wider text-status-dnd">
-            DISCONNECTED FROM CHANNEL GATEWAY
+          <div
+            className={
+              hasJoinedOnce
+                ? "border-t border-border px-4 py-1 text-[10px] font-bold tracking-wider text-status-dnd"
+                : "border-t border-border px-4 py-1 text-[10px] font-bold tracking-wider text-brand"
+            }
+          >
+            {hasJoinedOnce
+              ? "DISCONNECTED FROM CHANNEL GATEWAY"
+              : "CONNECTING TO CHANNEL GATEWAY..."}
           </div>
         )}
         <div className="border-t border-border mt-auto pt-2 bg-background-secondary">
           <MessageInput
             onSend={sendMessage}
             onTyping={sendTyping}
-            disabled={false}
+            disabled={!isConnected}
             channelName={panel.channelName}
             mentionOptions={mentionOptions}
           />
