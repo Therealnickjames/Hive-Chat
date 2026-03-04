@@ -747,23 +747,20 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   }, [channelId, addMessages, flushStreamBuffer]);
 
   // Send a message
-  const sendMessage = useCallback(
-    (content: string) => {
-      const trimmed = content.trim();
-      if (!trimmed) return;
+  const sendMessage = useCallback((content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
 
-      if (!channelRef.current) {
-        setBotTriggerHint(
-          "Action needed: disconnected from channel gateway. Reconnecting...",
-        );
-        return;
-      }
+    if (!channelRef.current) {
+      setBotTriggerHint(
+        "Action needed: disconnected from channel gateway. Reconnecting...",
+      );
+      return;
+    }
 
-      setBotTriggerHint(null);
-      channelRef.current.push("new_message", { content: trimmed });
-    },
-    [],
-  );
+    setBotTriggerHint(null);
+    channelRef.current.push("new_message", { content: trimmed });
+  }, []);
 
   // Load older messages (history)
   const loadHistory = useCallback(() => {
