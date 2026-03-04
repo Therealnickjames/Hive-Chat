@@ -57,7 +57,7 @@ async function run() {
   await input.press("Enter");
 
   await page
-    .getByText(/No bot triggered\. Mention @.+ to trigger it\./)
+    .getByText(/no bot triggered\..*mention @.+ to trigger it\./i)
     .waitFor({ timeout: 10000 });
 
   const apiKeyErrorLocator = page.getByText(/Bot API key is not configured/i);
@@ -86,7 +86,7 @@ async function run() {
   await page.waitForTimeout(1000);
 
   const generalInput = page.getByRole("textbox", { name: "Message #general" });
-  const generalHint = page.getByText(/No bot triggered\. Mention @.+ to trigger it\./);
+  const generalHint = page.getByText(/no bot triggered\..*mention @.+ to trigger it\./i);
   const generalHintBefore = await generalHint.count();
   const generalErrorBefore = await apiKeyErrorLocator.count();
 

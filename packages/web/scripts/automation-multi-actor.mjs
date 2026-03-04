@@ -1,24 +1,9 @@
 import { chromium } from "@playwright/test";
 
-function logDebug(message, data = {}) {
-  // #region agent log
-  fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "e9a21d",
-    },
-    body: JSON.stringify({
-      sessionId: "e9a21d",
-      runId: "multi-actor",
-      hypothesisId: "H20",
-      location: "automation-multi-actor.mjs",
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+async function logDebug(message, data = {}) {
+  if (process.env.AUTOMATION_DEBUG === "true") {
+    console.debug("[automation-multi-actor]", message, data);
+  }
 }
 
 async function login(page, email, password, label) {
@@ -38,7 +23,54 @@ async function login(page, email, password, label) {
       timeout: 12000,
     });
   }
-  logDebug("Actor login complete", { actor: label, email });
+  await logDebug("Actor login complete", { actor: label, email });
+}
+
+async function getFirstVisibleTextMetrics(page, text) {
+  const locator = page.getByText(text).first();
+  const isVisible = await locator.isVisible();
+  const metrics = await locator.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const inViewport =
+      rect.bottom >= 0 &&
+      rect.top <= (window.innerHeight || document.documentElement.clientHeight);
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      inViewport,
+    };
+  });
+  return { isVisible, ...metrics };
+}
+
+async function getMessageRowMetrics(page, text) {
+  const rows = page.locator("[data-message-id]");
+  const count = await rows.count();
+  const matched = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const row = rows.nth(i);
+    const rowText = (await row.textContent()) || "";
+    if (!rowText.includes(text)) continue;
+    const metrics = await row.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const inViewport =
+        rect.bottom >= 0 &&
+        rect.top <= (window.innerHeight || document.documentElement.clientHeight);
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        inViewport,
+      };
+    });
+    matched.push(metrics);
+  }
+
+  return {
+    rowCount: count,
+    matchedCount: matched.length,
+    matched,
+  };
 }
 
 async function run() {
@@ -53,7 +85,7 @@ async function run() {
     });
   } catch (error) {
     if (!preferHeaded) throw error;
-    logDebug("Headed launch failed; falling back to headless", {
+    await logDebug("Headed launch failed; falling back to headless", {
       error: String(error),
     });
     browser = await chromium.launch({ headless: true });
@@ -102,12 +134,32 @@ async function run() {
   await demoInput.fill(demoMessage);
   await demoInput.press("Enter");
   await alicePage.getByText(demoMessage).waitFor({ timeout: 10000 });
-  logDebug("Alice observed demo message", { marker, phase: "human_to_human_1" });
+  const aliceDemoMetrics = await getFirstVisibleTextMetrics(alicePage, demoMessage);
+  const aliceDemoRowMetrics = await getMessageRowMetrics(alicePage, demoMessage);
+  await logDebug("Alice observed demo message", {
+    marker,
+    phase: "human_to_human_1",
+    ...aliceDemoMetrics,
+    ...aliceDemoRowMetrics,
+  });
+  if (!aliceDemoMetrics.isVisible || !aliceDemoMetrics.inViewport) {
+    throw new Error("Alice did not visibly receive demo message in viewport");
+  }
 
   await aliceInput.fill(aliceMessage);
   await aliceInput.press("Enter");
   await demoPage.getByText(aliceMessage).waitFor({ timeout: 10000 });
-  logDebug("Demo observed alice message", { marker, phase: "human_to_human_2" });
+  const demoAliceMetrics = await getFirstVisibleTextMetrics(demoPage, aliceMessage);
+  const demoAliceRowMetrics = await getMessageRowMetrics(demoPage, aliceMessage);
+  await logDebug("Demo observed alice message", {
+    marker,
+    phase: "human_to_human_2",
+    ...demoAliceMetrics,
+    ...demoAliceRowMetrics,
+  });
+  if (!demoAliceMetrics.isVisible || !demoAliceMetrics.inViewport) {
+    throw new Error("Demo did not visibly receive alice message in viewport");
+  }
 
   const demoErrors = demoPage.getByText(/Bot API key is not configured/i);
   const aliceErrors = alicePage.getByText(/Bot API key is not configured/i);
@@ -129,7 +181,7 @@ async function run() {
   const aliceErrorAfter = await aliceErrors.count();
   const inlineHintCount = await demoPage.getByText(/Bot response failed:/i).count();
 
-  logDebug("Agent-to-human cycle observed", {
+  await logDebug("Agent-to-human cycle observed", {
     marker,
     demoErrorBefore,
     demoErrorAfter,

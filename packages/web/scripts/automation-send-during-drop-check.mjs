@@ -2,7 +2,7 @@ import { chromium } from "@playwright/test";
 
 function logDebug(message, data = {}) {
   if (process.env.AUTOMATION_DEBUG === "true") {
-    console.debug("[automation-disconnect-send-check]", message, data);
+    console.debug("[automation-send-during-drop-check]", message, data);
   }
 }
 
@@ -43,34 +43,56 @@ async function run() {
   await page.goto(`${baseUrl}/servers/${serverId}/channels/${firstChannel.id}`, {
     waitUntil: "domcontentloaded",
   });
-  await page.waitForTimeout(1200);
-
-  const disconnectedBanner = page.getByText(/DISCONNECTED FROM CHANNEL GATEWAY/i);
-  const connectingBanner = page.getByText(/CONNECTING TO CHANNEL GATEWAY/i);
-  const disconnectedBannerVisibleCount = await disconnectedBanner.count();
-  const connectingBannerVisibleCount = await connectingBanner.count();
 
   const input = page.getByRole("textbox").first();
-  const inputDisabled = await input.isDisabled();
+  await input.waitFor({ timeout: 10000 });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector("textarea, input[type='text']");
+      return Boolean(el) && !(el).disabled;
+    },
+    { timeout: 10000 }
+  );
 
-  if (!inputDisabled) {
-    await input.fill("automation: disconnected send check");
+  const marker = Date.now();
+  let attempted = 0;
+  for (let i = 0; i < 8; i += 1) {
+    if (await input.isDisabled()) break;
+    attempted += 1;
+    await input.fill(`drop-send probe ${marker} #${i + 1}`);
     await input.press("Enter");
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
   }
 
-  logDebug("Disconnected send scenario executed", {
+  await page.waitForTimeout(2500);
+
+  const disconnectedBannerVisibleCount = await page
+    .getByText(/DISCONNECTED FROM CHANNEL GATEWAY/i)
+    .count();
+  const inputDisabledAtEnd = await input.isDisabled();
+  const inlineHintCount = await page
+    .getByText(/Bot response failed:|Disconnected from channel gateway/i)
+    .count();
+  const visibleSentMessageCount = await page
+    .getByText(new RegExp(`drop-send probe ${marker}`))
+    .count();
+
+  logDebug("Send during drop scenario evaluated", {
     serverId,
     channelId: firstChannel.id,
+    marker,
+    attempted,
+    visibleSentMessageCount,
     disconnectedBannerVisibleCount,
-    connectingBannerVisibleCount,
-    inputDisabled,
+    inputDisabledAtEnd,
+    inlineHintCount,
   });
 
   await browser.close();
 }
 
 run().catch((error) => {
-  console.error("automation-disconnect-send-check failed:", error);
+  console.error("automation-send-during-drop-check failed:", error);
   process.exit(1);
 });
+

@@ -2,7 +2,7 @@ import { chromium } from "@playwright/test";
 
 function logDebug(message, data = {}) {
   if (process.env.AUTOMATION_DEBUG === "true") {
-    console.debug("[automation-disconnect-send-check]", message, data);
+    console.debug("[automation-disconnect-recover-check]", message, data);
   }
 }
 
@@ -43,34 +43,47 @@ async function run() {
   await page.goto(`${baseUrl}/servers/${serverId}/channels/${firstChannel.id}`, {
     waitUntil: "domcontentloaded",
   });
-  await page.waitForTimeout(1200);
-
-  const disconnectedBanner = page.getByText(/DISCONNECTED FROM CHANNEL GATEWAY/i);
-  const connectingBanner = page.getByText(/CONNECTING TO CHANNEL GATEWAY/i);
-  const disconnectedBannerVisibleCount = await disconnectedBanner.count();
-  const connectingBannerVisibleCount = await connectingBanner.count();
 
   const input = page.getByRole("textbox").first();
-  const inputDisabled = await input.isDisabled();
+  await input.waitFor({ timeout: 10000 });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector("textarea, input[type='text']");
+      return Boolean(el) && !(el).disabled;
+    },
+    { timeout: 10000 }
+  );
 
-  if (!inputDisabled) {
-    await input.fill("automation: disconnected send check");
-    await input.press("Enter");
-    await page.waitForTimeout(500);
+  const disconnectedBanner = page.getByText(/DISCONNECTED FROM CHANNEL GATEWAY/i);
+  let sawDisconnected = false;
+
+  const started = Date.now();
+  while (Date.now() - started < 14000) {
+    const count = await disconnectedBanner.count();
+    if (count > 0) sawDisconnected = true;
+    await page.waitForTimeout(400);
   }
 
-  logDebug("Disconnected send scenario executed", {
+  const finalDisconnectedCount = await disconnectedBanner.count();
+  const finalConnectingCount = await page
+    .getByText(/CONNECTING TO CHANNEL GATEWAY/i)
+    .count();
+  const inputDisabledAtEnd = await input.isDisabled();
+
+  logDebug("Disconnect-recover scenario evaluated", {
     serverId,
     channelId: firstChannel.id,
-    disconnectedBannerVisibleCount,
-    connectingBannerVisibleCount,
-    inputDisabled,
+    sawDisconnected,
+    finalDisconnectedCount,
+    finalConnectingCount,
+    inputDisabledAtEnd,
   });
 
   await browser.close();
 }
 
 run().catch((error) => {
-  console.error("automation-disconnect-send-check failed:", error);
+  console.error("automation-disconnect-recover-check failed:", error);
   process.exit(1);
 });
+

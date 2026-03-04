@@ -64,7 +64,6 @@ export function ChatArea({
 
   // Delete modal state (TASK-0014)
   const [deleteTarget, setDeleteTarget] = useState<MessagePayload | null>(null);
-  const hintRef = useRef<HTMLDivElement | null>(null);
 
   const handleDeleteRequest = useCallback(
     (messageId: string) => {
@@ -121,73 +120,6 @@ export function ChatArea({
     typeof botTriggerHint === "string" &&
     botTriggerHint.startsWith("Bot response failed:");
 
-  useEffect(() => {
-    if (!botTriggerHint) return;
-    const node = hintRef.current;
-    const rect = node?.getBoundingClientRect();
-    const style = node ? window.getComputedStyle(node) : null;
-
-    // #region agent log
-    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "e9a21d",
-      },
-      body: JSON.stringify({
-        sessionId: "e9a21d",
-        runId: "post-fix",
-        hypothesisId: "H14",
-        location: "chat-area.tsx:hint_rendered",
-        message: "Hint rendered in ChatArea",
-        data: {
-          channelId,
-          hintLen: botTriggerHint.length,
-          inViewport: rect
-            ? rect.bottom > 0 &&
-              rect.right > 0 &&
-              rect.left < window.innerWidth &&
-              rect.top < window.innerHeight
-            : false,
-          fontSize: style?.fontSize || null,
-          lineHeight: style?.lineHeight || null,
-          opacity: style?.opacity || null,
-          textColor: style?.color || null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [botTriggerHint, channelId]);
-
-  useEffect(() => {
-    if (isConnected) return;
-    const status = hasJoinedOnce ? "disconnected" : "connecting";
-
-    // #region agent log
-    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "e9a21d",
-      },
-      body: JSON.stringify({
-        sessionId: "e9a21d",
-        runId: "post-fix",
-        hypothesisId: "H23",
-        location: "chat-area.tsx:connection_status_visible",
-        message: "ChatArea rendered channel connection status",
-        data: {
-          channelId,
-          hasJoinedOnce,
-          status,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [channelId, isConnected, hasJoinedOnce]);
-
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <ChannelHeader
@@ -212,13 +144,12 @@ export function ChatArea({
       <TypingIndicator typingUsers={typingUsers} />
       {botTriggerHint && (
         <div
-          ref={hintRef}
           role="status"
           aria-live="polite"
           className={
             isErrorHint
-              ? "border-t border-status-dnd/50 bg-status-dnd/10 px-4 py-2 text-xs font-semibold tracking-wide text-status-dnd"
-              : "border-t border-brand/40 bg-brand/10 px-4 py-2 text-xs font-semibold tracking-wide text-text-secondary"
+              ? "border-t border-status-dnd/50 bg-status-dnd/10 px-4 py-2 text-sm font-bold tracking-wide text-status-dnd"
+              : "border-t border-brand/60 bg-brand/20 px-4 py-2 text-sm font-bold tracking-wide text-brand"
           }
         >
           {botTriggerHint}

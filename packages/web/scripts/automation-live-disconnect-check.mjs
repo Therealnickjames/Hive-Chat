@@ -2,7 +2,7 @@ import { chromium } from "@playwright/test";
 
 function logDebug(message, data = {}) {
   if (process.env.AUTOMATION_DEBUG === "true") {
-    console.debug("[automation-disconnect-send-check]", message, data);
+    console.debug("[automation-live-disconnect-check]", message, data);
   }
 }
 
@@ -43,23 +43,27 @@ async function run() {
   await page.goto(`${baseUrl}/servers/${serverId}/channels/${firstChannel.id}`, {
     waitUntil: "domcontentloaded",
   });
-  await page.waitForTimeout(1200);
+
+  const input = page.getByRole("textbox").first();
+  await input.waitFor({ timeout: 10000 });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector("textarea, input[type='text']");
+      return Boolean(el) && !(el).disabled;
+    },
+    { timeout: 10000 }
+  );
+
+  // Allow external delayed gateway shutdown to occur while page remains mounted.
+  await page.waitForTimeout(9000);
 
   const disconnectedBanner = page.getByText(/DISCONNECTED FROM CHANNEL GATEWAY/i);
   const connectingBanner = page.getByText(/CONNECTING TO CHANNEL GATEWAY/i);
   const disconnectedBannerVisibleCount = await disconnectedBanner.count();
   const connectingBannerVisibleCount = await connectingBanner.count();
-
-  const input = page.getByRole("textbox").first();
   const inputDisabled = await input.isDisabled();
 
-  if (!inputDisabled) {
-    await input.fill("automation: disconnected send check");
-    await input.press("Enter");
-    await page.waitForTimeout(500);
-  }
-
-  logDebug("Disconnected send scenario executed", {
+  logDebug("Live disconnect scenario evaluated", {
     serverId,
     channelId: firstChannel.id,
     disconnectedBannerVisibleCount,
@@ -71,6 +75,7 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error("automation-disconnect-send-check failed:", error);
+  console.error("automation-live-disconnect-check failed:", error);
   process.exit(1);
 });
+
