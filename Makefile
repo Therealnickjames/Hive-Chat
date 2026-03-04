@@ -3,7 +3,8 @@
 
 .PHONY: help dev up down logs logs-web logs-gateway logs-stream \
         db-migrate db-studio db-seed clean health build regression-harness \
-        test-web test-gateway test-streaming test-unit test-sdk test-e2e test-load test-all demo
+        test-web test-gateway test-streaming test-unit test-sdk test-e2e test-load test-all demo \
+        lint format lint-fix
 
 # Default target
 help: ## Show this help
@@ -12,6 +13,27 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo ""
+
+# ============================================================
+# LINT & FORMAT
+# ============================================================
+
+lint: ## Check formatting and lint across all services
+	cd packages/web && pnpm lint
+	cd gateway && mix format --check-formatted
+	cd gateway && mix credo --strict || true
+	cd streaming && gofmt -l . && go vet ./...
+
+format: ## Auto-format all services
+	cd packages/web && pnpm format
+	cd gateway && mix format
+	cd streaming && gofmt -w .
+
+lint-fix: ## Auto-fix lint and formatting issues
+	cd packages/web && pnpm lint:fix
+	cd packages/web && pnpm format
+	cd gateway && mix format
+	cd streaming && gofmt -w .
 
 # ============================================================
 # DEVELOPMENT
