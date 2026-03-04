@@ -45,14 +45,14 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: "File too large (max 10MB)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: `File type not allowed: ${file.type || "unknown"}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -83,7 +83,9 @@ export async function POST(request: NextRequest) {
         mimeType: file.type,
         size: file.size,
         storagePath,
-        ...(dimensions ? { width: dimensions.width, height: dimensions.height } : {}),
+        ...(dimensions
+          ? { width: dimensions.width, height: dimensions.height }
+          : {}),
       },
       select: {
         id: true,
@@ -105,7 +107,7 @@ export async function POST(request: NextRequest) {
         width: attachment.width,
         height: attachment.height,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Failed to upload file:", error);

@@ -70,12 +70,13 @@ export async function POST(request: NextRequest) {
       typeof body.defaultChannelName === "string"
         ? body.defaultChannelName
         : "general";
-    const defaultChannelName = defaultChannelNameRaw
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-_]/g, "")
-      .slice(0, 100) || "general";
+    const defaultChannelName =
+      defaultChannelNameRaw
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-_]/g, "")
+        .slice(0, 100) || "general";
     const defaultChannelTopic =
       typeof body.defaultChannelTopic === "string" &&
       body.defaultChannelTopic.trim().length > 0
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     if (!name || name.length < 1 || name.length > 100) {
       return NextResponse.json(
         { error: "Server name must be 1-100 characters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
         ownerId: server.ownerId,
         defaultChannelId: channelId,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Failed to create server:", error);

@@ -23,9 +23,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           className={`w-full rounded bg-background-tertiary px-3 py-2 text-text-primary outline-none ring-1 ring-transparent transition focus:ring-brand ${className}`}
           {...props}
         />
-        {error && (
-          <p className="mt-1 text-xs text-status-dnd">{error}</p>
-        )}
+        {error && <p className="mt-1 text-xs text-status-dnd">{error}</p>}
       </div>
     );
   },

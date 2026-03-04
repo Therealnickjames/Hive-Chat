@@ -65,7 +65,10 @@ defmodule TavokGatewayWeb.DmChannel do
           end
 
         {:error, reason} ->
-          Logger.warning("DM join rejected: user=#{user_id} dm=#{dm_id} reason=#{inspect(reason)}")
+          Logger.warning(
+            "DM join rejected: user=#{user_id} dm=#{dm_id} reason=#{inspect(reason)}"
+          )
+
           {:error, %{reason: "unauthorized"}}
       end
     end
@@ -318,7 +321,9 @@ defmodule TavokGatewayWeb.DmChannel do
               Logger.debug("DM message persisted: dm=#{dm_id} message=#{ulid}")
 
             {:error, reason} ->
-              Logger.error("DM persist failed: dm=#{dm_id} message=#{ulid} reason=#{inspect(reason)}")
+              Logger.error(
+                "DM persist failed: dm=#{dm_id} message=#{ulid} reason=#{inspect(reason)}"
+              )
           end
         end)
 

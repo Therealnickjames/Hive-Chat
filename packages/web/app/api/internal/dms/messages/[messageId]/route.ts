@@ -8,7 +8,7 @@ import { validateInternalSecret } from "@/lib/internal-auth";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,7 +28,7 @@ export async function PATCH(
   if (typeof content !== "string" || content.trim() === "") {
     return NextResponse.json(
       { error: "content is required and must be non-empty" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -50,7 +50,7 @@ export async function PATCH(
     console.error("Failed to edit DM message:", error);
     return NextResponse.json(
       { error: "Failed to edit message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -61,7 +61,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -80,7 +80,7 @@ export async function DELETE(
     console.error("Failed to delete DM message:", error);
     return NextResponse.json(
       { error: "Failed to delete message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

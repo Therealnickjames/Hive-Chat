@@ -83,9 +83,12 @@ export function InviteModal({ isOpen, onClose }: InviteModalProps) {
   async function handleRevoke(inviteId: string) {
     if (!currentServerId) return;
     try {
-      const res = await fetch(`/api/servers/${currentServerId}/invites/${inviteId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/servers/${currentServerId}/invites/${inviteId}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         setInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
       }
@@ -106,7 +109,9 @@ export function InviteModal({ isOpen, onClose }: InviteModalProps) {
     if (isExpired) return "Expired";
     const date = new Date(expiresAt);
     const now = new Date();
-    const hoursLeft = Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60));
+    const hoursLeft = Math.round(
+      (date.getTime() - now.getTime()) / (1000 * 60 * 60),
+    );
     if (hoursLeft < 1) return "< 1 hour";
     if (hoursLeft < 24) return `${hoursLeft}h left`;
     const daysLeft = Math.round(hoursLeft / 24);
@@ -122,7 +127,9 @@ export function InviteModal({ isOpen, onClose }: InviteModalProps) {
       )}
 
       <div className="mb-4 rounded-lg bg-background-secondary p-4">
-        <p className="mb-3 text-sm font-semibold text-text-primary">Create New Invite</p>
+        <p className="mb-3 text-sm font-semibold text-text-primary">
+          Create New Invite
+        </p>
         <div className="mb-3 flex gap-3">
           <div className="flex-1">
             <label className="mb-1 block text-xs font-bold uppercase text-text-muted">

@@ -65,8 +65,7 @@ describe("encryption", () => {
     const ciphertext = encrypt("sensitive-data");
     const parts = ciphertext.split(":");
     // Flip a character in the encrypted data
-    const tampered =
-      parts[0] + ":" + parts[1] + ":" + "ff" + parts[2].slice(2);
+    const tampered = parts[0] + ":" + parts[1] + ":" + "ff" + parts[2].slice(2);
     expect(() => decrypt(tampered)).toThrow();
   });
 
@@ -74,8 +73,7 @@ describe("encryption", () => {
     const ciphertext = encrypt("auth-tag-test");
     const parts = ciphertext.split(":");
     // Flip a character in the auth tag
-    const tampered =
-      parts[0] + ":" + "00" + parts[1].slice(2) + ":" + parts[2];
+    const tampered = parts[0] + ":" + "00" + parts[1].slice(2) + ":" + parts[2];
     expect(() => decrypt(tampered)).toThrow();
   });
 

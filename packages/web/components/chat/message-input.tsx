@@ -108,8 +108,10 @@ export function MessageInput({
             const progress = e.loaded / e.total;
             setPendingFiles((prev) =>
               prev.map((f) =>
-                f.fileId === tempId ? { ...f, progress: Math.min(progress, 0.99) } : f
-              )
+                f.fileId === tempId
+                  ? { ...f, progress: Math.min(progress, 0.99) }
+                  : f,
+              ),
             );
           }
         };
@@ -154,8 +156,8 @@ export function MessageInput({
                 height: result.height,
                 progress: 1,
               }
-            : f
-        )
+            : f,
+        ),
       );
     } catch (error) {
       // Remove failed upload
@@ -170,7 +172,7 @@ export function MessageInput({
       const fileArray = Array.from(files);
       await Promise.all(fileArray.map((f) => uploadFile(f)));
     },
-    [uploadFile]
+    [uploadFile],
   );
 
   const handleSend = useCallback(() => {
@@ -179,7 +181,8 @@ export function MessageInput({
     const fileRefs = completedFiles
       .map((file) => {
         // Include dimensions in reference if available (TASK-0025)
-        const dims = file.width && file.height ? `:${file.width}x${file.height}` : "";
+        const dims =
+          file.width && file.height ? `:${file.width}x${file.height}` : "";
         return `[file:${file.fileId}:${file.filename}:${file.mimeType}${dims}]`;
       })
       .join("\n");
@@ -209,7 +212,7 @@ export function MessageInput({
         fileInputRef.current.value = "";
       }
     },
-    [uploadFiles]
+    [uploadFiles],
   );
 
   const removePendingFile = useCallback((fileId: string) => {
@@ -252,7 +255,7 @@ export function MessageInput({
         await uploadFiles(files);
       }
     },
-    [uploadFiles]
+    [uploadFiles],
   );
 
   // Clipboard paste handler (TASK-0025)
@@ -276,7 +279,7 @@ export function MessageInput({
       }
       // If no files, let default paste behavior handle text
     },
-    [uploadFiles]
+    [uploadFiles],
   );
 
   const checkForMention = useCallback((text: string, cursorPos: number) => {
@@ -319,7 +322,7 @@ export function MessageInput({
         el.setSelectionRange(cursorPos, cursorPos);
       });
     },
-    [value, mentionStartIndex, mentionQuery]
+    [value, mentionStartIndex, mentionQuery],
   );
 
   const handleKeyDown = useCallback(
@@ -331,7 +334,7 @@ export function MessageInput({
           if (filtered.length > 0) {
             e.preventDefault();
             setMentionSelectedIndex((prev) =>
-              prev < filtered.length - 1 ? prev + 1 : 0
+              prev < filtered.length - 1 ? prev + 1 : 0,
             );
             return;
           }
@@ -341,7 +344,7 @@ export function MessageInput({
           if (filtered.length > 0) {
             e.preventDefault();
             setMentionSelectedIndex((prev) =>
-              prev > 0 ? prev - 1 : filtered.length - 1
+              prev > 0 ? prev - 1 : filtered.length - 1,
             );
             return;
           }
@@ -374,7 +377,7 @@ export function MessageInput({
       mentionSelectedIndex,
       handleMentionSelect,
       handleSend,
-    ]
+    ],
   );
 
   const handleChange = useCallback(
@@ -391,7 +394,7 @@ export function MessageInput({
       el.style.height = "auto";
       el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
     },
-    [onTyping, checkForMention]
+    [onTyping, checkForMention],
   );
 
   const handleSelect = useCallback(() => {
@@ -412,7 +415,14 @@ export function MessageInput({
       {isDragging && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent/10 border-2 border-dashed border-accent rounded-lg pointer-events-none">
           <div className="flex items-center gap-2 text-accent text-sm font-mono font-bold">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
@@ -437,7 +447,9 @@ export function MessageInput({
               )}
               <span className="max-w-32 truncate">{file.filename}</span>
               {file.progress < 1 && (
-                <span className="text-[9px] text-text-muted">{Math.round(file.progress * 100)}%</span>
+                <span className="text-[9px] text-text-muted">
+                  {Math.round(file.progress * 100)}%
+                </span>
               )}
               <button
                 onClick={() => removePendingFile(file.fileId)}
@@ -477,13 +489,22 @@ export function MessageInput({
           {uploading ? (
             <div className="h-3 w-3 animate-spin rounded-full border border-text-muted border-t-transparent" />
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
           )}
         </button>
         <div className="flex-1 flex items-end min-h-[24px]">
-          <span className="text-brand mr-2 mb-[3px] select-none text-sm leading-none opacity-80">&#9658;</span>
+          <span className="text-brand mr-2 mb-[3px] select-none text-sm leading-none opacity-80">
+            &#9658;
+          </span>
           <textarea
             ref={textareaRef}
             value={value}
@@ -493,9 +514,7 @@ export function MessageInput({
             onPaste={handlePaste}
             disabled={disabled}
             placeholder={
-              channelName
-                ? `Message #${channelName}`
-                : "Type here..."
+              channelName ? `Message #${channelName}` : "Type here..."
             }
             rows={1}
             className="max-h-[200px] flex-1 resize-none bg-transparent text-sm font-mono text-text-primary placeholder-text-dim outline-none leading-relaxed py-0.5"
@@ -503,7 +522,11 @@ export function MessageInput({
         </div>
         <button
           onClick={handleSend}
-          disabled={disabled || (!value.trim() && pendingFiles.filter(f => f.progress >= 1).length === 0)}
+          disabled={
+            disabled ||
+            (!value.trim() &&
+              pendingFiles.filter((f) => f.progress >= 1).length === 0)
+          }
           className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-text-dim transition hover:text-brand disabled:opacity-30"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

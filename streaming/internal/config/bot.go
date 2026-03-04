@@ -11,18 +11,18 @@ package config
 // BotConfig holds the configuration for an AI bot.
 // Loaded from the Next.js web service via internal API.
 type BotConfig struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	LLMProvider    string   `json:"llmProvider"`    // "anthropic" | "openai" | "ollama" | "openrouter" | "custom"
-	LLMModel       string   `json:"llmModel"`
-	APIEndpoint    string   `json:"apiEndpoint"`
-	APIKey         string   `json:"apiKey"`         // decrypted by the web service
-	SystemPrompt   string   `json:"systemPrompt"`
-	Temperature    float64  `json:"temperature"`
-	MaxTokens      int      `json:"maxTokens"`
-	TriggerMode    string   `json:"triggerMode"`    // "ALWAYS" | "MENTION" | "KEYWORD"
-	ThinkingSteps  []string `json:"thinkingSteps"`  // configurable phase labels (TASK-0011)
-	EnabledTools   []string `json:"enabledTools"`   // tool names to make available (TASK-0018), empty = all tools
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	LLMProvider   string   `json:"llmProvider"` // "anthropic" | "openai" | "ollama" | "openrouter" | "custom"
+	LLMModel      string   `json:"llmModel"`
+	APIEndpoint   string   `json:"apiEndpoint"`
+	APIKey        string   `json:"apiKey"` // decrypted by the web service
+	SystemPrompt  string   `json:"systemPrompt"`
+	Temperature   float64  `json:"temperature"`
+	MaxTokens     int      `json:"maxTokens"`
+	TriggerMode   string   `json:"triggerMode"`   // "ALWAYS" | "MENTION" | "KEYWORD"
+	ThinkingSteps []string `json:"thinkingSteps"` // configurable phase labels (TASK-0011)
+	EnabledTools  []string `json:"enabledTools"`  // tool names to make available (TASK-0018), empty = all tools
 }
 
 // GetThinkingPhase returns the thinking step at the given index,

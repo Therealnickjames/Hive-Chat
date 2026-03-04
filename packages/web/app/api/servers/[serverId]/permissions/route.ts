@@ -13,7 +13,7 @@ import {
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const { serverId } = await params;
   const session = await getServerSession(authOptions);
@@ -39,7 +39,7 @@ export async function GET(
   const effectivePermissions = computeMemberPermissions(
     session.user.id,
     member.server.ownerId,
-    member.roles
+    member.roles,
   );
 
   return NextResponse.json({

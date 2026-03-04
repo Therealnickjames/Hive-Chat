@@ -18,11 +18,11 @@ export async function GET() {
 
   checks.redis.status = await getRedisHealthStatus(
     process.env.REDIS_URL,
-    checkRedisHealth
+    checkRedisHealth,
   );
 
   const isHealthy = Object.values(checks).every(
-    (check) => check.status === "ok"
+    (check) => check.status === "ok",
   );
 
   const response = {

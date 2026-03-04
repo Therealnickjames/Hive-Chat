@@ -46,17 +46,28 @@ export function useDmList(): UseDmListReturn {
         const dmItems = data.dms || [];
         const mapped: DmConversation[] = dmItems
           .filter((dm: { participant: unknown }) => dm.participant != null)
-          .map((dm: {
-            id: string;
-            participant: { id: string; username: string; displayName: string; avatarUrl: string | null };
-            lastMessage: { content: string; createdAt: string; isOwn: boolean } | null;
-            updatedAt: string;
-          }) => ({
-            id: dm.id,
-            otherUser: dm.participant,
-            lastMessage: dm.lastMessage,
-            updatedAt: dm.updatedAt,
-          }));
+          .map(
+            (dm: {
+              id: string;
+              participant: {
+                id: string;
+                username: string;
+                displayName: string;
+                avatarUrl: string | null;
+              };
+              lastMessage: {
+                content: string;
+                createdAt: string;
+                isOwn: boolean;
+              } | null;
+              updatedAt: string;
+            }) => ({
+              id: dm.id,
+              otherUser: dm.participant,
+              lastMessage: dm.lastMessage,
+              updatedAt: dm.updatedAt,
+            }),
+          );
         setConversations(mapped);
       }
     } catch (error) {
@@ -67,29 +78,32 @@ export function useDmList(): UseDmListReturn {
   }, []);
 
   // Start or get a DM with another user
-  const startDm = useCallback(async (userId: string): Promise<string | null> => {
-    try {
-      const res = await fetch("/api/dms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
+  const startDm = useCallback(
+    async (userId: string): Promise<string | null> => {
+      try {
+        const res = await fetch("/api/dms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        // API returns { dm: { id, participant, isNew } }
-        await refresh();
-        return data.dm?.id || null;
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        console.error("[useDmList] Failed to start DM:", errData.error);
+        if (res.ok) {
+          const data = await res.json();
+          // API returns { dm: { id, participant, isNew } }
+          await refresh();
+          return data.dm?.id || null;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.error("[useDmList] Failed to start DM:", errData.error);
+          return null;
+        }
+      } catch (error) {
+        console.error("[useDmList] Failed to start DM:", error);
         return null;
       }
-    } catch (error) {
-      console.error("[useDmList] Failed to start DM:", error);
-      return null;
-    }
-  }, [refresh]);
+    },
+    [refresh],
+  );
 
   useEffect(() => {
     refresh();

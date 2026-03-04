@@ -12,7 +12,7 @@ import { broadcastToChannel } from "@/lib/gateway-client";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ dmId: string; messageId: string }> }
+  { params }: { params: Promise<{ dmId: string; messageId: string }> },
 ) {
   const { dmId, messageId } = await params;
   const session = await getServerSession(authOptions);
@@ -22,7 +22,10 @@ export async function GET(
 
   const access = await ensureDmMessageAccess(dmId, messageId, session.user.id);
   if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.status },
+    );
   }
 
   return getReactionsResponse(messageId, session.user.id);
@@ -37,7 +40,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ dmId: string; messageId: string }> }
+  { params }: { params: Promise<{ dmId: string; messageId: string }> },
 ) {
   const { dmId, messageId } = await params;
   const session = await getServerSession(authOptions);
@@ -47,7 +50,10 @@ export async function POST(
 
   const access = await ensureDmMessageAccess(dmId, messageId, session.user.id);
   if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.status },
+    );
   }
 
   try {
@@ -99,7 +105,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ dmId: string; messageId: string }> }
+  { params }: { params: Promise<{ dmId: string; messageId: string }> },
 ) {
   const { dmId, messageId } = await params;
   const session = await getServerSession(authOptions);
@@ -109,7 +115,10 @@ export async function DELETE(
 
   const access = await ensureDmMessageAccess(dmId, messageId, session.user.id);
   if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.status },
+    );
   }
 
   try {
@@ -145,7 +154,11 @@ export async function DELETE(
 }
 
 /** Verify user is a participant in this DM and the message belongs to it */
-async function ensureDmMessageAccess(dmId: string, messageId: string, userId: string) {
+async function ensureDmMessageAccess(
+  dmId: string,
+  messageId: string,
+  userId: string,
+) {
   // Check participation
   const participant = await prisma.dmParticipant.findUnique({
     where: {
@@ -208,7 +221,7 @@ async function getReactionsResponse(messageId: string, currentUserId: string) {
 function broadcastDmReactionUpdate(
   dmId: string,
   messageId: string,
-  reactions: { emoji: string; count: number; userIds: string[] }[]
+  reactions: { emoji: string; count: number; userIds: string[] }[],
 ) {
   broadcastToChannel(`dm:${dmId}`, "reaction_update", {
     messageId,

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (!agent) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { channelId, name, avatarUrl } = body as {
@@ -40,15 +37,12 @@ export async function POST(request: NextRequest) {
   if (!channelId || typeof channelId !== "string") {
     return NextResponse.json(
       { error: "channelId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
-    return NextResponse.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
   // Verify channel exists and belongs to agent's server
@@ -58,16 +52,13 @@ export async function POST(request: NextRequest) {
   });
 
   if (!channel) {
-    return NextResponse.json(
-      { error: "Channel not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Channel not found" }, { status: 404 });
   }
 
   if (channel.serverId !== agent.serverId) {
     return NextResponse.json(
       { error: "Channel does not belong to agent's server" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -98,13 +89,13 @@ export async function POST(request: NextRequest) {
         name: webhook.name,
         avatarUrl: webhook.avatarUrl,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Webhook creation failed:", error);
     return NextResponse.json(
       { error: "Failed to create webhook" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -120,7 +111,7 @@ export async function GET(request: NextRequest) {
   if (!agent) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -130,7 +121,7 @@ export async function GET(request: NextRequest) {
   if (serverId && serverId !== agent.serverId) {
     return NextResponse.json(
       { error: "Server does not match agent's server" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -153,7 +144,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to list webhooks:", error);
     return NextResponse.json(
       { error: "Failed to list webhooks" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -168,7 +159,7 @@ export async function DELETE(request: NextRequest) {
   if (!agent) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -178,7 +169,7 @@ export async function DELETE(request: NextRequest) {
   if (!webhookId) {
     return NextResponse.json(
       { error: "webhookId query parameter is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -189,16 +180,13 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!webhook) {
-      return NextResponse.json(
-        { error: "Webhook not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
     }
 
     if (webhook.botId !== agent.botId) {
       return NextResponse.json(
         { error: "Not authorized to delete this webhook" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -209,7 +197,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Webhook deletion failed:", error);
     return NextResponse.json(
       { error: "Failed to delete webhook" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -36,14 +36,17 @@ function childrenToText(children: ReactNode): string {
   return "";
 }
 
-export function MarkdownContent({ content, mentionNames }: MarkdownContentProps) {
+export function MarkdownContent({
+  content,
+  mentionNames,
+}: MarkdownContentProps) {
   const processedContent = useMemo(() => {
     if (!mentionNames || mentionNames.length === 0 || !content.includes("@")) {
       return content;
     }
 
     const uniqueNames = Array.from(
-      new Set(mentionNames.filter((name) => name.trim().length > 0))
+      new Set(mentionNames.filter((name) => name.trim().length > 0)),
     ).sort((a, b) => b.length - a.length);
 
     let result = content;
@@ -51,7 +54,7 @@ export function MarkdownContent({ content, mentionNames }: MarkdownContentProps)
       const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const regex = new RegExp(
         `(^|[\\s([\\{])@${escaped}(?=$|[\\s)\\]}.,!?;:])`,
-        "gm"
+        "gm",
       );
       result = result.replace(regex, `$1**@${name}**`);
     }
@@ -60,7 +63,7 @@ export function MarkdownContent({ content, mentionNames }: MarkdownContentProps)
 
   const mentionSet = useMemo(
     () => new Set((mentionNames || []).map((name) => `@${name}`)),
-    [mentionNames]
+    [mentionNames],
   );
 
   if (!content) return null;
@@ -72,7 +75,9 @@ export function MarkdownContent({ content, mentionNames }: MarkdownContentProps)
         rehypePlugins={[rehypeHighlight]}
         components={{
           p: ({ children }) => (
-            <p className="mb-1 last:mb-0 whitespace-pre-wrap break-words">{children}</p>
+            <p className="mb-1 last:mb-0 whitespace-pre-wrap break-words">
+              {children}
+            </p>
           ),
           strong: ({ children }) => {
             const text = childrenToText(children);
@@ -105,7 +110,10 @@ export function MarkdownContent({ content, mentionNames }: MarkdownContentProps)
               className?.includes("hljs") || className?.includes("language-");
             if (isBlock) {
               return (
-                <code className={`${className || ""} font-mono text-sm`} {...props}>
+                <code
+                  className={`${className || ""} font-mono text-sm`}
+                  {...props}
+                >
                   {children}
                 </code>
               );
@@ -154,7 +162,9 @@ export function MarkdownContent({ content, mentionNames }: MarkdownContentProps)
             <li className="text-sm text-text-primary">{children}</li>
           ),
           h1: ({ children }) => (
-            <h1 className="text-lg font-bold text-text-primary mt-3 mb-1">{children}</h1>
+            <h1 className="text-lg font-bold text-text-primary mt-3 mb-1">
+              {children}
+            </h1>
           ),
           h2: ({ children }) => (
             <h2 className="text-base font-semibold text-text-primary mt-3 mb-1">
@@ -178,7 +188,9 @@ export function MarkdownContent({ content, mentionNames }: MarkdownContentProps)
             </th>
           ),
           td: ({ children }) => (
-            <td className="border border-background-primary px-3 py-1">{children}</td>
+            <td className="border border-background-primary px-3 py-1">
+              {children}
+            </td>
           ),
           img: ({ alt }) => (
             <span className="text-text-muted italic">

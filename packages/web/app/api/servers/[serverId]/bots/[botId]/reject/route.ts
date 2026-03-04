@@ -12,7 +12,7 @@ import { Permissions } from "@/lib/permissions";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; botId: string }> }
+  { params }: { params: Promise<{ serverId: string; botId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -24,12 +24,12 @@ export async function POST(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_BOTS
+    Permissions.MANAGE_BOTS,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Bots" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -45,15 +45,18 @@ export async function POST(
 
   if (!bot.agentRegistration) {
     return NextResponse.json(
-      { error: "Bot has no agent registration (BYOK bots do not require approval)" },
-      { status: 400 }
+      {
+        error:
+          "Bot has no agent registration (BYOK bots do not require approval)",
+      },
+      { status: 400 },
     );
   }
 
   if (bot.agentRegistration.approvalStatus === "REJECTED") {
     return NextResponse.json(
       { error: "Agent is already rejected" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

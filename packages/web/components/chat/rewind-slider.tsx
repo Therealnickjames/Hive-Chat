@@ -153,7 +153,7 @@ export function RewindSlider({
         playStartRef.current = null;
       }
     },
-    [isPlaying]
+    [isPlaying],
   );
 
   const currentTime = tokenHistory[position]?.t || 0;
@@ -180,12 +180,22 @@ export function RewindSlider({
             title={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <rect x="6" y="4" width="4" height="16" />
                 <rect x="14" y="4" width="4" height="16" />
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <polygon points="5,3 19,12 5,21" />
               </svg>
             )}
@@ -204,7 +214,14 @@ export function RewindSlider({
             className="p-1 rounded hover:bg-background-tertiary text-text-muted transition"
             title="Close rewind"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -253,7 +270,8 @@ export function RewindSlider({
                 setPosition(cp.sliderPosition);
                 if (isPlaying) {
                   setIsPlaying(false);
-                  if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+                  if (animFrameRef.current)
+                    cancelAnimationFrame(animFrameRef.current);
                   playStartRef.current = null;
                 }
               }}

@@ -206,7 +206,13 @@ defmodule TavokGateway.ConfigCache do
 
           {_ref, waiters} ->
             # Request already in-flight — add caller to waiters list
-            in_flight = Map.put(state.in_flight, key, {elem(Map.get(state.in_flight, key), 0), [from | waiters]})
+            in_flight =
+              Map.put(
+                state.in_flight,
+                key,
+                {elem(Map.get(state.in_flight, key), 0), [from | waiters]}
+              )
+
             {:noreply, %{state | coalesced: state.coalesced + 1, in_flight: in_flight}}
         end
     end
@@ -245,7 +251,13 @@ defmodule TavokGateway.ConfigCache do
             {:noreply, %{state | in_flight: in_flight}}
 
           {_ref, waiters} ->
-            in_flight = Map.put(state.in_flight, key, {elem(Map.get(state.in_flight, key), 0), [from | waiters]})
+            in_flight =
+              Map.put(
+                state.in_flight,
+                key,
+                {elem(Map.get(state.in_flight, key), 0), [from | waiters]}
+              )
+
             {:noreply, %{state | coalesced: state.coalesced + 1, in_flight: in_flight}}
         end
     end
@@ -284,7 +296,13 @@ defmodule TavokGateway.ConfigCache do
             {:noreply, %{state | in_flight: in_flight}}
 
           {_ref, waiters} ->
-            in_flight = Map.put(state.in_flight, key, {elem(Map.get(state.in_flight, key), 0), [from | waiters]})
+            in_flight =
+              Map.put(
+                state.in_flight,
+                key,
+                {elem(Map.get(state.in_flight, key), 0), [from | waiters]}
+              )
+
             {:noreply, %{state | coalesced: state.coalesced + 1, in_flight: in_flight}}
         end
     end
@@ -335,7 +353,10 @@ defmodule TavokGateway.ConfigCache do
         error = {:error, {:task_crashed, reason}}
         Enum.each(waiters, fn from -> GenServer.reply(from, error) end)
 
-        Logger.error("[ConfigCache] In-flight fetch crashed: key=#{inspect(key)} reason=#{inspect(reason)}")
+        Logger.error(
+          "[ConfigCache] In-flight fetch crashed: key=#{inspect(key)} reason=#{inspect(reason)}"
+        )
+
         {:noreply, %{state | in_flight: Map.delete(state.in_flight, key)}}
 
       nil ->

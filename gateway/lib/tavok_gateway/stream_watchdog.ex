@@ -123,7 +123,11 @@ defmodule TavokGateway.StreamWatchdog do
         }
 
         state.broadcaster.("room:#{channel_id}", "stream_complete", payload)
-        Logger.info("[StreamWatchdog] Broadcast synthetic stream_complete: channel=#{channel_id} messageId=#{message_id}")
+
+        Logger.info(
+          "[StreamWatchdog] Broadcast synthetic stream_complete: channel=#{channel_id} messageId=#{message_id}"
+        )
+
         :terminal
 
       {:ok, %{"streamingStatus" => "ERROR"} = message} ->
@@ -137,7 +141,11 @@ defmodule TavokGateway.StreamWatchdog do
         }
 
         state.broadcaster.("room:#{channel_id}", "stream_error", payload)
-        Logger.info("[StreamWatchdog] Broadcast synthetic stream_error: channel=#{channel_id} messageId=#{message_id}")
+
+        Logger.info(
+          "[StreamWatchdog] Broadcast synthetic stream_error: channel=#{channel_id} messageId=#{message_id}"
+        )
+
         :terminal
 
       {:ok, %{"streamingStatus" => "ACTIVE"}} when retries >= @max_active_retries ->

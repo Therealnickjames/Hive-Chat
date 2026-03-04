@@ -28,13 +28,13 @@ export function AgentList({
 
   const pendingBots = bots.filter((b) => b.approvalStatus === "PENDING");
   const activeBots = bots.filter(
-    (b) => b.isActive && b.approvalStatus !== "PENDING"
+    (b) => b.isActive && b.approvalStatus !== "PENDING",
   );
   const inactiveBots = bots.filter(
     (b) =>
       !b.isActive &&
       b.approvalStatus !== "PENDING" &&
-      b.approvalStatus !== "REJECTED"
+      b.approvalStatus !== "REJECTED",
   );
   const rejectedBots = bots.filter((b) => b.approvalStatus === "REJECTED");
 
@@ -61,7 +61,7 @@ export function AgentList({
     try {
       const res = await fetch(
         `/api/servers/${serverId}/bots/${botId}/approve`,
-        { method: "POST" }
+        { method: "POST" },
       );
       if (res.ok) onRefresh();
     } catch {
@@ -74,10 +74,9 @@ export function AgentList({
   async function handleReject(botId: string) {
     setRejectingId(botId);
     try {
-      const res = await fetch(
-        `/api/servers/${serverId}/bots/${botId}/reject`,
-        { method: "POST" }
-      );
+      const res = await fetch(`/api/servers/${serverId}/bots/${botId}/reject`, {
+        method: "POST",
+      });
       if (res.ok) onRefresh();
     } catch {
       console.error("Failed to reject agent");
@@ -286,7 +285,11 @@ function BotRow({
   );
 }
 
-function MethodBadge({ method }: { method: AgentListItem["connectionMethod"] }) {
+function MethodBadge({
+  method,
+}: {
+  method: AgentListItem["connectionMethod"];
+}) {
   if (method === null) return null; // BYOK shows provider badge instead
   return (
     <span

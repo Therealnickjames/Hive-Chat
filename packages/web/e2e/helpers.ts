@@ -30,26 +30,21 @@ export async function login(
     }
 
     // Step 2: Authenticate via NextAuth callback
-    const authRes = await page.request.post(
-      "/api/auth/callback/credentials",
-      {
-        form: {
-          email,
-          password,
-          csrfToken,
-          json: "true",
-        },
+    const authRes = await page.request.post("/api/auth/callback/credentials", {
+      form: {
+        email,
+        password,
+        csrfToken,
+        json: "true",
       },
-    );
+    });
 
     // NextAuth returns { url: "..." } with json:true.
     // If the URL contains "error", auth failed.
     const authData = await authRes.json().catch(() => null);
 
     if (authData?.url?.includes("error")) {
-      throw new Error(
-        `API auth returned error URL: ${authData.url}`,
-      );
+      throw new Error(`API auth returned error URL: ${authData.url}`);
     }
 
     // Step 3: Navigate to the app (session cookie is in the shared jar)
@@ -58,9 +53,9 @@ export async function login(
     // If we landed on /login, the session cookie wasn't accepted
     if (!page.url().includes("/login")) {
       // Success — wait for app to render
-      await expect(
-        page.getByRole("button", { name: "SERVERS" }),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({
+        timeout: 15_000,
+      });
       return;
     }
 
@@ -105,7 +100,7 @@ export async function login(
     );
   }
 
-  await expect(
-    page.getByRole("button", { name: "SERVERS" }),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({
+    timeout: 15_000,
+  });
 }

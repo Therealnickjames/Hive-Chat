@@ -27,7 +27,7 @@ import {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
 
@@ -40,7 +40,7 @@ export async function POST(
   if (!webhook || !webhook.isActive) {
     return NextResponse.json(
       { error: "Invalid or disabled webhook" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -48,10 +48,7 @@ export async function POST(
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { messageId, tokens, done, finalContent, metadata, thinking, error } =
@@ -68,7 +65,7 @@ export async function POST(
   if (!messageId || typeof messageId !== "string") {
     return NextResponse.json(
       { error: "messageId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -92,16 +89,12 @@ export async function POST(
 
     // Handle thinking/status updates
     if (thinking) {
-      await broadcastToChannel(
-        `room:${webhook.channelId}`,
-        "stream_thinking",
-        {
-          messageId,
-          phase: thinking.phase,
-          detail: thinking.detail || null,
-          timestamp: new Date().toISOString(),
-        }
-      );
+      await broadcastToChannel(`room:${webhook.channelId}`, "stream_thinking", {
+        messageId,
+        phase: thinking.phase,
+        detail: thinking.detail || null,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -120,8 +113,7 @@ export async function POST(
     // Handle completion
     if (done) {
       const resolvedContent =
-        (finalContent as string) ||
-        (tokens ? tokens.join("") : "");
+        (finalContent as string) || (tokens ? tokens.join("") : "");
 
       await broadcastStreamComplete(webhook.channelId, {
         messageId,
@@ -151,7 +143,7 @@ export async function POST(
     console.error("Webhook stream failed:", err);
     return NextResponse.json(
       { error: "Failed to process stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -159,12 +151,8 @@ export async function POST(
 /**
  * Update a message via the internal API.
  */
-async function updateMessage(
-  messageId: string,
-  data: Record<string, unknown>
-) {
-  const internalUrl =
-    process.env.NEXTAUTH_URL || "http://localhost:3000";
+async function updateMessage(messageId: string, data: Record<string, unknown>) {
+  const internalUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
   const response = await fetch(
     `${internalUrl}/api/internal/messages/${messageId}`,
@@ -175,13 +163,11 @@ async function updateMessage(
         "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
       },
       body: JSON.stringify(data),
-    }
+    },
   );
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "unknown");
-    console.error(
-      `Message update failed: ${response.status} ${errorBody}`
-    );
+    console.error(`Message update failed: ${response.status} ${errorBody}`);
   }
 }

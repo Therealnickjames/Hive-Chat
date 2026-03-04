@@ -55,10 +55,10 @@ type openaiRequest struct {
 }
 
 type openaiMessage struct {
-	Role       string                `json:"role"`
-	Content    string                `json:"content,omitempty"`
-	ToolCalls  []openaiToolCallMsg   `json:"tool_calls,omitempty"`  // for assistant messages with tool calls
-	ToolCallID string                `json:"tool_call_id,omitempty"` // for tool result messages
+	Role       string              `json:"role"`
+	Content    string              `json:"content,omitempty"`
+	ToolCalls  []openaiToolCallMsg `json:"tool_calls,omitempty"`   // for assistant messages with tool calls
+	ToolCallID string              `json:"tool_call_id,omitempty"` // for tool result messages
 }
 
 // openaiToolCallMsg is an assistant's tool call in messages (for context replay)
@@ -75,7 +75,7 @@ type openaiToolCallMsg struct {
 type openaiChunk struct {
 	Choices []struct {
 		Delta struct {
-			Content   string              `json:"content"`
+			Content   string                `json:"content"`
 			ToolCalls []openaiToolCallDelta `json:"tool_calls,omitempty"` // TASK-0018
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
@@ -84,7 +84,7 @@ type openaiChunk struct {
 
 // openaiToolCallDelta is the incremental tool call data in streaming
 type openaiToolCallDelta struct {
-	Index    int `json:"index"`
+	Index    int    `json:"index"`
 	ID       string `json:"id,omitempty"` // Only set on first delta for this call
 	Type     string `json:"type,omitempty"`
 	Function struct {

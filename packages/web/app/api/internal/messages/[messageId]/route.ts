@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateInternalSecret } from "@/lib/internal-auth";
-import { computeMemberPermissions, hasPermission, Permissions } from "@/lib/permissions";
+import {
+  computeMemberPermissions,
+  hasPermission,
+  Permissions,
+} from "@/lib/permissions";
 
 /**
  * GET /api/internal/messages/{messageId}
@@ -10,7 +14,7 @@ import { computeMemberPermissions, hasPermission, Permissions } from "@/lib/perm
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,7 +43,7 @@ export async function GET(
     console.error("[Internal] Failed to fetch message:", error);
     return NextResponse.json(
       { error: "Failed to fetch message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -52,7 +56,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -60,12 +64,19 @@ export async function PUT(
 
   const { messageId } = await params;
   const body = await request.json();
-  const { content, streamingStatus, thinkingTimeline, metadata, tokenHistory, checkpoints } = body;
+  const {
+    content,
+    streamingStatus,
+    thinkingTimeline,
+    metadata,
+    tokenHistory,
+    checkpoints,
+  } = body;
 
   if (!content && content !== "" && !streamingStatus) {
     return NextResponse.json(
       { error: "Must provide content or streamingStatus" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -92,7 +103,7 @@ export async function PUT(
     console.error("[Internal] Failed to update message:", error);
     return NextResponse.json(
       { error: "Failed to update message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -109,7 +120,7 @@ export async function PUT(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -130,10 +141,16 @@ export async function PATCH(
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
   if (!content || typeof content !== "string" || content.trim() === "") {
-    return NextResponse.json({ error: "content must be a non-empty string" }, { status: 400 });
+    return NextResponse.json(
+      { error: "content must be a non-empty string" },
+      { status: 400 },
+    );
   }
   if (content.length > 4000) {
-    return NextResponse.json({ error: "content exceeds 4000 character limit" }, { status: 400 });
+    return NextResponse.json(
+      { error: "content exceeds 4000 character limit" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -153,19 +170,31 @@ export async function PATCH(
     }
 
     if (message.isDeleted) {
-      return NextResponse.json({ error: "Cannot edit a deleted message" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Cannot edit a deleted message" },
+        { status: 404 },
+      );
     }
 
     if (message.authorType === "BOT") {
-      return NextResponse.json({ error: "Cannot edit bot messages" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Cannot edit bot messages" },
+        { status: 403 },
+      );
     }
 
     if (message.authorId !== userId) {
-      return NextResponse.json({ error: "Only the author can edit this message" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Only the author can edit this message" },
+        { status: 403 },
+      );
     }
 
     if (message.streamingStatus === "ACTIVE") {
-      return NextResponse.json({ error: "Cannot edit an active streaming message" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Cannot edit an active streaming message" },
+        { status: 409 },
+      );
     }
 
     const editedAt = new Date();
@@ -183,7 +212,7 @@ export async function PATCH(
     console.error("[Internal] Failed to edit message:", error);
     return NextResponse.json(
       { error: "Failed to edit message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -201,7 +230,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -240,7 +269,10 @@ export async function DELETE(
     }
 
     if (message.isDeleted) {
-      return NextResponse.json({ error: "Message already deleted" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Message already deleted" },
+        { status: 404 },
+      );
     }
 
     // Author can always delete own messages
@@ -259,17 +291,23 @@ export async function DELETE(
       });
 
       if (!member) {
-        return NextResponse.json({ error: "Not a server member" }, { status: 403 });
+        return NextResponse.json(
+          { error: "Not a server member" },
+          { status: 403 },
+        );
       }
 
       const effectivePermissions = computeMemberPermissions(
         userId,
         member.server.ownerId,
-        member.roles
+        member.roles,
       );
 
       if (!hasPermission(effectivePermissions, Permissions.MANAGE_MESSAGES)) {
-        return NextResponse.json({ error: "Missing MANAGE_MESSAGES permission" }, { status: 403 });
+        return NextResponse.json(
+          { error: "Missing MANAGE_MESSAGES permission" },
+          { status: 403 },
+        );
       }
     }
 
@@ -286,7 +324,7 @@ export async function DELETE(
     console.error("[Internal] Failed to delete message:", error);
     return NextResponse.json(
       { error: "Failed to delete message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

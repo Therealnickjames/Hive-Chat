@@ -11,9 +11,10 @@ export function ArtifactRenderer({ content }: ArtifactRendererProps) {
   const [expanded, setExpanded] = useState(false);
 
   // For HTML/SVG artifacts, render in a sandboxed iframe
-  const iframeSrcDoc = content.artifactType === "html" || content.artifactType === "svg"
-    ? content.content
-    : undefined;
+  const iframeSrcDoc =
+    content.artifactType === "html" || content.artifactType === "svg"
+      ? content.content
+      : undefined;
 
   return (
     <div className="rounded border border-border bg-background-primary my-1 overflow-hidden">
@@ -23,7 +24,11 @@ export function ArtifactRenderer({ content }: ArtifactRendererProps) {
         className="flex items-center gap-2 w-full px-3 py-2 text-left bg-background-secondary/50 border-b border-border"
       >
         <span className="text-xs font-mono text-accent-cyan">
-          {content.artifactType === "html" ? "\u{1F310}" : content.artifactType === "svg" ? "\u{1F3A8}" : "\u{1F4C4}"}
+          {content.artifactType === "html"
+            ? "\u{1F310}"
+            : content.artifactType === "svg"
+              ? "\u{1F3A8}"
+              : "\u{1F4C4}"}
         </span>
         <span className="text-xs font-bold font-mono text-text-secondary">
           {content.title}

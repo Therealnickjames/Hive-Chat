@@ -25,7 +25,7 @@ export interface AgentAuthResult {
  * @returns AgentAuthResult on success, null on failure
  */
 export async function authenticateAgentRequest(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<AgentAuthResult | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer sk-tvk-")) {
@@ -33,10 +33,7 @@ export async function authenticateAgentRequest(
   }
 
   const apiKey = authHeader.slice(7); // Remove "Bearer "
-  const apiKeyHash = crypto
-    .createHash("sha256")
-    .update(apiKey)
-    .digest("hex");
+  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
 
   const registration = await prisma.agentRegistration.findFirst({
     where: { apiKeyHash },
@@ -75,16 +72,13 @@ export async function authenticateAgentRequest(
  * Used by endpoints that receive the key via query parameters or URL tokens.
  */
 export async function authenticateAgentKey(
-  apiKey: string
+  apiKey: string,
 ): Promise<AgentAuthResult | null> {
   if (!apiKey.startsWith("sk-tvk-")) {
     return null;
   }
 
-  const apiKeyHash = crypto
-    .createHash("sha256")
-    .update(apiKey)
-    .digest("hex");
+  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
 
   const registration = await prisma.agentRegistration.findFirst({
     where: { apiKeyHash },

@@ -9,7 +9,8 @@ import crypto from "crypto";
  * Rejection threshold: 248 (largest multiple of 62 that fits in a byte)
  */
 export function generateInviteCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const maxUnbiased = 248; // Math.floor(256 / 62) * 62
   let code = "";
 

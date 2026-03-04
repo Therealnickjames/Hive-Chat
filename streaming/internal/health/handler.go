@@ -15,10 +15,10 @@ import (
 // Response is the health check response shape.
 // Matches docs/PROTOCOL.md HealthResponse type.
 type Response struct {
-	Status    string `json:"status"`
-	Service   string `json:"service"`
+	Status    string            `json:"status"`
+	Service   string            `json:"service"`
 	Checks    map[string]string `json:"checks"`
-	Timestamp string `json:"timestamp"`
+	Timestamp string            `json:"timestamp"`
 }
 
 // Handler responds to GET /health with service status.

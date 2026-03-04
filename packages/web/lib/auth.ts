@@ -33,13 +33,20 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          console.log(`[AUTH] authorize: no user found for ${credentials.email}`);
+          console.log(
+            `[AUTH] authorize: no user found for ${credentials.email}`,
+          );
           return null;
         }
 
-        const isValid = await bcrypt.compare(credentials.password, user.password);
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.password,
+        );
         if (!isValid) {
-          console.log(`[AUTH] authorize: invalid password for ${credentials.email} (hash length: ${user.password.length})`);
+          console.log(
+            `[AUTH] authorize: invalid password for ${credentials.email} (hash length: ${user.password.length})`,
+          );
           return null;
         }
 

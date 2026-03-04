@@ -13,8 +13,8 @@ export default function ChannelPage() {
 
   useEffect(() => {
     if (params.channelId && channels.length > 0 && servers.length > 0) {
-      const channel = channels.find(c => c.id === params.channelId);
-      const server = servers.find(s => s.id === params.serverId);
+      const channel = channels.find((c) => c.id === params.channelId);
+      const server = servers.find((s) => s.id === params.serverId);
       if (channel && server) {
         openPanel({
           channelId: channel.id,

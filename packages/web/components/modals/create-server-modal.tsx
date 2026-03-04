@@ -95,10 +95,7 @@ export function CreateServerModal({ isOpen, onClose }: CreateServerModalProps) {
               <Button type="button" variant="ghost" onClick={resetModal}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={!name.trim()}
-              >
+              <Button type="submit" disabled={!name.trim()}>
                 Configure
               </Button>
             </div>
@@ -119,14 +116,17 @@ export function CreateServerModal({ isOpen, onClose }: CreateServerModalProps) {
                 placeholder="Welcome to your new server"
               />
               <div className="rounded border border-border bg-background-secondary px-3 py-2 text-xs text-text-muted">
-                Basic permissions preset: <span className="text-text-primary">Default member access</span>
+                Basic permissions preset:{" "}
+                <span className="text-text-primary">Default member access</span>
               </div>
-              {error && (
-                <p className="text-xs text-status-dnd">{error}</p>
-              )}
+              {error && <p className="text-xs text-status-dnd">{error}</p>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setStep("name")}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setStep("name")}
+              >
                 Back
               </Button>
               <Button type="submit" loading={loading} disabled={!name.trim()}>

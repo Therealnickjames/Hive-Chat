@@ -19,7 +19,7 @@ import { ulid } from "ulid";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; channelId: string }> }
+  { params }: { params: Promise<{ serverId: string; channelId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -31,12 +31,12 @@ export async function PATCH(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_CHANNELS
+    Permissions.MANAGE_CHANNELS,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Channels" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -50,14 +50,18 @@ export async function PATCH(
   ) {
     return NextResponse.json(
       { error: "Channel not found in this server" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   let body: Record<string, unknown>;
   try {
     const parsedBody = await request.json();
-    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    if (
+      !parsedBody ||
+      typeof parsedBody !== "object" ||
+      Array.isArray(parsedBody)
+    ) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     body = parsedBody as Record<string, unknown>;
@@ -67,8 +71,13 @@ export async function PATCH(
 
   // Valid swarm modes for TASK-0020
   const VALID_SWARM_MODES = [
-    "HUMAN_IN_THE_LOOP", "LEAD_AGENT", "ROUND_ROBIN",
-    "STRUCTURED_DEBATE", "CODE_REVIEW_SPRINT", "FREEFORM", "CUSTOM",
+    "HUMAN_IN_THE_LOOP",
+    "LEAD_AGENT",
+    "ROUND_ROBIN",
+    "STRUCTURED_DEBATE",
+    "CODE_REVIEW_SPRINT",
+    "FREEFORM",
+    "CUSTOM",
   ];
 
   const updateData: Record<string, unknown> = {};
@@ -82,7 +91,7 @@ export async function PATCH(
     ) {
       return NextResponse.json(
         { error: "defaultBotId must be a string or null" },
-        { status: 400 }
+        { status: 400 },
       );
     } else {
       const bot = await prisma.bot.findUnique({
@@ -91,7 +100,7 @@ export async function PATCH(
       if (!bot || bot.serverId !== serverId) {
         return NextResponse.json(
           { error: "Bot not found in this server" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateData.defaultBotId = body.defaultBotId;
@@ -105,24 +114,27 @@ export async function PATCH(
       if (body.topic.length > 300) {
         return NextResponse.json(
           { error: "Topic must be 300 characters or fewer" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateData.topic = body.topic;
     } else {
       return NextResponse.json(
         { error: "topic must be a string or null" },
-        { status: 400 }
+        { status: 400 },
       );
     }
   }
 
   // Handle swarm mode fields (TASK-0020)
   if ("swarmMode" in body) {
-    if (typeof body.swarmMode !== "string" || !VALID_SWARM_MODES.includes(body.swarmMode)) {
+    if (
+      typeof body.swarmMode !== "string" ||
+      !VALID_SWARM_MODES.includes(body.swarmMode)
+    ) {
       return NextResponse.json(
         { error: `swarmMode must be one of: ${VALID_SWARM_MODES.join(", ")}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
     updateData.swarmMode = body.swarmMode;
@@ -130,21 +142,33 @@ export async function PATCH(
 
   if ("charterGoal" in body) {
     if (body.charterGoal !== null && typeof body.charterGoal !== "string") {
-      return NextResponse.json({ error: "charterGoal must be a string or null" }, { status: 400 });
+      return NextResponse.json(
+        { error: "charterGoal must be a string or null" },
+        { status: 400 },
+      );
     }
     updateData.charterGoal = body.charterGoal || null;
   }
 
   if ("charterRules" in body) {
     if (body.charterRules !== null && typeof body.charterRules !== "string") {
-      return NextResponse.json({ error: "charterRules must be a string or null" }, { status: 400 });
+      return NextResponse.json(
+        { error: "charterRules must be a string or null" },
+        { status: 400 },
+      );
     }
     updateData.charterRules = body.charterRules || null;
   }
 
   if ("charterAgentOrder" in body) {
-    if (body.charterAgentOrder !== null && !Array.isArray(body.charterAgentOrder)) {
-      return NextResponse.json({ error: "charterAgentOrder must be an array or null" }, { status: 400 });
+    if (
+      body.charterAgentOrder !== null &&
+      !Array.isArray(body.charterAgentOrder)
+    ) {
+      return NextResponse.json(
+        { error: "charterAgentOrder must be an array or null" },
+        { status: 400 },
+      );
     }
     updateData.charterAgentOrder = body.charterAgentOrder
       ? JSON.stringify(body.charterAgentOrder)
@@ -153,7 +177,10 @@ export async function PATCH(
 
   if ("charterMaxTurns" in body) {
     if (typeof body.charterMaxTurns !== "number" || body.charterMaxTurns < 0) {
-      return NextResponse.json({ error: "charterMaxTurns must be a non-negative integer" }, { status: 400 });
+      return NextResponse.json(
+        { error: "charterMaxTurns must be a non-negative integer" },
+        { status: 400 },
+      );
     }
     updateData.charterMaxTurns = Math.floor(body.charterMaxTurns);
   }
@@ -164,7 +191,7 @@ export async function PATCH(
     if (!Array.isArray(botIds)) {
       return NextResponse.json(
         { error: "botIds must be an array of strings" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -179,7 +206,7 @@ export async function PATCH(
       if (invalid.length > 0) {
         return NextResponse.json(
           { error: `Bots not found in this server: ${invalid.join(", ")}` },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -190,12 +217,14 @@ export async function PATCH(
       ...(botIds as string[]).map((botId: string) =>
         prisma.channelBot.create({
           data: { id: ulid(), channelId, botId },
-        })
+        }),
       ),
       // Set first bot as defaultBotId for backward compat
       prisma.channel.update({
         where: { id: channelId },
-        data: { defaultBotId: botIds.length > 0 ? (botIds[0] as string) : null },
+        data: {
+          defaultBotId: botIds.length > 0 ? (botIds[0] as string) : null,
+        },
       }),
     ]);
   }

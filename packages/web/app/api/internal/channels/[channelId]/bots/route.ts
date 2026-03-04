@@ -13,7 +13,7 @@ import { validateInternalSecret } from "@/lib/internal-auth";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ channelId: string }> }
+  { params }: { params: Promise<{ channelId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,23 +32,30 @@ export async function GET(
     if (channelBots.length > 0) {
       // Load agent registrations for connectionMethod lookup (DEC-0043)
       const activeBotIds = channelBots
-        .filter((cb: typeof channelBots[number]) => cb.bot.isActive)
-        .map((cb: typeof channelBots[number]) => cb.bot.id);
+        .filter((cb: (typeof channelBots)[number]) => cb.bot.isActive)
+        .map((cb: (typeof channelBots)[number]) => cb.bot.id);
       const agentRegs = await prisma.agentRegistration.findMany({
         where: { botId: { in: activeBotIds } },
         select: { botId: true, connectionMethod: true },
       });
-      const regMap = new Map(agentRegs.map((r: typeof agentRegs[number]) => [r.botId, r.connectionMethod]));
+      const regMap = new Map(
+        agentRegs.map((r: (typeof agentRegs)[number]) => [
+          r.botId,
+          r.connectionMethod,
+        ]),
+      );
 
       // Return all active bots with decrypted keys
       const bots = channelBots
-        .filter((cb: typeof channelBots[number]) => cb.bot.isActive)
-        .map((cb: typeof channelBots[number]) => {
+        .filter((cb: (typeof channelBots)[number]) => cb.bot.isActive)
+        .map((cb: (typeof channelBots)[number]) => {
           let apiKey = "";
           try {
             apiKey = decrypt(cb.bot.apiKeyEncrypted);
           } catch {
-            console.error(`[Internal] Failed to decrypt API key for bot ${cb.bot.id}`);
+            console.error(
+              `[Internal] Failed to decrypt API key for bot ${cb.bot.id}`,
+            );
           }
 
           return {
@@ -63,7 +70,9 @@ export async function GET(
             temperature: cb.bot.temperature,
             maxTokens: cb.bot.maxTokens,
             triggerMode: cb.bot.triggerMode,
-            thinkingSteps: cb.bot.thinkingSteps ? JSON.parse(cb.bot.thinkingSteps) : [], // TASK-0011
+            thinkingSteps: cb.bot.thinkingSteps
+              ? JSON.parse(cb.bot.thinkingSteps)
+              : [], // TASK-0011
             connectionMethod: regMap.get(cb.bot.id) || "WEBSOCKET", // DEC-0043
           };
         });
@@ -118,7 +127,7 @@ export async function GET(
     console.error("[Internal] Failed to get channel bots:", error);
     return NextResponse.json(
       { error: "Failed to get channel bots" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

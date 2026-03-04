@@ -123,7 +123,11 @@ defmodule TavokGateway.StreamListenerTest do
 
     test "ULID-based IDs split correctly" do
       rest = "01HXYZ123456789ABCDEF:01HABC987654321ZYXWVU"
-      assert String.split(rest, ":", parts: 2) == ["01HXYZ123456789ABCDEF", "01HABC987654321ZYXWVU"]
+
+      assert String.split(rest, ":", parts: 2) == [
+               "01HXYZ123456789ABCDEF",
+               "01HABC987654321ZYXWVU"
+             ]
     end
 
     test "messageId containing colons is preserved (parts: 2)" do

@@ -11,7 +11,7 @@ import (
 
 // StreamMessage represents a single message in the conversation context.
 type StreamMessage struct {
-	Role    string `json:"role"`    // "user", "assistant", or "system"
+	Role    string `json:"role"` // "user", "assistant", or "system"
 	Content string `json:"content"`
 }
 
@@ -57,23 +57,23 @@ type StreamResult struct {
 	TokenCount   int        `json:"tokenCount"`
 	DurationMs   int64      `json:"durationMs"`
 	Error        error      `json:"error,omitempty"`
-	ToolCalls    []ToolCall `json:"toolCalls,omitempty"` // TASK-0018: tool calls requested by the model
+	ToolCalls    []ToolCall `json:"toolCalls,omitempty"`  // TASK-0018: tool calls requested by the model
 	StopReason   string     `json:"stopReason,omitempty"` // TASK-0018: "end_turn", "tool_use", "stop", "max_tokens", etc.
 }
 
 // ToolResultMessage is appended to context for tool result turns.
 // Used by the manager to build tool_result messages for the next iteration.
 type ToolResultMessage struct {
-	Role       string       `json:"role"`        // "user" for Anthropic, "tool" for OpenAI
-	Content    []ToolResult `json:"content"`      // Tool results
+	Role    string       `json:"role"`    // "user" for Anthropic, "tool" for OpenAI
+	Content []ToolResult `json:"content"` // Tool results
 }
 
 // ToolResult is a single tool execution result within a ToolResultMessage.
 type ToolResult struct {
-	Type      string `json:"type"`                // "tool_result"
-	ToolUseID string `json:"tool_use_id"`         // Correlates with ToolCall.ID
-	Content   string `json:"content"`             // Result text
-	IsError   bool   `json:"is_error,omitempty"`  // Whether the tool returned an error
+	Type      string `json:"type"`               // "tool_result"
+	ToolUseID string `json:"tool_use_id"`        // Correlates with ToolCall.ID
+	Content   string `json:"content"`            // Result text
+	IsError   bool   `json:"is_error,omitempty"` // Whether the tool returned an error
 }
 
 // Provider is the interface all LLM providers must implement.

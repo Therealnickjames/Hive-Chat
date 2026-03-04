@@ -29,9 +29,7 @@ export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
         <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-text-muted [animation-delay:150ms]" />
         <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-text-muted [animation-delay:300ms]" />
       </span>
-      <span className="text-xs text-text-muted">
-        {text}...
-      </span>
+      <span className="text-xs text-text-muted">{text}...</span>
     </div>
   );
 }

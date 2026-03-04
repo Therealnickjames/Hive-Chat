@@ -16,7 +16,10 @@ interface TypedMessageItemProps {
  * with the agent's avatar and name header, delegating content rendering to
  * TypedMessageRenderer. (TASK-0039)
  */
-export function TypedMessageItem({ message, isGrouped }: TypedMessageItemProps) {
+export function TypedMessageItem({
+  message,
+  isGrouped,
+}: TypedMessageItemProps) {
   if (isGrouped) {
     return (
       <div className="group relative flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 border-l-2 border-transparent">

@@ -13,7 +13,7 @@ import { Permissions } from "@/lib/permissions";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const { serverId } = await params;
   const session = await getServerSession(authOptions);
@@ -24,12 +24,12 @@ export async function GET(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.CREATE_INVITE
+    Permissions.CREATE_INVITE,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Create Invites" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -42,24 +42,26 @@ export async function GET(
   });
 
   return NextResponse.json({
-    invites: invites.map((inv: {
-      id: string;
-      code: string;
-      maxUses: number | null;
-      uses: number;
-      expiresAt: Date | null;
-      createdAt: Date;
-      creator: { username: string; displayName: string };
-    }) => ({
-      id: inv.id,
-      code: inv.code,
-      maxUses: inv.maxUses,
-      uses: inv.uses,
-      expiresAt: inv.expiresAt?.toISOString() || null,
-      createdAt: inv.createdAt.toISOString(),
-      creatorName: inv.creator.displayName || inv.creator.username,
-      isExpired: inv.expiresAt ? inv.expiresAt < new Date() : false,
-    })),
+    invites: invites.map(
+      (inv: {
+        id: string;
+        code: string;
+        maxUses: number | null;
+        uses: number;
+        expiresAt: Date | null;
+        createdAt: Date;
+        creator: { username: string; displayName: string };
+      }) => ({
+        id: inv.id,
+        code: inv.code,
+        maxUses: inv.maxUses,
+        uses: inv.uses,
+        expiresAt: inv.expiresAt?.toISOString() || null,
+        createdAt: inv.createdAt.toISOString(),
+        creatorName: inv.creator.displayName || inv.creator.username,
+        isExpired: inv.expiresAt ? inv.expiresAt < new Date() : false,
+      }),
+    ),
   });
 }
 
@@ -71,7 +73,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const { serverId } = await params;
   const session = await getServerSession(authOptions);
@@ -82,12 +84,12 @@ export async function POST(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.CREATE_INVITE
+    Permissions.CREATE_INVITE,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Create Invites" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -134,7 +136,7 @@ export async function POST(
   if (!code) {
     return NextResponse.json(
       { error: "Failed to generate unique invite code" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -160,6 +162,6 @@ export async function POST(
         expiresAt: invite.expiresAt?.toISOString() || null,
       },
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

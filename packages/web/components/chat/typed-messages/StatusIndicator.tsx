@@ -20,7 +20,9 @@ export function StatusIndicator({ content }: StatusIndicatorProps) {
   return (
     <div className="flex items-center gap-2 py-1 my-0.5">
       <span className={`text-xs ${config.color}`}>{config.icon}</span>
-      <span className={`text-[11px] font-mono font-bold uppercase tracking-wider ${config.color}`}>
+      <span
+        className={`text-[11px] font-mono font-bold uppercase tracking-wider ${config.color}`}
+      >
         {content.state}
       </span>
       {content.detail && (

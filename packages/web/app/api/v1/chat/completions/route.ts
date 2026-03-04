@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
           code: "invalid_api_key",
         },
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
           code: "invalid_body",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           code: "missing_model",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           code: "missing_messages",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
           code: "invalid_model",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
           code: "channel_not_found",
         },
       },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
           code: "no_user_message",
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -195,10 +195,7 @@ export async function POST(request: NextRequest) {
           authorId: { not: agent.botId }, // Response from another bot
           createdAt: { gt: new Date(startTime) },
           isDeleted: false,
-          OR: [
-            { streamingStatus: "COMPLETE" },
-            { streamingStatus: null },
-          ],
+          OR: [{ streamingStatus: "COMPLETE" }, { streamingStatus: null }],
           type: { in: ["STANDARD", "STREAMING"] },
         },
         orderBy: { createdAt: "desc" },
@@ -223,7 +220,7 @@ export async function POST(request: NextRequest) {
             code: "timeout",
           },
         },
-        { status: 504 }
+        { status: 504 },
       );
     }
 
@@ -275,7 +272,7 @@ export async function POST(request: NextRequest) {
           ],
         };
         controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`)
+          encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`),
         );
 
         // Content chunks
@@ -294,7 +291,7 @@ export async function POST(request: NextRequest) {
             ],
           };
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+            encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
           );
         }
 
@@ -313,7 +310,7 @@ export async function POST(request: NextRequest) {
           ],
         };
         controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`)
+          encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`),
         );
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
@@ -337,7 +334,7 @@ export async function POST(request: NextRequest) {
           code: "internal_error",
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

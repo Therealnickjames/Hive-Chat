@@ -19,7 +19,9 @@ import { NextRequest, NextResponse } from "next/server";
 export function validateInternalSecret(request: NextRequest): boolean {
   const expected = process.env.INTERNAL_API_SECRET;
   if (!expected) {
-    console.error("INTERNAL_API_SECRET is not set — rejecting all internal API requests");
+    console.error(
+      "INTERNAL_API_SECRET is not set — rejecting all internal API requests",
+    );
     return false;
   }
 

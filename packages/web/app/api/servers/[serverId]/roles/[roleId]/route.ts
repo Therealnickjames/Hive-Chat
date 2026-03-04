@@ -16,7 +16,7 @@ import {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; roleId: string }> }
+  { params }: { params: Promise<{ serverId: string; roleId: string }> },
 ) {
   const { serverId, roleId } = await params;
   const session = await getServerSession(authOptions);
@@ -27,12 +27,12 @@ export async function PATCH(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_ROLES
+    Permissions.MANAGE_ROLES,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Roles" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -58,21 +58,21 @@ export async function PATCH(
       if (name.length < 1 || name.length > 50) {
         return NextResponse.json(
           { error: "Role name must be 1-50 characters" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (name === "@everyone" && existingRole.name !== "@everyone") {
         return NextResponse.json(
           { error: "Cannot rename a role to @everyone" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (existingRole.name === "@everyone" && name !== "@everyone") {
         return NextResponse.json(
           { error: "Cannot rename @everyone" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -89,11 +89,13 @@ export async function PATCH(
 
     if (body?.permissions !== undefined) {
       try {
-        updateData.permissions = deserializePermissions(String(body.permissions));
+        updateData.permissions = deserializePermissions(
+          String(body.permissions),
+        );
       } catch {
         return NextResponse.json(
           { error: "permissions must be a valid bigint string" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -123,7 +125,7 @@ export async function PATCH(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; roleId: string }> }
+  { params }: { params: Promise<{ serverId: string; roleId: string }> },
 ) {
   const { serverId, roleId } = await params;
   const session = await getServerSession(authOptions);
@@ -134,12 +136,12 @@ export async function DELETE(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_ROLES
+    Permissions.MANAGE_ROLES,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Roles" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -154,7 +156,7 @@ export async function DELETE(
   if (role.name === "@everyone") {
     return NextResponse.json(
       { error: "Cannot delete @everyone" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

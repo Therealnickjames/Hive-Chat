@@ -101,7 +101,7 @@ describe("createInternalMessagesPostHandler", () => {
           type: "STANDARD",
           sequence: "1",
         },
-      })
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -119,7 +119,7 @@ describe("createInternalMessagesPostHandler", () => {
           type: "UNKNOWN",
           sequence: "1",
         },
-      })
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -137,11 +137,11 @@ describe("createInternalMessagesPostHandler", () => {
           type: "STANDARD",
           sequence: "not-a-number",
         },
-      })
+      }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe(
-      "sequence must be a non-negative integer string"
+      "sequence must be a non-negative integer string",
     );
   });
 
@@ -185,7 +185,7 @@ describe("createInternalMessagesPostHandler", () => {
           type: "STANDARD",
           sequence: "42",
         },
-      })
+      }),
     );
     expect(res.status).toBe(201);
 
@@ -221,7 +221,7 @@ describe("createInternalMessagesPostHandler", () => {
           type: "STANDARD",
           sequence: "1",
         },
-      })
+      }),
     );
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("Message already exists");
@@ -247,7 +247,7 @@ describe("createInternalMessagesPostHandler", () => {
           type: "STANDARD",
           sequence: "1",
         },
-      })
+      }),
     );
     expect(res.status).toBe(500);
   });
@@ -285,7 +285,7 @@ describe("createInternalMessagesPostHandler", () => {
             streamingStatus: status,
             sequence: "1",
           },
-        })
+        }),
       );
       expect(res.status).toBe(201);
     }
@@ -305,7 +305,7 @@ describe("createInternalMessagesPostHandler", () => {
           streamingStatus: "INVALID_STATUS",
           sequence: "1",
         },
-      })
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -340,7 +340,7 @@ describe("createServerBotPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) }
+      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
     );
     expect(res.status).toBe(401);
   });
@@ -356,7 +356,7 @@ describe("createServerBotPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) }
+      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
     );
     expect(res.status).toBe(403);
   });
@@ -373,7 +373,7 @@ describe("createServerBotPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) }
+      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
     );
     expect(res.status).toBe(404);
   });
@@ -382,7 +382,7 @@ describe("createServerBotPatchHandler", () => {
     const handler = await makeBotHandler();
     const res = await handler(
       { json: async () => null },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) }
+      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
     );
     expect(res.status).toBe(400);
   });
@@ -407,7 +407,7 @@ describe("createServerBotPatchHandler", () => {
 
     await handler(
       { json: async () => ({ apiKey: "sk-secret-key" }) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) }
+      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
     );
 
     expect(capturedUpdate.apiKeyEncrypted).toBe("encrypted:sk-secret-key");
@@ -423,7 +423,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(401);
   });
@@ -441,7 +441,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(404);
   });
@@ -457,7 +457,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ defaultBotId: 123 }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
   });
@@ -480,7 +480,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ defaultBotId: null }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(200);
     expect(capturedUpdate.defaultBotId).toBeNull();
@@ -499,7 +499,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ botIds: "not-an-array" }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("botIds must be an array of strings");
@@ -516,7 +516,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ botIds: ["bot-1", 123, "bot-3"] }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("botIds must be an array of strings");
@@ -530,7 +530,11 @@ describe("createServerChannelPatchHandler", () => {
         server: { findUnique: async () => ({ ownerId: "owner-1" }) },
         channel: {
           findUnique: async () => ({ serverId: "s1" }),
-          update: async ({ data }: any) => ({ id: "c1", name: "general", ...data }),
+          update: async ({ data }: any) => ({
+            id: "c1",
+            name: "general",
+            ...data,
+          }),
         },
         bot: {
           findMany: async () => [{ id: "bot-1" }], // Only bot-1 exists
@@ -539,7 +543,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ botIds: ["bot-1", "bot-nonexistent"] }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toContain("bot-nonexistent");
@@ -567,7 +571,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ botIds: ["bot-1", "bot-2"] }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(200);
   });
@@ -591,7 +595,7 @@ describe("createServerChannelPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({ botIds: [] }) },
-      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) }
+      { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(200);
   });
@@ -610,9 +614,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     // Dynamic import so vi.mock for @/lib/db and @/lib/internal-auth apply
-    const mod = await import(
-      "@/app/api/internal/messages/[messageId]/route"
-    );
+    const mod = await import("@/app/api/internal/messages/[messageId]/route");
     PUT = mod.PUT;
 
     mockPrismaForRoute.message.update.mockResolvedValue({
@@ -622,21 +624,15 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
     });
   });
 
-  function makePutRequest({
-    secret = "test-secret",
-    body = {} as any,
-  } = {}) {
-    return new Request(
-      "http://localhost/api/internal/messages/msg-1",
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-secret": secret,
-        },
-        body: JSON.stringify(body),
-      }
-    ) as any;
+  function makePutRequest({ secret = "test-secret", body = {} as any } = {}) {
+    return new Request("http://localhost/api/internal/messages/msg-1", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": secret,
+      },
+      body: JSON.stringify(body),
+    }) as any;
   }
 
   const routeCtx = {
@@ -644,18 +640,12 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
   };
 
   it("returns 401 for wrong internal secret", async () => {
-    const res = await PUT(
-      makePutRequest({ secret: "wrong" }),
-      routeCtx
-    );
+    const res = await PUT(makePutRequest({ secret: "wrong" }), routeCtx);
     expect(res.status).toBe(401);
   });
 
   it("returns 400 when neither content nor streamingStatus is provided", async () => {
-    const res = await PUT(
-      makePutRequest({ body: {} }),
-      routeCtx
-    );
+    const res = await PUT(makePutRequest({ body: {} }), routeCtx);
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("Must provide content or streamingStatus");
@@ -676,7 +666,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
           tokenHistory,
         },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -701,7 +691,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
           checkpoints,
         },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -722,7 +712,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
           checkpoints,
         },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -739,7 +729,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
           streamingStatus: "COMPLETE",
         },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -751,7 +741,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
   it("accepts content update without streamingStatus", async () => {
     const res = await PUT(
       makePutRequest({ body: { content: "updated text" } }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -762,7 +752,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
   it("accepts streamingStatus update without content", async () => {
     const res = await PUT(
       makePutRequest({ body: { streamingStatus: "ERROR" } }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -784,7 +774,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
           thinkingTimeline,
         },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -803,7 +793,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
           metadata,
         },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 
@@ -813,14 +803,14 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
 
   it("returns 500 when prisma update throws", async () => {
     mockPrismaForRoute.message.update.mockRejectedValue(
-      new Error("Connection lost")
+      new Error("Connection lost"),
     );
 
     const res = await PUT(
       makePutRequest({
         body: { content: "text", streamingStatus: "COMPLETE" },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(500);
     const json = await res.json();
@@ -832,7 +822,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
       makePutRequest({
         body: { content: "", streamingStatus: "ERROR" },
       }),
-      routeCtx
+      routeCtx,
     );
     expect(res.status).toBe(200);
 

@@ -10,14 +10,14 @@ export function PanelDock() {
   const pathname = usePathname();
   const { panels, restorePanel } = useWorkspaceContext();
   const { servers } = useChatContext();
-  
+
   const minimizedPanels = panels.filter((p) => !p.isClosed && p.isMinimized);
   const serverNameById = useMemo(
     () =>
       Object.fromEntries(
-        servers.map((server) => [server.id, server.name] as const)
+        servers.map((server) => [server.id, server.name] as const),
       ),
-    [servers]
+    [servers],
   );
 
   if (minimizedPanels.length === 0) return null;

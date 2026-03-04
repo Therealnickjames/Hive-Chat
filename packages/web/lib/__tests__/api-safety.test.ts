@@ -31,7 +31,9 @@ describe("canMutateServerScopedResource", () => {
 
   it("prevents cross-server mutation (IDOR defense)", () => {
     // This is the key security property: route server must match resource server
-    expect(canMutateServerScopedResource("attacker-server", "victim-server")).toBe(false);
+    expect(
+      canMutateServerScopedResource("attacker-server", "victim-server"),
+    ).toBe(false);
   });
 });
 
@@ -67,19 +69,25 @@ describe("isJsonObjectBody", () => {
 describe("getRedisHealthStatus", () => {
   it("returns 'ok' when probe succeeds", async () => {
     const probe = async () => true;
-    expect(await getRedisHealthStatus("redis://localhost:6379", probe)).toBe("ok");
+    expect(await getRedisHealthStatus("redis://localhost:6379", probe)).toBe(
+      "ok",
+    );
   });
 
   it("returns 'unhealthy' when probe returns false", async () => {
     const probe = async () => false;
-    expect(await getRedisHealthStatus("redis://localhost:6379", probe)).toBe("unhealthy");
+    expect(await getRedisHealthStatus("redis://localhost:6379", probe)).toBe(
+      "unhealthy",
+    );
   });
 
   it("returns 'unhealthy' when probe throws", async () => {
     const probe = async () => {
       throw new Error("connection refused");
     };
-    expect(await getRedisHealthStatus("redis://localhost:6379", probe)).toBe("unhealthy");
+    expect(await getRedisHealthStatus("redis://localhost:6379", probe)).toBe(
+      "unhealthy",
+    );
   });
 
   it("returns 'unhealthy' when redisUrl is empty/falsy", async () => {

@@ -26,10 +26,18 @@ export async function POST(request: NextRequest) {
 
   const { channelId, originalMessageId, checkpointIndex, botId } = body;
 
-  if (!channelId || !originalMessageId || checkpointIndex === undefined || !botId) {
+  if (
+    !channelId ||
+    !originalMessageId ||
+    checkpointIndex === undefined ||
+    !botId
+  ) {
     return NextResponse.json(
-      { error: "Missing required fields: channelId, originalMessageId, checkpointIndex, botId" },
-      { status: 400 }
+      {
+        error:
+          "Missing required fields: channelId, originalMessageId, checkpointIndex, botId",
+      },
+      { status: 400 },
     );
   }
 
@@ -47,16 +55,28 @@ export async function POST(request: NextRequest) {
     });
 
     if (!originalMessage) {
-      return NextResponse.json({ error: "Original message not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Original message not found" },
+        { status: 404 },
+      );
     }
 
     if (!originalMessage.checkpoints) {
-      return NextResponse.json({ error: "Original message has no checkpoints" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Original message has no checkpoints" },
+        { status: 400 },
+      );
     }
 
     const parsedCheckpoints = JSON.parse(originalMessage.checkpoints);
-    if (!Array.isArray(parsedCheckpoints) || checkpointIndex >= parsedCheckpoints.length) {
-      return NextResponse.json({ error: "Invalid checkpoint index" }, { status: 400 });
+    if (
+      !Array.isArray(parsedCheckpoints) ||
+      checkpointIndex >= parsedCheckpoints.length
+    ) {
+      return NextResponse.json(
+        { error: "Invalid checkpoint index" },
+        { status: 400 },
+      );
     }
 
     // Validate bot exists
@@ -66,12 +86,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (!bot || !bot.isActive) {
-      return NextResponse.json({ error: "Bot not found or inactive" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Bot not found or inactive" },
+        { status: 404 },
+      );
     }
 
     // Extract partial content up to checkpoint offset
     const checkpoint = parsedCheckpoints[checkpointIndex];
-    const partialContent = originalMessage.content?.substring(0, checkpoint.contentOffset) || "";
+    const partialContent =
+      originalMessage.content?.substring(0, checkpoint.contentOffset) || "";
 
     return NextResponse.json({
       originalMessageId,
@@ -86,7 +110,7 @@ export async function POST(request: NextRequest) {
     console.error("[Internal] Failed to validate resume request:", error);
     return NextResponse.json(
       { error: "Failed to validate resume request" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -35,18 +35,21 @@ export function MessageItem({
   const [isEditing, setIsEditing] = useState(false);
 
   const mentionNames = useMemo(
-    () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
-    [members, bots]
+    () => [
+      ...members.map((member) => member.displayName),
+      ...bots.map((bot) => bot.name),
+    ],
+    [members, bots],
   );
   const { text, files } = useMemo(
     () => parseFileReferences(message.content || ""),
-    [message.content]
+    [message.content],
   );
   const handleReactionsChange = useCallback(
     (reactions: ReactionData[]) => {
       onReactionsChange?.(message.id, reactions);
     },
-    [message.id, onReactionsChange]
+    [message.id, onReactionsChange],
   );
 
   const isBot = message.authorType === "BOT";
@@ -64,7 +67,7 @@ export function MessageItem({
         if (success) setIsEditing(false);
       }
     },
-    [message.id, onEdit]
+    [message.id, onEdit],
   );
 
   // Deleted message placeholder
@@ -74,7 +77,9 @@ export function MessageItem({
         <div className="group flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 border-l-2 border-transparent">
           <div className="w-10 flex-shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-mono text-text-muted italic">[message deleted]</p>
+            <p className="text-sm font-mono text-text-muted italic">
+              [message deleted]
+            </p>
           </div>
         </div>
       );
@@ -95,7 +100,9 @@ export function MessageItem({
               {formatTime(message.createdAt)}
             </span>
           </div>
-          <p className="text-sm font-mono text-text-muted italic">[message deleted]</p>
+          <p className="text-sm font-mono text-text-muted italic">
+            [message deleted]
+          </p>
         </div>
       </div>
     );
@@ -103,7 +110,9 @@ export function MessageItem({
 
   if (isGrouped) {
     return (
-      <div className={`group relative flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 ${!isBot ? 'border-l-2 border-transparent hover:border-brand/30 bg-transparent' : 'border-l-2 border-transparent'}`}>
+      <div
+        className={`group relative flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 ${!isBot ? "border-l-2 border-transparent hover:border-brand/30 bg-transparent" : "border-l-2 border-transparent"}`}
+      >
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           {isEditing ? (
@@ -116,7 +125,9 @@ export function MessageItem({
             <>
               <MarkdownContent content={text} mentionNames={mentionNames} />
               {message.editedAt && (
-                <span className="text-[10px] text-text-muted font-mono ml-1">(edited)</span>
+                <span className="text-[10px] text-text-muted font-mono ml-1">
+                  (edited)
+                </span>
               )}
             </>
           )}
@@ -149,7 +160,9 @@ export function MessageItem({
   }
 
   return (
-    <div className={`group relative mt-3 flex gap-4 px-4 py-2 hover:bg-background-secondary/50 ${!isBot ? 'border-l-2 border-brand bg-brand/5' : 'border-l-2 border-transparent'}`}>
+    <div
+      className={`group relative mt-3 flex gap-4 px-4 py-2 hover:bg-background-secondary/50 ${!isBot ? "border-l-2 border-brand bg-brand/5" : "border-l-2 border-transparent"}`}
+    >
       {/* Avatar */}
       <div className="flex-shrink-0 pt-0.5">
         {message.authorAvatarUrl ? (
@@ -163,7 +176,9 @@ export function MessageItem({
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-sm text-sm font-bold font-mono ${isBot ? "bg-background-secondary border border-accent-cyan text-accent-cyan" : "bg-background-secondary border border-brand text-brand"}`}>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-sm text-sm font-bold font-mono ${isBot ? "bg-background-secondary border border-accent-cyan text-accent-cyan" : "bg-background-secondary border border-brand text-brand"}`}
+          >
             {message.authorName?.charAt(0)?.toUpperCase() || "?"}
           </div>
         )}
@@ -172,7 +187,9 @@ export function MessageItem({
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 mb-1">
-          <span className={`text-sm font-bold font-mono ${isBot ? "text-accent-cyan" : "text-brand"}`}>
+          <span
+            className={`text-sm font-bold font-mono ${isBot ? "text-accent-cyan" : "text-brand"}`}
+          >
             {!isBot && <span className="mr-1 opacity-70">▸</span>}
             {message.authorName}
           </span>
@@ -185,7 +202,9 @@ export function MessageItem({
             {formatTime(message.createdAt)}
           </span>
           {message.editedAt && (
-            <span className="text-[10px] text-text-muted font-mono">(edited)</span>
+            <span className="text-[10px] text-text-muted font-mono">
+              (edited)
+            </span>
           )}
         </div>
         {isEditing ? (

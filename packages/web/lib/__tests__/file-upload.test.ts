@@ -11,14 +11,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ---------- mocks ----------
 // vi.hoisted ensures these are available when vi.mock factories run (hoisted above imports).
 
-const { mockPrisma, mockSessionRef, mockGetServerSession, mockGetImageDimensions } = vi.hoisted(() => {
+const {
+  mockPrisma,
+  mockSessionRef,
+  mockGetServerSession,
+  mockGetImageDimensions,
+} = vi.hoisted(() => {
   const _mockPrisma = {
     attachment: {
       create: vi.fn(),
     },
   };
   const _mockSessionRef = { current: { user: { id: "user-1" } } as any };
-  const _mockGetServerSession = vi.fn(() => Promise.resolve(_mockSessionRef.current));
+  const _mockGetServerSession = vi.fn(() =>
+    Promise.resolve(_mockSessionRef.current),
+  );
   const _mockGetImageDimensions = vi.fn();
   return {
     mockPrisma: _mockPrisma,
@@ -51,7 +58,7 @@ function makeUploadRequest(
   fileName: string,
   mimeType: string,
   sizeBytes: number,
-  content?: Buffer
+  content?: Buffer,
 ) {
   const buf = content ?? Buffer.alloc(sizeBytes, 0x41); // fill with 'A'
   const fileBytes = new Uint8Array(buf);
@@ -89,14 +96,16 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockSessionRef.current = { user: { id: "user-1" } };
 
-  mockPrisma.attachment.create.mockImplementation(async ({ data, select }: any) => ({
-    id: data.id,
-    filename: data.filename,
-    mimeType: data.mimeType,
-    size: data.size,
-    width: data.width ?? null,
-    height: data.height ?? null,
-  }));
+  mockPrisma.attachment.create.mockImplementation(
+    async ({ data, select }: any) => ({
+      id: data.id,
+      filename: data.filename,
+      mimeType: data.mimeType,
+      size: data.size,
+      width: data.width ?? null,
+      height: data.height ?? null,
+    }),
+  );
 
   mockGetImageDimensions.mockReturnValue(null);
 });

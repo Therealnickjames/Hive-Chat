@@ -15,9 +15,9 @@ async function openChannel(page: Page, channelName: string): Promise<void> {
   });
   await channelButton.first().click();
 
-  await expect(
-    page.getByPlaceholder(`Message #${channelName}`),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByPlaceholder(`Message #${channelName}`)).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 async function selectServer(page: Page): Promise<void> {
@@ -63,7 +63,9 @@ async function openEmojiPickerOnMessage(
 
   // Click the "Add reaction" button (opacity-0 → group-hover:opacity-100)
   // Use force:true because Playwright may still consider it non-actionable
-  const addReactionButton = messageContainer.locator('button[title="Add reaction"]');
+  const addReactionButton = messageContainer.locator(
+    'button[title="Add reaction"]',
+  );
   await addReactionButton.click({ force: true, timeout: 5_000 });
 
   // The emoji picker grid should appear
@@ -85,7 +87,9 @@ test.describe("Reactions", () => {
     await page.waitForTimeout(1_000);
   });
 
-  test("reaction badge is visible on messages with reactions", async ({ page }) => {
+  test("reaction badge is visible on messages with reactions", async ({
+    page,
+  }) => {
     // Send a message and add a reaction so we can verify badge rendering
     const msg = await sendTestMessage(page, "general");
     await openEmojiPickerOnMessage(page, msg);
@@ -174,7 +178,9 @@ test.describe("Reactions", () => {
       .filter({ hasText: msg })
       .first();
 
-    const reactionBadge = messageContainer.locator("button.rounded-full.px-2").first();
+    const reactionBadge = messageContainer
+      .locator("button.rounded-full.px-2")
+      .first();
     await expect(reactionBadge).toBeVisible({ timeout: 5_000 });
 
     // Click the reaction badge to toggle it off
@@ -187,9 +193,7 @@ test.describe("Reactions", () => {
     ).toHaveCount(0, { timeout: 5_000 });
   });
 
-  test("reaction appears for second user in real-time", async ({
-    browser,
-  }) => {
+  test("reaction appears for second user in real-time", async ({ browser }) => {
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
     const pageA = await contextA.newPage();

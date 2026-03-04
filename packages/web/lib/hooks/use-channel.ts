@@ -41,7 +41,12 @@ export interface MessagePayload {
   thinkingTimeline?: Array<{ phase: string; timestamp: string }>; // TASK-0011
   metadata?: Record<string, unknown> | null; // Agent execution metadata: model, tokens, latency (TASK-0039)
   tokenHistory?: Array<{ o: number; t: number }>; // TASK-0021: Stream rewind data [{o: contentOffset, t: relativeMs}]
-  checkpoints?: Array<{ index: number; label: string; contentOffset: number; timestamp: string }>; // TASK-0021
+  checkpoints?: Array<{
+    index: number;
+    label: string;
+    contentOffset: number;
+    timestamp: string;
+  }>; // TASK-0021
   toolCalls?: ToolCallData[]; // TASK-0018: active tool calls
   toolResults?: ToolResultData[]; // TASK-0018: completed tool results
   sequence: string;
@@ -110,7 +115,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const [hasJoinedOnce, setHasJoinedOnce] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceUser>>(
-    new Map()
+    new Map(),
   );
   const [charterState, setCharterState] = useState<CharterState | null>(null); // TASK-0020
 
@@ -146,7 +151,9 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           ...message,
           reactions: message.reactions || [],
         }));
-        const uniqueNew = normalizedNew.filter((m) => !messageIdsRef.current.has(m.id));
+        const uniqueNew = normalizedNew.filter(
+          (m) => !messageIdsRef.current.has(m.id),
+        );
         if (uniqueNew.length === 0) return prev;
 
         uniqueNew.forEach((m) => messageIdsRef.current.add(m.id));
@@ -158,11 +165,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           }
         }
 
-        const merged = prepend ? [...uniqueNew, ...prev] : [...prev, ...uniqueNew];
+        const merged = prepend
+          ? [...uniqueNew, ...prev]
+          : [...prev, ...uniqueNew];
         return merged.sort((a, b) => compareSequences(a.sequence, b.sequence));
       });
     },
-    []
+    [],
   );
 
   // Flush accumulated stream tokens into message state (max 60fps via rAF)
@@ -185,7 +194,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
             return { ...m, content: m.content + newContent };
           }
           return m;
-        })
+        }),
       );
     });
   }, []);
@@ -296,9 +305,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
         if (payload.reason === "mention_required" && payload.botName) {
           setBotTriggerHint(
-            `Action needed: no bot triggered. Mention @${payload.botName} to trigger it.`
+            `Action needed: no bot triggered. Mention @${payload.botName} to trigger it.`,
           );
-
         }
       });
 
@@ -323,10 +331,10 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           setTimeout(() => {
             if (!mounted) return;
             setTypingUsers((prev) =>
-              prev.filter((t) => t.userId !== payload.userId)
+              prev.filter((t) => t.userId !== payload.userId),
             );
             typingTimersRef.current.delete(payload.userId);
-          }, 3000)
+          }, 3000),
         );
       });
 
@@ -378,7 +386,10 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         };
 
         const existing = streamBufferRef.current.get(payload.messageId) || "";
-        streamBufferRef.current.set(payload.messageId, existing + payload.token);
+        streamBufferRef.current.set(
+          payload.messageId,
+          existing + payload.token,
+        );
         flushStreamBuffer();
       });
 
@@ -403,11 +414,12 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                   streamingStatus: "COMPLETE",
                   type: "STREAMING",
                   thinkingPhase: undefined,
-                  thinkingTimeline: payload.thinkingTimeline || m.thinkingTimeline,
+                  thinkingTimeline:
+                    payload.thinkingTimeline || m.thinkingTimeline,
                   metadata: payload.metadata || m.metadata,
                 }
-              : m
-          )
+              : m,
+          ),
         );
 
         // Clear any buffered tokens for this message
@@ -423,53 +435,55 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           partialContent: string | null;
         };
 
-        setMessages((prev) =>
-          {
-            const hasMatch = prev.some((m) => m.id === payload.messageId);
-            const streamMeta = pendingStreamMetaRef.current.get(payload.messageId);
+        setMessages((prev) => {
+          const hasMatch = prev.some((m) => m.id === payload.messageId);
+          const streamMeta = pendingStreamMetaRef.current.get(
+            payload.messageId,
+          );
 
-            if (hasMatch) {
-              pendingStreamMetaRef.current.delete(payload.messageId);
-              const updated = prev.map((m) =>
-                m.id === payload.messageId
-                  ? {
-                      ...m,
-                      content:
-                        payload.partialContent || m.content || "[Error: " + payload.error + "]",
-                      type: "STREAMING",
-                      streamingStatus: "ERROR",
-                      thinkingPhase: undefined,
-                    }
-                  : m
-              );
-
-              return updated;
-            }
-
-            // Race fallback: stream_error can arrive before stream_start placeholder commit.
-            // Upsert an errored message so the user still sees a visible outcome.
-            const fallback: MessagePayload = {
-              id: payload.messageId,
-              channelId: channelId!,
-              authorId: streamMeta?.botId || "",
-              authorType: "BOT",
-              authorName: streamMeta?.botName || "Agent",
-              authorAvatarUrl: streamMeta?.botAvatarUrl || null,
-              content: payload.partialContent || "[Error: " + payload.error + "]",
-              type: "STREAMING",
-              streamingStatus: "ERROR",
-              sequence: streamMeta?.sequence || lastSequenceRef.current,
-              createdAt: new Date().toISOString(),
-              reactions: [],
-            };
-
-            messageIdsRef.current.add(payload.messageId);
+          if (hasMatch) {
             pendingStreamMetaRef.current.delete(payload.messageId);
-            return [...prev, fallback].sort((a, b) =>
-              compareSequences(a.sequence, b.sequence)
+            const updated = prev.map((m) =>
+              m.id === payload.messageId
+                ? {
+                    ...m,
+                    content:
+                      payload.partialContent ||
+                      m.content ||
+                      "[Error: " + payload.error + "]",
+                    type: "STREAMING",
+                    streamingStatus: "ERROR",
+                    thinkingPhase: undefined,
+                  }
+                : m,
             );
+
+            return updated;
           }
-        );
+
+          // Race fallback: stream_error can arrive before stream_start placeholder commit.
+          // Upsert an errored message so the user still sees a visible outcome.
+          const fallback: MessagePayload = {
+            id: payload.messageId,
+            channelId: channelId!,
+            authorId: streamMeta?.botId || "",
+            authorType: "BOT",
+            authorName: streamMeta?.botName || "Agent",
+            authorAvatarUrl: streamMeta?.botAvatarUrl || null,
+            content: payload.partialContent || "[Error: " + payload.error + "]",
+            type: "STREAMING",
+            streamingStatus: "ERROR",
+            sequence: streamMeta?.sequence || lastSequenceRef.current,
+            createdAt: new Date().toISOString(),
+            reactions: [],
+          };
+
+          messageIdsRef.current.add(payload.messageId);
+          pendingStreamMetaRef.current.delete(payload.messageId);
+          return [...prev, fallback].sort((a, b) =>
+            compareSequences(a.sequence, b.sequence),
+          );
+        });
 
         // Clear any buffered tokens for this message
         streamBufferRef.current.delete(payload.messageId);
@@ -498,11 +512,14 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                   thinkingPhase: payload.phase,
                   thinkingTimeline: [
                     ...(m.thinkingTimeline || []),
-                    { phase: payload.phase, timestamp: payload.timestamp || new Date().toISOString() },
+                    {
+                      phase: payload.phase,
+                      timestamp: payload.timestamp || new Date().toISOString(),
+                    },
                   ],
                 }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -533,8 +550,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                     },
                   ],
                 }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -566,8 +583,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                     },
                   ],
                 }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -592,8 +609,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           prev.map((m) =>
             m.id === payload.messageId
               ? { ...m, reactions: payload.reactions || [] }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -624,8 +641,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                     },
                   ],
                 }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -641,7 +658,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         };
 
         setCharterState((prev) => ({
-          swarmMode: payload.swarmMode || prev?.swarmMode || "HUMAN_IN_THE_LOOP",
+          swarmMode:
+            payload.swarmMode || prev?.swarmMode || "HUMAN_IN_THE_LOOP",
           currentTurn: payload.currentTurn,
           maxTurns: payload.maxTurns,
           status: payload.status,
@@ -663,8 +681,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           prev.map((m) =>
             m.id === payload.messageId
               ? { ...m, content: payload.content, editedAt: payload.editedAt }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -678,10 +696,8 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === payload.messageId
-              ? { ...m, isDeleted: true }
-              : m
-          )
+            m.id === payload.messageId ? { ...m, isDeleted: true } : m,
+          ),
         );
       });
 
@@ -731,31 +747,24 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   }, [channelId, addMessages, flushStreamBuffer]);
 
   // Send a message
-  const sendMessage = useCallback(
-    (content: string) => {
-      const trimmed = content.trim();
-      if (!trimmed) return;
+  const sendMessage = useCallback((content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
 
-      if (!channelRef.current) {
-        setBotTriggerHint(
-          "Action needed: disconnected from channel gateway. Reconnecting..."
-        );
-        return;
-      }
+    if (!channelRef.current) {
+      setBotTriggerHint(
+        "Action needed: disconnected from channel gateway. Reconnecting...",
+      );
+      return;
+    }
 
-      setBotTriggerHint(null);
-      channelRef.current.push("new_message", { content: trimmed });
-    },
-    [channelId, isConnected]
-  );
+    setBotTriggerHint(null);
+    channelRef.current.push("new_message", { content: trimmed });
+  }, []);
 
   // Load older messages (history)
   const loadHistory = useCallback(() => {
-    if (
-      !channelRef.current ||
-      !hasMoreHistory ||
-      loadingHistoryRef.current
-    )
+    if (!channelRef.current || !hasMoreHistory || loadingHistoryRef.current)
       return;
 
     loadingHistoryRef.current = true;
@@ -770,11 +779,11 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     (messageId: string, reactions: ReactionData[]) => {
       setMessages((prev) =>
         prev.map((message) =>
-          message.id === messageId ? { ...message, reactions } : message
-        )
+          message.id === messageId ? { ...message, reactions } : message,
+        ),
       );
     },
-    []
+    [],
   );
 
   // Send typing indicator (debounced, 3s cooldown)
@@ -807,47 +816,41 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           });
       });
     },
-    []
+    [],
   );
 
   // Delete a message (TASK-0014)
-  const deleteMessage = useCallback(
-    (messageId: string): Promise<boolean> => {
-      return new Promise((resolve) => {
-        if (!channelRef.current) {
+  const deleteMessage = useCallback((messageId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (!channelRef.current) {
+        resolve(false);
+        return;
+      }
+      channelRef.current
+        .push("message_delete", { messageId })
+        .receive("ok", () => resolve(true))
+        .receive("error", (resp: unknown) => {
+          console.error("[Channel] Delete error:", resp);
           resolve(false);
-          return;
-        }
-        channelRef.current
-          .push("message_delete", { messageId })
-          .receive("ok", () => resolve(true))
-          .receive("error", (resp: unknown) => {
-            console.error("[Channel] Delete error:", resp);
-            resolve(false);
-          })
-          .receive("timeout", () => {
-            console.error("[Channel] Delete timeout");
-            resolve(false);
-          });
-      });
-    },
-    []
-  );
+        })
+        .receive("timeout", () => {
+          console.error("[Channel] Delete timeout");
+          resolve(false);
+        });
+    });
+  }, []);
 
   // TASK-0012: count concurrently active streams
   const activeStreamCount = useMemo(
     () => messages.filter((m) => m.streamingStatus === "ACTIVE").length,
-    [messages]
+    [messages],
   );
 
   // TASK-0020: Send charter control action (pause/end)
-  const sendCharterControl = useCallback(
-    (action: "pause" | "end") => {
-      if (!channelRef.current) return;
-      channelRef.current.push("charter_control", { action });
-    },
-    []
-  );
+  const sendCharterControl = useCallback((action: "pause" | "end") => {
+    if (!channelRef.current) return;
+    channelRef.current.push("charter_control", { action });
+  }, []);
 
   return {
     messages,

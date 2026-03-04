@@ -17,7 +17,7 @@ function base64url(input: string): string {
 
 function signHs256Jwt(
   payload: Record<string, string | number>,
-  secret: string
+  secret: string,
 ): string {
   const header = { alg: "HS256", typ: "JWT" };
   const encodedHeader = base64url(JSON.stringify(header));
@@ -46,7 +46,10 @@ export async function GET() {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
     console.error("JWT_SECRET is not set");
-    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server configuration error" },
+      { status: 500 },
+    );
   }
 
   const token = signHs256Jwt(
@@ -58,7 +61,7 @@ export async function GET() {
       iat: now,
       exp: now + 24 * 60 * 60,
     },
-    jwtSecret
+    jwtSecret,
   );
 
   return NextResponse.json({ token });

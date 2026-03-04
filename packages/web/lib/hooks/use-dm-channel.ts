@@ -70,7 +70,7 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<DmTypingUser[]>([]);
   const [presenceMap, setPresenceMap] = useState<Map<string, DmPresenceUser>>(
-    new Map()
+    new Map(),
   );
 
   const channelRef = useRef<Channel | null>(null);
@@ -90,7 +90,7 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
           reactions: message.reactions || [],
         }));
         const uniqueNew = normalizedNew.filter(
-          (m) => !messageIdsRef.current.has(m.id)
+          (m) => !messageIdsRef.current.has(m.id),
         );
         if (uniqueNew.length === 0) return prev;
 
@@ -109,7 +109,7 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
         return merged.sort((a, b) => compareSequences(a.sequence, b.sequence));
       });
     },
-    []
+    [],
   );
 
   // Connect and join channel
@@ -141,9 +141,7 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
       // Join DM channel with lastSequence for reconnection sync
       const channel = socket.channel(`dm:${dmId}`, {
         lastSequence:
-          lastSequenceRef.current !== "0"
-            ? lastSequenceRef.current
-            : undefined,
+          lastSequenceRef.current !== "0" ? lastSequenceRef.current : undefined,
       });
 
       // Set up presence
@@ -205,10 +203,10 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
           setTimeout(() => {
             if (!mounted) return;
             setTypingUsers((prev) =>
-              prev.filter((t) => t.userId !== payload.userId)
+              prev.filter((t) => t.userId !== payload.userId),
             );
             typingTimersRef.current.delete(payload.userId);
-          }, 3000)
+          }, 3000),
         );
       });
 
@@ -224,8 +222,8 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
           prev.map((m) =>
             m.id === payload.messageId
               ? { ...m, content: payload.content, editedAt: payload.editedAt }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -238,8 +236,8 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
         };
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === payload.messageId ? { ...m, isDeleted: true } : m
-          )
+            m.id === payload.messageId ? { ...m, isDeleted: true } : m,
+          ),
         );
       });
 
@@ -254,8 +252,8 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
           prev.map((m) =>
             m.id === payload.messageId
               ? { ...m, reactions: payload.reactions || [] }
-              : m
-          )
+              : m,
+          ),
         );
       });
 
@@ -367,32 +365,29 @@ export function useDmChannel(dmId: string | null): UseDmChannelReturn {
           });
       });
     },
-    []
+    [],
   );
 
   // Delete a message
-  const deleteMessage = useCallback(
-    (messageId: string): Promise<boolean> => {
-      return new Promise((resolve) => {
-        if (!channelRef.current) {
+  const deleteMessage = useCallback((messageId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (!channelRef.current) {
+        resolve(false);
+        return;
+      }
+      channelRef.current
+        .push("message_delete", { messageId })
+        .receive("ok", () => resolve(true))
+        .receive("error", (resp: unknown) => {
+          console.error("[DmChannel] Delete error:", resp);
           resolve(false);
-          return;
-        }
-        channelRef.current
-          .push("message_delete", { messageId })
-          .receive("ok", () => resolve(true))
-          .receive("error", (resp: unknown) => {
-            console.error("[DmChannel] Delete error:", resp);
-            resolve(false);
-          })
-          .receive("timeout", () => {
-            console.error("[DmChannel] Delete timeout");
-            resolve(false);
-          });
-      });
-    },
-    []
-  );
+        })
+        .receive("timeout", () => {
+          console.error("[DmChannel] Delete timeout");
+          resolve(false);
+        });
+    });
+  }, []);
 
   return {
     messages,

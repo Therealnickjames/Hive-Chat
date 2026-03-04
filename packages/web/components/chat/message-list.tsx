@@ -56,8 +56,7 @@ export function MessageList({
     const el = containerRef.current;
     if (!el) return;
 
-    const distanceFromBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     isAtBottomRef.current = distanceFromBottom < 50;
 
     // Load more history when scrolled to top
@@ -91,40 +90,46 @@ export function MessageList({
 
     // Scroll on new message or if there's an active streaming message
     const hasActiveStream = messages.some(
-      (m) => m.streamingStatus === "ACTIVE"
+      (m) => m.streamingStatus === "ACTIVE",
     );
     const latestMessage = messages[messages.length - 1];
-    const typedBotTypes = ["TOOL_CALL", "TOOL_RESULT", "CODE_BLOCK", "ARTIFACT", "STATUS"];
+    const typedBotTypes = [
+      "TOOL_CALL",
+      "TOOL_RESULT",
+      "CODE_BLOCK",
+      "ARTIFACT",
+      "STATUS",
+    ];
     const isLatestBotStream = Boolean(
       latestMessage &&
-        latestMessage.authorType === "BOT" &&
-        latestMessage.type === "STREAMING"
+      latestMessage.authorType === "BOT" &&
+      latestMessage.type === "STREAMING",
     );
     const isLatestBotTyped = Boolean(
       latestMessage &&
-        latestMessage.authorType === "BOT" &&
-        typedBotTypes.includes(latestMessage.type)
+      latestMessage.authorType === "BOT" &&
+      typedBotTypes.includes(latestMessage.type),
     );
     const isLatestUserMessage = Boolean(
-      latestMessage && latestMessage.authorType === "USER"
+      latestMessage && latestMessage.authorType === "USER",
     );
     const isLatestOwnUserMessage = Boolean(
       latestMessage &&
-        latestMessage.authorType === "USER" &&
-        currentUserId &&
-        latestMessage.authorId === currentUserId
+      latestMessage.authorType === "USER" &&
+      currentUserId &&
+      latestMessage.authorId === currentUserId,
     );
     const isLatestIncomingUserMessage = Boolean(
       latestMessage &&
-        latestMessage.authorType === "USER" &&
-        currentUserId &&
-        latestMessage.authorId !== currentUserId
+      latestMessage.authorType === "USER" &&
+      currentUserId &&
+      latestMessage.authorId !== currentUserId,
     );
     const incomingUserCandidate = newlyAddedMessages.findLast(
       (m) =>
         Boolean(currentUserId) &&
         m.authorType === "USER" &&
-        m.authorId !== currentUserId
+        m.authorId !== currentUserId,
     );
     const incomingUserCandidateAgeMs = incomingUserCandidate
       ? Date.now() - new Date(incomingUserCandidate.createdAt).getTime()
@@ -143,19 +148,20 @@ export function MessageList({
     const prevMessage = messages[messages.length - 2];
     const latestUserGrouped = Boolean(
       isLatestUserMessage &&
-        prevMessage &&
-        prevMessage.authorId === latestMessage?.authorId &&
-        prevMessage.authorType === latestMessage?.authorType &&
-        !prevMessage.isDeleted &&
-        !latestMessage?.isDeleted &&
-        new Date(latestMessage!.createdAt).getTime() -
-          new Date(prevMessage.createdAt).getTime() <
-          5 * 60 * 1000
+      prevMessage &&
+      prevMessage.authorId === latestMessage?.authorId &&
+      prevMessage.authorType === latestMessage?.authorType &&
+      !prevMessage.isDeleted &&
+      !latestMessage?.isDeleted &&
+      new Date(latestMessage!.createdAt).getTime() -
+        new Date(prevMessage.createdAt).getTime() <
+        5 * 60 * 1000,
     );
     const shouldFollowNewBotStreamOutcome = isNewMessage && isLatestBotStream;
     const shouldFollowOwnSentMessage = isNewMessage && isLatestOwnUserMessage;
     const shouldFollowIncomingUserMessage =
-      hasNewIncomingUserMessage || (isNewMessage && isLatestIncomingUserMessage);
+      hasNewIncomingUserMessage ||
+      (isNewMessage && isLatestIncomingUserMessage);
     const shouldFollowTypedBotMessage = isNewMessage && isLatestBotTyped;
     const prioritizedIncomingUserMessageId =
       prioritizedIncomingUserMessageIdRef.current;
@@ -169,7 +175,7 @@ export function MessageList({
       prioritizedIncomingUserMessageIdRef.current = null;
     }
     const shouldPinIncomingUserMessage = Boolean(
-      prioritizedIncomingUserMessageIdRef.current
+      prioritizedIncomingUserMessageIdRef.current,
     );
     const shouldFollowActiveStream =
       hasActiveStream && !shouldPinIncomingUserMessage;
@@ -185,15 +191,14 @@ export function MessageList({
       const pinnedId = prioritizedIncomingUserMessageIdRef.current;
       if (pinnedId) {
         const pinnedRow = el.querySelector<HTMLElement>(
-          `[data-message-id="${pinnedId}"]`
+          `[data-message-id="${pinnedId}"]`,
         );
         pinnedRow?.scrollIntoView({ block: "nearest" });
       } else {
         el.scrollTop = el.scrollHeight;
       }
     }
-
-  }, [messages]);
+  }, [messages, currentUserId]);
 
   // Scroll to bottom on initial load
   useEffect(() => {
@@ -219,7 +224,10 @@ export function MessageList({
               <div className="h-8 w-8 rounded-full bg-background-tertiary flex-shrink-0" />
               <div className="flex-1 space-y-1.5">
                 <div className="h-3 w-24 rounded bg-background-tertiary" />
-                <div className="h-3 rounded bg-background-tertiary" style={{ width: `${60 + i * 10}%` }} />
+                <div
+                  className="h-3 rounded bg-background-tertiary"
+                  style={{ width: `${60 + i * 10}%` }}
+                />
               </div>
             </div>
           ))}
@@ -275,29 +283,71 @@ export function MessageList({
           if (dividerIndex <= 0) dividerIndex = -1;
         }
         return messages.map((message, index) => {
-        const prevMessage = messages[index - 1];
-        let isGrouped =
-          prevMessage?.authorId === message.authorId &&
-          prevMessage?.authorType === message.authorType &&
-          // Don't group if previous message was deleted
-          !prevMessage?.isDeleted &&
-          !message.isDeleted &&
-          // Only group if less than 5 minutes apart
-          new Date(message.createdAt).getTime() -
-            new Date(prevMessage.createdAt).getTime() <
-            5 * 60 * 1000;
-        const isMostRecentOwnUserMessage =
-          Boolean(currentUserId) &&
-          message.authorType === "USER" &&
-          message.id === latestOwnUserMessageId;
-        if (isMostRecentOwnUserMessage) {
-          isGrouped = false;
-        }
+          const prevMessage = messages[index - 1];
+          let isGrouped =
+            prevMessage?.authorId === message.authorId &&
+            prevMessage?.authorType === message.authorType &&
+            // Don't group if previous message was deleted
+            !prevMessage?.isDeleted &&
+            !message.isDeleted &&
+            // Only group if less than 5 minutes apart
+            new Date(message.createdAt).getTime() -
+              new Date(prevMessage.createdAt).getTime() <
+              5 * 60 * 1000;
+          const isMostRecentOwnUserMessage =
+            Boolean(currentUserId) &&
+            message.authorType === "USER" &&
+            message.id === latestOwnUserMessageId;
+          if (isMostRecentOwnUserMessage) {
+            isGrouped = false;
+          }
 
-        const showDivider = index === dividerIndex;
+          const showDivider = index === dividerIndex;
 
-        // Use StreamingMessage for active/recently-completed streaming messages
-        if (message.type === "STREAMING") {
+          // Use StreamingMessage for active/recently-completed streaming messages
+          if (message.type === "STREAMING") {
+            return (
+              <div
+                key={message.id}
+                data-message-id={message.id}
+                data-message-author-type={message.authorType}
+                data-message-type={message.type}
+              >
+                {showDivider && <UnreadDivider />}
+                <StreamingMessage
+                  message={message}
+                  isGrouped={isGrouped}
+                  onReactionsChange={onReactionsChange}
+                  currentUserId={currentUserId}
+                  canManageMessages={canManageMessages}
+                  onDelete={onDeleteMessage}
+                />
+              </div>
+            );
+          }
+
+          // Use TypedMessageItem for structured agent messages (TASK-0039)
+          const typedTypes = [
+            "TOOL_CALL",
+            "TOOL_RESULT",
+            "CODE_BLOCK",
+            "ARTIFACT",
+            "STATUS",
+          ];
+          if (typedTypes.includes(message.type)) {
+            return (
+              <div
+                key={message.id}
+                data-message-id={message.id}
+                data-message-author-type={message.authorType}
+                data-message-type={message.type}
+              >
+                {showDivider && <UnreadDivider />}
+                <TypedMessageItem message={message} isGrouped={isGrouped} />
+              </div>
+            );
+          }
+
           return (
             <div
               key={message.id}
@@ -306,57 +356,18 @@ export function MessageList({
               data-message-type={message.type}
             >
               {showDivider && <UnreadDivider />}
-              <StreamingMessage
+              <MessageItem
                 message={message}
                 isGrouped={isGrouped}
                 onReactionsChange={onReactionsChange}
                 currentUserId={currentUserId}
                 canManageMessages={canManageMessages}
+                onEdit={onEditMessage}
                 onDelete={onDeleteMessage}
               />
             </div>
           );
-        }
-
-        // Use TypedMessageItem for structured agent messages (TASK-0039)
-        const typedTypes = ["TOOL_CALL", "TOOL_RESULT", "CODE_BLOCK", "ARTIFACT", "STATUS"];
-        if (typedTypes.includes(message.type)) {
-          return (
-            <div
-              key={message.id}
-              data-message-id={message.id}
-              data-message-author-type={message.authorType}
-              data-message-type={message.type}
-            >
-              {showDivider && <UnreadDivider />}
-              <TypedMessageItem
-                message={message}
-                isGrouped={isGrouped}
-              />
-            </div>
-          );
-        }
-
-        return (
-          <div
-            key={message.id}
-            data-message-id={message.id}
-            data-message-author-type={message.authorType}
-            data-message-type={message.type}
-          >
-            {showDivider && <UnreadDivider />}
-            <MessageItem
-              message={message}
-              isGrouped={isGrouped}
-              onReactionsChange={onReactionsChange}
-              currentUserId={currentUserId}
-              canManageMessages={canManageMessages}
-              onEdit={onEditMessage}
-              onDelete={onDeleteMessage}
-            />
-          </div>
-        );
-      });
+        });
       })()}
     </div>
   );

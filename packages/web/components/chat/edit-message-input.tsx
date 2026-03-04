@@ -59,13 +59,14 @@ export function EditMessageInput({
         handleSave();
       }
     },
-    [onCancel, handleSave]
+    [onCancel, handleSave],
   );
 
   return (
     <div className="mt-1">
       <div className="text-[10px] text-text-muted font-mono mb-1">
-        Editing message — <span className="text-text-secondary">Enter</span> to save, <span className="text-text-secondary">Escape</span> to cancel
+        Editing message — <span className="text-text-secondary">Enter</span> to
+        save, <span className="text-text-secondary">Escape</span> to cancel
       </div>
       <textarea
         ref={textareaRef}
@@ -87,7 +88,11 @@ export function EditMessageInput({
         </button>
         <button
           onClick={handleSave}
-          disabled={saving || !content.trim() || content.trim() === initialContent.trim()}
+          disabled={
+            saving ||
+            !content.trim() ||
+            content.trim() === initialContent.trim()
+          }
           className="text-xs font-mono text-brand hover:text-brand/80 transition disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save"}

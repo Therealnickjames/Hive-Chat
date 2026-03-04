@@ -28,16 +28,15 @@ export function ChannelHeader({
   onCharterPause,
   onCharterEnd,
 }: ChannelHeaderProps) {
-  const isCharterActive = charterState &&
+  const isCharterActive =
+    charterState &&
     (charterState.status === "ACTIVE" || charterState.status === "PAUSED");
 
   return (
     <div className="flex h-12 items-center border-b border-background-tertiary px-4">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className="text-xl text-text-muted">#</span>
-        <h1 className="text-base font-bold text-text-primary">
-          {channelName}
-        </h1>
+        <h1 className="text-base font-bold text-text-primary">{channelName}</h1>
         {topic && !isCharterActive && (
           <>
             <div className="mx-2 h-5 w-px bg-background-tertiary" />
@@ -51,13 +50,18 @@ export function ChannelHeader({
             <div className="mx-2 h-5 w-px bg-background-tertiary" />
             <div className="flex items-center gap-2">
               {/* Status indicator */}
-              <span className={`inline-flex h-2 w-2 rounded-full ${
-                charterState.status === "ACTIVE" ? "bg-status-success animate-pulse" : "bg-status-warning"
-              }`} />
+              <span
+                className={`inline-flex h-2 w-2 rounded-full ${
+                  charterState.status === "ACTIVE"
+                    ? "bg-status-success animate-pulse"
+                    : "bg-status-warning"
+                }`}
+              />
 
               {/* Mode label */}
               <span className="text-xs font-medium text-accent-cyan">
-                {SWARM_MODE_LABELS[charterState.swarmMode] || charterState.swarmMode}
+                {SWARM_MODE_LABELS[charterState.swarmMode] ||
+                  charterState.swarmMode}
               </span>
 
               {/* Turn counter */}

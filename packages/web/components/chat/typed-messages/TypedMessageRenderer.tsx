@@ -38,9 +38,7 @@ export function TypedMessageRenderer({ message }: TypedMessageRendererProps) {
   if (!parsed) {
     // Fallback: render raw content as mono text
     return (
-      <div className="text-xs font-mono text-text-muted">
-        {message.content}
-      </div>
+      <div className="text-xs font-mono text-text-muted">{message.content}</div>
     );
   }
 

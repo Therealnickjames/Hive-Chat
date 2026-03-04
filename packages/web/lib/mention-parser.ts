@@ -22,7 +22,7 @@ interface MentionTarget {
 export function parseMentionedUserIds(
   content: string,
   members: MentionTarget[],
-  bots: MentionTarget[]
+  bots: MentionTarget[],
 ): string[] {
   if (!content || content.length === 0) return [];
 

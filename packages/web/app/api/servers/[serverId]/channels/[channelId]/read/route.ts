@@ -13,7 +13,7 @@ import { generateId } from "@/lib/ulid";
  */
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; channelId: string }> }
+  { params }: { params: Promise<{ serverId: string; channelId: string }> },
 ) {
   const { serverId, channelId } = await params;
   const session = await getServerSession(authOptions);

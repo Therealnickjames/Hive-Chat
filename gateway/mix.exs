@@ -44,7 +44,10 @@ defmodule TavokGateway.MixProject do
       {:ulid, "~> 0.2"},
 
       # HTTP client (for calling Next.js internal API)
-      {:req, "~> 0.5"}
+      {:req, "~> 0.5"},
+
+      # Static analysis
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

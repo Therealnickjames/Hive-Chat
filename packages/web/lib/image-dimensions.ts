@@ -6,7 +6,7 @@
  */
 export function getImageDimensions(
   buffer: Buffer,
-  mimeType: string
+  mimeType: string,
 ): { width: number; height: number } | null {
   try {
     switch (mimeType) {
@@ -30,7 +30,9 @@ export function getImageDimensions(
  * PNG: IHDR chunk starts at byte 16, width at 16-19, height at 20-23 (big-endian)
  * Signature: 89 50 4E 47 0D 0A 1A 0A
  */
-function getPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+function getPngDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 24) return null;
   // Verify PNG signature
   if (
@@ -50,7 +52,9 @@ function getPngDimensions(buffer: Buffer): { width: number; height: number } | n
  * JPEG: Scan for SOF0 (0xFF 0xC0) or SOF2 (0xFF 0xC2) marker.
  * Height at marker+5, width at marker+7 (big-endian uint16).
  */
-function getJpegDimensions(buffer: Buffer): { width: number; height: number } | null {
+function getJpegDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 4) return null;
   // Verify JPEG SOI marker
   if (buffer[0] !== 0xff || buffer[1] !== 0xd8) return null;
@@ -90,7 +94,9 @@ function getJpegDimensions(buffer: Buffer): { width: number; height: number } | 
  * GIF: Width at bytes 6-7, height at bytes 8-9 (little-endian)
  * Signature: GIF87a or GIF89a
  */
-function getGifDimensions(buffer: Buffer): { width: number; height: number } | null {
+function getGifDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 10) return null;
   const sig = buffer.toString("ascii", 0, 3);
   if (sig !== "GIF") return null;
@@ -103,7 +109,9 @@ function getGifDimensions(buffer: Buffer): { width: number; height: number } | n
  * WebP: RIFF container. Dimensions depend on VP8/VP8L/VP8X sub-format.
  * Signature: RIFF....WEBP
  */
-function getWebpDimensions(buffer: Buffer): { width: number; height: number } | null {
+function getWebpDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 30) return null;
   const riff = buffer.toString("ascii", 0, 4);
   const webp = buffer.toString("ascii", 8, 12);

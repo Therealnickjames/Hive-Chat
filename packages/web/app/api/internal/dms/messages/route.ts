@@ -26,11 +26,15 @@ export async function POST(request: NextRequest) {
     typeof dmId !== "string" ||
     typeof authorId !== "string" ||
     typeof content !== "string" ||
-    (typeof sequence !== "string" && typeof sequence !== "number" && typeof sequence !== "bigint")
+    (typeof sequence !== "string" &&
+      typeof sequence !== "number" &&
+      typeof sequence !== "bigint")
   ) {
     return NextResponse.json(
-      { error: "Missing required fields: id, dmId, authorId, content, sequence" },
-      { status: 400 }
+      {
+        error: "Missing required fields: id, dmId, authorId, content, sequence",
+      },
+      { status: 400 },
     );
   }
 
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to persist DM message:", error);
     return NextResponse.json(
       { error: "Failed to persist message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -79,16 +83,16 @@ export async function GET(request: NextRequest) {
   const dmId = searchParams.get("dmId");
 
   if (!dmId) {
-    return NextResponse.json(
-      { error: "dmId is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "dmId is required" }, { status: 400 });
   }
 
   try {
     const afterSequence = searchParams.get("afterSequence");
     const before = searchParams.get("before");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10) || 50, 100);
+    const limit = Math.min(
+      parseInt(searchParams.get("limit") || "50", 10) || 50,
+      100,
+    );
 
     // Build where clause
     const where: Record<string, unknown> = { dmId, isDeleted: false };
@@ -103,12 +107,15 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         author: {
-          select: { id: true, displayName: true, avatarUrl: true, username: true },
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+            username: true,
+          },
         },
       },
-      orderBy: afterSequence
-        ? { sequence: "asc" }
-        : { id: "desc" },
+      orderBy: afterSequence ? { sequence: "asc" } : { id: "desc" },
       take: limit + 1,
     });
 
@@ -121,7 +128,7 @@ export async function GET(request: NextRequest) {
       messages.reverse();
     }
 
-    const payload = messages.map((m: typeof messages[number]) => ({
+    const payload = messages.map((m: (typeof messages)[number]) => ({
       id: m.id,
       dmId: m.dmId,
       authorId: m.authorId,
@@ -142,7 +149,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to fetch DM messages:", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

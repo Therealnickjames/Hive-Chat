@@ -28,7 +28,7 @@ import {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
 
@@ -48,25 +48,19 @@ export async function POST(
   if (!webhook) {
     return NextResponse.json(
       { error: "Invalid webhook token" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (!webhook.isActive) {
-    return NextResponse.json(
-      { error: "Webhook is disabled" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Webhook is disabled" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const {
@@ -94,7 +88,7 @@ export async function POST(
     `${process.env.GATEWAY_INTERNAL_URL || process.env.GATEWAY_WEB_URL || "http://gateway:4001"}/api/internal/sequence?channelId=${webhook.channelId}`,
     {
       headers: { "x-internal-secret": process.env.INTERNAL_API_SECRET || "" },
-    }
+    },
   ).catch(() => null);
 
   // Fallback: use timestamp-based sequence if gateway is unavailable
@@ -106,7 +100,13 @@ export async function POST(
 
   try {
     // Handle typed messages (TOOL_CALL, TOOL_RESULT, CODE_BLOCK, etc.)
-    const validTypedTypes = ["TOOL_CALL", "TOOL_RESULT", "CODE_BLOCK", "ARTIFACT", "STATUS"];
+    const validTypedTypes = [
+      "TOOL_CALL",
+      "TOOL_RESULT",
+      "CODE_BLOCK",
+      "ARTIFACT",
+      "STATUS",
+    ];
     if (msgType && validTypedTypes.includes(msgType)) {
       const typedContent = body.content;
 
@@ -116,9 +116,10 @@ export async function POST(
         channelId: webhook.channelId,
         authorId: webhook.botId,
         authorType: "BOT",
-        content: typeof typedContent === "string"
-          ? typedContent
-          : JSON.stringify(typedContent),
+        content:
+          typeof typedContent === "string"
+            ? typedContent
+            : JSON.stringify(typedContent),
         type: msgType,
         sequence,
       });
@@ -131,9 +132,10 @@ export async function POST(
         authorType: "BOT",
         authorName: displayName,
         authorAvatarUrl: displayAvatar,
-        content: typeof typedContent === "string"
-          ? typedContent
-          : JSON.stringify(typedContent),
+        content:
+          typeof typedContent === "string"
+            ? typedContent
+            : JSON.stringify(typedContent),
         type: msgType,
         sequence,
         createdAt: new Date().toISOString(),
@@ -173,7 +175,7 @@ export async function POST(
           sequence,
           streamUrl: `${webUrl}/api/v1/webhooks/${token}/stream`,
         },
-        { status: 201 }
+        { status: 201 },
       );
     }
 
@@ -181,7 +183,7 @@ export async function POST(
     if (!content || typeof content !== "string") {
       return NextResponse.json(
         { error: "content is required (or use streaming: true)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -216,7 +218,7 @@ export async function POST(
     console.error("Webhook message failed:", error);
     return NextResponse.json(
       { error: "Failed to send message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -234,8 +236,7 @@ async function persistMessage(data: {
   streamingStatus?: string;
   sequence: string;
 }) {
-  const internalUrl =
-    process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const internalUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
   const response = await fetch(`${internalUrl}/api/internal/messages`, {
     method: "POST",
@@ -250,7 +251,7 @@ async function persistMessage(data: {
     // 409 = duplicate (idempotency guard) — treated as success
     const errorBody = await response.text().catch(() => "unknown");
     console.error(
-      `Message persistence failed: ${response.status} ${errorBody}`
+      `Message persistence failed: ${response.status} ${errorBody}`,
     );
   }
 }

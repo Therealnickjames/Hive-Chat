@@ -22,9 +22,9 @@ async function openChannel(page: Page, channelName: string): Promise<void> {
 
   // Wait for the channel header or the message input to appear,
   // confirming the channel panel has opened.
-  await expect(
-    page.getByPlaceholder(`Message #${channelName}`),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByPlaceholder(`Message #${channelName}`)).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -46,9 +46,7 @@ test.describe("Messaging", () => {
     });
   });
 
-  test("can navigate to a channel and see messages", async ({
-    page,
-  }) => {
+  test("can navigate to a channel and see messages", async ({ page }) => {
     // First, select the server
     await page.getByText("SERVERS", { exact: true }).click();
     await page.getByText("AI Research Lab").click();

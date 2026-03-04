@@ -22,7 +22,9 @@ const { mockPrisma, mockSessionRef, mockGetServerSession } = vi.hoisted(() => {
     },
   };
   const _mockSessionRef = { current: { user: { id: "user-1" } } as any };
-  const _mockGetServerSession = vi.fn(() => Promise.resolve(_mockSessionRef.current));
+  const _mockGetServerSession = vi.fn(() =>
+    Promise.resolve(_mockSessionRef.current),
+  );
   return {
     mockPrisma: _mockPrisma,
     mockSessionRef: _mockSessionRef,
@@ -40,7 +42,11 @@ vi.mock("@/lib/gateway-client", () => ({
   broadcastToChannel: vi.fn(() => Promise.resolve()),
 }));
 
-import { GET, POST, DELETE } from "@/app/api/dms/[dmId]/messages/[messageId]/reactions/route";
+import {
+  GET,
+  POST,
+  DELETE,
+} from "@/app/api/dms/[dmId]/messages/[messageId]/reactions/route";
 
 function makeRequest(body: unknown) {
   return new Request("http://localhost/api/dms/dm-1/messages/msg-1/reactions", {
@@ -64,7 +70,9 @@ function makeGetRequest() {
   }) as any;
 }
 
-const routeParams = { params: Promise.resolve({ dmId: "dm-1", messageId: "msg-1" }) };
+const routeParams = {
+  params: Promise.resolve({ dmId: "dm-1", messageId: "msg-1" }),
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -130,7 +138,10 @@ describe("DM reactions — emoji validation", () => {
 
   it("DELETE also rejects emoji longer than 32 chars", async () => {
     const longEmoji = "x".repeat(33);
-    const res = await DELETE(makeDeleteRequest({ emoji: longEmoji }), routeParams);
+    const res = await DELETE(
+      makeDeleteRequest({ emoji: longEmoji }),
+      routeParams,
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe("Invalid emoji");
@@ -165,14 +176,19 @@ describe("DM reactions — authorization", () => {
 
   it("returns 403 when user is not a DM participant (DELETE)", async () => {
     mockPrisma.dmParticipant.findUnique.mockResolvedValue(null);
-    const res = await DELETE(makeDeleteRequest({ emoji: "\u{1F44D}" }), routeParams);
+    const res = await DELETE(
+      makeDeleteRequest({ emoji: "\u{1F44D}" }),
+      routeParams,
+    );
     expect(res.status).toBe(403);
     const json = await res.json();
     expect(json.error).toBe("Not a participant");
   });
 
   it("returns 404 when message does not belong to the DM", async () => {
-    mockPrisma.directMessage.findUnique.mockResolvedValue({ dmId: "different-dm" });
+    mockPrisma.directMessage.findUnique.mockResolvedValue({
+      dmId: "different-dm",
+    });
     const res = await POST(makeRequest({ emoji: "\u{1F44D}" }), routeParams);
     expect(res.status).toBe(404);
     const json = await res.json();
@@ -219,8 +235,14 @@ describe("DM reactions — idempotency", () => {
   it("upsert returns 200 on the second add (not 201)", async () => {
     mockPrisma.dmReaction.upsert.mockResolvedValue({});
 
-    const res1 = await POST(makeRequest({ emoji: "\u{2764}\u{FE0F}" }), routeParams);
-    const res2 = await POST(makeRequest({ emoji: "\u{2764}\u{FE0F}" }), routeParams);
+    const res1 = await POST(
+      makeRequest({ emoji: "\u{2764}\u{FE0F}" }),
+      routeParams,
+    );
+    const res2 = await POST(
+      makeRequest({ emoji: "\u{2764}\u{FE0F}" }),
+      routeParams,
+    );
 
     // Both should succeed with 200
     expect(res1.status).toBe(200);
@@ -250,7 +272,9 @@ describe("DM reactions — GET aggregation", () => {
     expect(thumbsUp.count).toBe(2);
     expect(thumbsUp.hasReacted).toBe(true);
 
-    const heart = json.reactions.find((r: any) => r.emoji === "\u{2764}\u{FE0F}");
+    const heart = json.reactions.find(
+      (r: any) => r.emoji === "\u{2764}\u{FE0F}",
+    );
     expect(heart).toBeDefined();
     expect(heart.count).toBe(1);
     expect(heart.hasReacted).toBe(false);

@@ -15,9 +15,16 @@ function isAuthorType(value) {
 }
 
 function isMessageType(value) {
-  return value === "STANDARD" || value === "STREAMING" || value === "SYSTEM"
-    || value === "TOOL_CALL" || value === "TOOL_RESULT" || value === "CODE_BLOCK"
-    || value === "ARTIFACT" || value === "STATUS";
+  return (
+    value === "STANDARD" ||
+    value === "STREAMING" ||
+    value === "SYSTEM" ||
+    value === "TOOL_CALL" ||
+    value === "TOOL_RESULT" ||
+    value === "CODE_BLOCK" ||
+    value === "ARTIFACT" ||
+    value === "STATUS"
+  );
 }
 
 function isStreamingStatus(value) {
@@ -45,7 +52,10 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
     try {
       const parsedBody = await request.json();
       if (!isJsonObjectBody(parsedBody)) {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid JSON body" },
+          { status: 400 },
+        );
       }
       body = parsedBody;
     } catch {
@@ -77,7 +87,7 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -85,7 +95,7 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
     if (sequenceBigInt === null) {
       return NextResponse.json(
         { error: "sequence must be a non-negative integer string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -96,14 +106,14 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
     try {
       const [message] = await prismaClient.$transaction(async (tx) => {
         const createData = {
-            id,
-            channelId,
-            authorId,
-            authorType,
-            content,
-            type,
-            streamingStatus: streamingStatus ?? null,
-            sequence: sequenceBigInt,
+          id,
+          channelId,
+          authorId,
+          authorType,
+          content,
+          type,
+          streamingStatus: streamingStatus ?? null,
+          sequence: sequenceBigInt,
         };
         if (metadata !== undefined && metadata !== null) {
           createData.metadata = metadata;
@@ -167,7 +177,7 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
             const mentionedIds = parseMentionedUserIds(
               content,
               memberTargets,
-              botTargets
+              botTargets,
             );
 
             if (mentionedIds.length > 0) {
@@ -183,7 +193,7 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
               // TASK-0016: Increment mentionCount for mentioned users (excluding author).
               // Users who don't have a ChannelReadState yet: updateMany affects 0 rows — fine for V1.
               const mentionedOthers = mentionedIds.filter(
-                (uid) => uid !== authorId
+                (uid) => uid !== authorId,
               );
               if (mentionedOthers.length > 0) {
                 await prismaClient.channelReadState.updateMany({
@@ -242,21 +252,21 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
           createdAt: message.createdAt.toISOString(),
           reactions: [],
         },
-        { status: 201 }
+        { status: 201 },
       );
     } catch (error) {
       // P2002 = Prisma unique constraint violation (duplicate message ID).
       // Return 409 so Gateway retry logic treats it as success (idempotency).
-      if (error?.code === 'P2002') {
+      if (error?.code === "P2002") {
         return NextResponse.json(
           { error: "Message already exists" },
-          { status: 409 }
+          { status: 409 },
         );
       }
       console.error("Failed to persist message:", error);
       return NextResponse.json(
         { error: "Failed to persist message" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   };
@@ -276,9 +286,14 @@ export function createServerBotPatchHandler({
 
     const { serverId, botId } = await params;
 
-    const server = await prismaClient.server.findUnique({ where: { id: serverId } });
+    const server = await prismaClient.server.findUnique({
+      where: { id: serverId },
+    });
     if (!server || server.ownerId !== session.user.id) {
-      return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not the server owner" },
+        { status: 403 },
+      );
     }
 
     const existingBot = await prismaClient.bot.findUnique({
@@ -289,14 +304,20 @@ export function createServerBotPatchHandler({
       !existingBot ||
       !canMutateServerScopedResource(serverId, existingBot.serverId)
     ) {
-      return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Bot not found in this server" },
+        { status: 404 },
+      );
     }
 
     let body;
     try {
       const parsedBody = await request.json();
       if (!isJsonObjectBody(parsedBody)) {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid JSON body" },
+          { status: 400 },
+        );
       }
       body = parsedBody;
     } catch {
@@ -359,9 +380,14 @@ export function createServerChannelPatchHandler({
 
     const { serverId, channelId } = await params;
 
-    const server = await prismaClient.server.findUnique({ where: { id: serverId } });
+    const server = await prismaClient.server.findUnique({
+      where: { id: serverId },
+    });
     if (!server || server.ownerId !== session.user.id) {
-      return NextResponse.json({ error: "Not the server owner" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not the server owner" },
+        { status: 403 },
+      );
     }
 
     const existingChannel = await prismaClient.channel.findUnique({
@@ -374,7 +400,7 @@ export function createServerChannelPatchHandler({
     ) {
       return NextResponse.json(
         { error: "Channel not found in this server" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -382,7 +408,10 @@ export function createServerChannelPatchHandler({
     try {
       const parsedBody = await request.json();
       if (!isJsonObjectBody(parsedBody)) {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid JSON body" },
+          { status: 400 },
+        );
       }
       body = parsedBody;
     } catch {
@@ -400,7 +429,7 @@ export function createServerChannelPatchHandler({
       ) {
         return NextResponse.json(
           { error: "defaultBotId must be a string or null" },
-          { status: 400 }
+          { status: 400 },
         );
       } else {
         const bot = await prismaClient.bot.findUnique({
@@ -409,7 +438,7 @@ export function createServerChannelPatchHandler({
         if (!bot || bot.serverId !== serverId) {
           return NextResponse.json(
             { error: "Bot not found in this server" },
-            { status: 400 }
+            { status: 400 },
           );
         }
         updateData.defaultBotId = body.defaultBotId;
@@ -424,7 +453,7 @@ export function createServerChannelPatchHandler({
       } else {
         return NextResponse.json(
           { error: "topic must be a string or null" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -434,7 +463,7 @@ export function createServerChannelPatchHandler({
       if (!Array.isArray(body.botIds)) {
         return NextResponse.json(
           { error: "botIds must be an array of strings" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       // Validate all items are non-empty strings
@@ -442,7 +471,7 @@ export function createServerChannelPatchHandler({
         if (typeof id !== "string" || id.length === 0) {
           return NextResponse.json(
             { error: "botIds must be an array of strings" },
-            { status: 400 }
+            { status: 400 },
           );
         }
       }
@@ -457,7 +486,7 @@ export function createServerChannelPatchHandler({
         if (invalid.length > 0) {
           return NextResponse.json(
             { error: `Bots not found in this server: ${invalid.join(", ")}` },
-            { status: 400 }
+            { status: 400 },
           );
         }
       }
@@ -494,13 +523,20 @@ export function hashApiKey(apiKey) {
  * POST /api/v1/agents/register
  * Creates Bot + AgentRegistration, returns API key once.
  */
-export function createAgentRegisterHandler({ prismaClient, generateIdFn, generateKeyFn }) {
+export function createAgentRegisterHandler({
+  prismaClient,
+  generateIdFn,
+  generateKeyFn,
+}) {
   return async function agentRegisterHandler(request) {
     let body;
     try {
       const parsedBody = await request.json();
       if (!isJsonObjectBody(parsedBody)) {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid JSON body" },
+          { status: 400 },
+        );
       }
       body = parsedBody;
     } catch {
@@ -516,12 +552,22 @@ export function createAgentRegisterHandler({ prismaClient, generateIdFn, generat
     const systemPrompt = body.systemPrompt;
     const avatarUrl = body.avatarUrl;
 
-    if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
-      return NextResponse.json({ error: "displayName is required" }, { status: 400 });
+    if (
+      !displayName ||
+      typeof displayName !== "string" ||
+      displayName.trim().length === 0
+    ) {
+      return NextResponse.json(
+        { error: "displayName is required" },
+        { status: 400 },
+      );
     }
 
     if (!serverId || typeof serverId !== "string") {
-      return NextResponse.json({ error: "serverId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "serverId is required" },
+        { status: 400 },
+      );
     }
 
     const server = await prismaClient.server.findUnique({
@@ -583,11 +629,14 @@ export function createAgentRegisterHandler({ prismaClient, generateIdFn, generat
           serverId,
           capabilities: result.registration.capabilities,
         },
-        { status: 201 }
+        { status: 201 },
       );
     } catch (error) {
       console.error("Agent registration failed:", error);
-      return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Registration failed" },
+        { status: 500 },
+      );
     }
   };
 }
@@ -651,7 +700,11 @@ export function createAgentGetHandler({ prismaClient }) {
  */
 export async function authenticateAgentKey(authHeader, agentId, prismaClient) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { authorized: false, error: "Missing Authorization header", status: 401 };
+    return {
+      authorized: false,
+      error: "Missing Authorization header",
+      status: 401,
+    };
   }
 
   const apiKey = authHeader.slice(7);
@@ -685,14 +738,24 @@ export function createAgentPatchHandler({ prismaClient }) {
     try {
       const parsedBody = await request.json();
       if (!isJsonObjectBody(parsedBody)) {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid JSON body" },
+          { status: 400 },
+        );
       }
       body = parsedBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { displayName, avatarUrl, capabilities, healthUrl, webhookUrl, maxTokensSec } = body;
+    const {
+      displayName,
+      avatarUrl,
+      capabilities,
+      healthUrl,
+      webhookUrl,
+      maxTokensSec,
+    } = body;
 
     try {
       await prismaClient.$transaction(async (tx) => {
@@ -743,7 +806,10 @@ export function createAgentDeleteHandler({ prismaClient }) {
       return NextResponse.json({ success: true });
     } catch (error) {
       console.error("Agent deregistration failed:", error);
-      return NextResponse.json({ error: "Deregistration failed" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Deregistration failed" },
+        { status: 500 },
+      );
     }
   };
 }
@@ -760,10 +826,15 @@ export function createAgentVerifyHandler({ prismaClient }) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const apiKey = request.searchParams?.get("api_key") || new URL(request.url).searchParams.get("api_key");
+    const apiKey =
+      request.searchParams?.get("api_key") ||
+      new URL(request.url).searchParams.get("api_key");
 
     if (!apiKey || !apiKey.startsWith("sk-tvk-")) {
-      return NextResponse.json({ error: "Invalid API key format" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid API key format" },
+        { status: 400 },
+      );
     }
 
     const apiKeyHash = hashApiKey(apiKey);
@@ -787,11 +858,17 @@ export function createAgentVerifyHandler({ prismaClient }) {
       });
 
       if (!registration) {
-        return NextResponse.json({ error: "Agent not found", valid: false }, { status: 404 });
+        return NextResponse.json(
+          { error: "Agent not found", valid: false },
+          { status: 404 },
+        );
       }
 
       if (!registration.bot.isActive) {
-        return NextResponse.json({ error: "Agent is deactivated", valid: false }, { status: 403 });
+        return NextResponse.json(
+          { error: "Agent is deactivated", valid: false },
+          { status: 403 },
+        );
       }
 
       return NextResponse.json({
@@ -804,7 +881,10 @@ export function createAgentVerifyHandler({ prismaClient }) {
       });
     } catch (error) {
       console.error("Agent verification failed:", error);
-      return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Verification failed" },
+        { status: 500 },
+      );
     }
   };
 }

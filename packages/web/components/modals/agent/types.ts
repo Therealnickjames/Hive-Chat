@@ -110,7 +110,9 @@ export const METHOD_INFO: {
 ];
 
 /** Badge color for connection methods */
-export function getMethodBadgeClasses(method: ConnectionMethodType | null): string {
+export function getMethodBadgeClasses(
+  method: ConnectionMethodType | null,
+): string {
   switch (method) {
     case null:
       return "bg-emerald-600/20 text-emerald-400"; // BYOK

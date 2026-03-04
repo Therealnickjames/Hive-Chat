@@ -26,7 +26,7 @@ const POLL_INTERVAL_MS = 30_000; // 30 seconds
  */
 export function useUnread(serverId: string | null): UseUnreadReturn {
   const [unreadMap, setUnreadMap] = useState<Map<string, UnreadState>>(
-    new Map()
+    new Map(),
   );
   const serverIdRef = useRef(serverId);
   serverIdRef.current = serverId;
@@ -42,8 +42,12 @@ export function useUnread(serverId: string | null): UseUnreadReturn {
       const res = await fetch(`/api/servers/${sid}/unread`);
       if (!res.ok) return;
       const data = await res.json();
-      const channels: { channelId: string; hasUnread: boolean; mentionCount: number; lastReadSeq: string }[] =
-        data.channels || [];
+      const channels: {
+        channelId: string;
+        hasUnread: boolean;
+        mentionCount: number;
+        lastReadSeq: string;
+      }[] = data.channels || [];
 
       // Only update if we're still looking at the same server
       if (serverIdRef.current !== sid) return;
@@ -62,33 +66,30 @@ export function useUnread(serverId: string | null): UseUnreadReturn {
     }
   }, []);
 
-  const markAsRead = useCallback(
-    (channelId: string) => {
-      const sid = serverIdRef.current;
-      if (!sid) return;
+  const markAsRead = useCallback((channelId: string) => {
+    const sid = serverIdRef.current;
+    if (!sid) return;
 
-      // Optimistic: clear unread + mentions immediately.
-      // Set lastReadSeq to a very large sentinel so the divider doesn't reappear
-      // for new messages arriving before the next 30s poll syncs the real value.
-      setUnreadMap((prev) => {
-        const next = new Map(prev);
-        next.set(channelId, {
-          hasUnread: false,
-          mentionCount: 0,
-          lastReadSeq: "9999999999999999999",
-        });
-        return next;
+    // Optimistic: clear unread + mentions immediately.
+    // Set lastReadSeq to a very large sentinel so the divider doesn't reappear
+    // for new messages arriving before the next 30s poll syncs the real value.
+    setUnreadMap((prev) => {
+      const next = new Map(prev);
+      next.set(channelId, {
+        hasUnread: false,
+        mentionCount: 0,
+        lastReadSeq: "9999999999999999999",
       });
+      return next;
+    });
 
-      // Fire-and-forget server call
-      fetch(`/api/servers/${sid}/channels/${channelId}/read`, {
-        method: "POST",
-      }).catch((err) => {
-        console.error("[useUnread] Failed to mark as read:", err);
-      });
-    },
-    []
-  );
+    // Fire-and-forget server call
+    fetch(`/api/servers/${sid}/channels/${channelId}/read`, {
+      method: "POST",
+    }).catch((err) => {
+      console.error("[useUnread] Failed to mark as read:", err);
+    });
+  }, []);
 
   // Fetch on mount and when serverId changes
   useEffect(() => {

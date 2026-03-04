@@ -29,12 +29,16 @@ export function ToolResultCard({ content }: ToolResultCardProps) {
     : null;
 
   return (
-    <div className={`rounded border ${isError ? "border-status-dnd/30 bg-status-dnd/5" : "border-border bg-status-online/5"} my-1`}>
+    <div
+      className={`rounded border ${isError ? "border-status-dnd/30 bg-status-dnd/5" : "border-border bg-status-online/5"} my-1`}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 w-full px-3 py-2 text-left"
       >
-        <span className={`text-xs font-mono ${isError ? "text-status-dnd" : "text-status-online"}`}>
+        <span
+          className={`text-xs font-mono ${isError ? "text-status-dnd" : "text-status-online"}`}
+        >
           {isError ? "\u2717" : "\u2713"}
         </span>
         <span className="text-xs font-bold font-mono text-text-secondary">
@@ -51,7 +55,9 @@ export function ToolResultCard({ content }: ToolResultCardProps) {
       </button>
       {expanded && (
         <div className="px-3 pb-2 border-t border-border/50">
-          <pre className={`text-[11px] font-mono mt-2 overflow-x-auto whitespace-pre-wrap ${isError ? "text-status-dnd" : "text-text-muted"}`}>
+          <pre
+            className={`text-[11px] font-mono mt-2 overflow-x-auto whitespace-pre-wrap ${isError ? "text-status-dnd" : "text-text-muted"}`}
+          >
             {resultJson}
           </pre>
         </div>

@@ -62,16 +62,16 @@ type streamRequest struct {
 
 // Manager tracks all active streams and coordinates lifecycle.
 type Manager struct {
-	mu       sync.RWMutex
-	active   map[string]struct{} // messageId → active stream
-	logger   *slog.Logger
-	gwClient *gateway.Client
-	loader   *config.Loader
-	registry *provider.Registry
+	mu           sync.RWMutex
+	active       map[string]struct{} // messageId → active stream
+	logger       *slog.Logger
+	gwClient     *gateway.Client
+	loader       *config.Loader
+	registry     *provider.Registry
 	toolRegistry *tools.Registry // TASK-0018: MCP-compatible tool registry
 	// maxConcurrentStreams caps active stream workers.
 	maxConcurrentStreams int
-	semaphore           chan struct{}
+	semaphore            chan struct{}
 }
 
 // NewManager creates a new stream manager.
@@ -88,7 +88,7 @@ func NewManager(logger *slog.Logger, gwClient *gateway.Client, loader *config.Lo
 		registry:             registry,
 		toolRegistry:         toolRegistry,
 		maxConcurrentStreams: maxConcurrentStreams,
-		semaphore:           make(chan struct{}, maxConcurrentStreams),
+		semaphore:            make(chan struct{}, maxConcurrentStreams),
 	}
 }
 

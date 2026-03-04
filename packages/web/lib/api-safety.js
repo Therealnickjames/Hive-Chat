@@ -42,7 +42,7 @@ export function parseNonNegativeSequence(sequence) {
 
   try {
     const parsed = BigInt(
-      typeof sequence === "string" ? sequence.trim() : sequence
+      typeof sequence === "string" ? sequence.trim() : sequence,
     );
     return parsed >= BigInt(0) ? parsed : null;
   } catch {

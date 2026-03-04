@@ -28,7 +28,7 @@ export const DEFAULT_PERMISSIONS =
 /** All permissions combined */
 export const ALL_PERMISSIONS = Object.values(Permissions).reduce(
   (acc, permission) => acc | permission,
-  ZERO
+  ZERO,
 );
 
 /** Human-readable permission info for UI */
@@ -97,7 +97,10 @@ export const PERMISSION_INFO: {
 /**
  * Check if a permissions bitfield has a specific permission.
  */
-export function hasPermission(permissions: bigint, permission: bigint): boolean {
+export function hasPermission(
+  permissions: bigint,
+  permission: bigint,
+): boolean {
   if ((permissions & Permissions.ADMINISTRATOR) === Permissions.ADMINISTRATOR) {
     return true;
   }
@@ -113,7 +116,7 @@ export function hasPermission(permissions: bigint, permission: bigint): boolean 
 export function computeMemberPermissions(
   userId: string,
   ownerId: string,
-  roles: { permissions: bigint }[]
+  roles: { permissions: bigint }[],
 ): bigint {
   if (userId === ownerId) {
     return ALL_PERMISSIONS;

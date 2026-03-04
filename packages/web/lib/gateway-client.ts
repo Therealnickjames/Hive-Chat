@@ -9,7 +9,9 @@
  */
 
 const GATEWAY_INTERNAL_URL =
-  process.env.GATEWAY_INTERNAL_URL || process.env.GATEWAY_WEB_URL || "http://gateway:4001";
+  process.env.GATEWAY_INTERNAL_URL ||
+  process.env.GATEWAY_WEB_URL ||
+  "http://gateway:4001";
 const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
 
 /**
@@ -26,25 +28,28 @@ const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
 export async function broadcastToChannel(
   topic: string,
   event: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   if (!INTERNAL_API_SECRET) {
     throw new Error("INTERNAL_API_SECRET is not configured");
   }
 
-  const response = await fetch(`${GATEWAY_INTERNAL_URL}/api/internal/broadcast`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": INTERNAL_API_SECRET,
+  const response = await fetch(
+    `${GATEWAY_INTERNAL_URL}/api/internal/broadcast`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": INTERNAL_API_SECRET,
+      },
+      body: JSON.stringify({ topic, event, payload }),
     },
-    body: JSON.stringify({ topic, event, payload }),
-  });
+  );
 
   if (!response.ok) {
     const body = await response.text().catch(() => "unknown");
     throw new Error(
-      `Gateway broadcast failed: ${response.status} ${response.statusText} — ${body}`
+      `Gateway broadcast failed: ${response.status} ${response.statusText} — ${body}`,
     );
   }
 }
@@ -55,7 +60,7 @@ export async function broadcastToChannel(
  */
 export async function broadcastMessageNew(
   channelId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   return broadcastToChannel(`room:${channelId}`, "message_new", payload);
 }
@@ -65,7 +70,7 @@ export async function broadcastMessageNew(
  */
 export async function broadcastStreamStart(
   channelId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   return broadcastToChannel(`room:${channelId}`, "stream_start", payload);
 }
@@ -75,7 +80,7 @@ export async function broadcastStreamStart(
  */
 export async function broadcastStreamToken(
   channelId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   return broadcastToChannel(`room:${channelId}`, "stream_token", payload);
 }
@@ -85,7 +90,7 @@ export async function broadcastStreamToken(
  */
 export async function broadcastStreamComplete(
   channelId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   return broadcastToChannel(`room:${channelId}`, "stream_complete", payload);
 }
@@ -95,7 +100,7 @@ export async function broadcastStreamComplete(
  */
 export async function broadcastStreamError(
   channelId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   return broadcastToChannel(`room:${channelId}`, "stream_error", payload);
 }
@@ -105,7 +110,7 @@ export async function broadcastStreamError(
  */
 export async function broadcastTypedMessage(
   channelId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   return broadcastToChannel(`room:${channelId}`, "typed_message", payload);
 }

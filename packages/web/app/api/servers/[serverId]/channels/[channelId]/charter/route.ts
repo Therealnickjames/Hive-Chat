@@ -24,7 +24,7 @@ type CharterAction = (typeof VALID_ACTIONS)[number];
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; channelId: string }> }
+  { params }: { params: Promise<{ serverId: string; channelId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -36,12 +36,12 @@ export async function POST(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_CHANNELS
+    Permissions.MANAGE_CHANNELS,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Channels" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -50,13 +50,10 @@ export async function POST(
     where: { id: channelId },
     select: { serverId: true, charterStatus: true, swarmMode: true },
   });
-  if (
-    !channel ||
-    !canMutateServerScopedResource(serverId, channel.serverId)
-  ) {
+  if (!channel || !canMutateServerScopedResource(serverId, channel.serverId)) {
     return NextResponse.json(
       { error: "Channel not found in this server" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -74,7 +71,7 @@ export async function POST(
   ) {
     return NextResponse.json(
       { error: `action must be one of: ${VALID_ACTIONS.join(", ")}` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -92,7 +89,7 @@ export async function POST(
       {
         error: `Cannot ${action} charter: current status is ${currentStatus}`,
       },
-      { status: 409 }
+      { status: 409 },
     );
   }
 

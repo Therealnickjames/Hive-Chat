@@ -39,7 +39,7 @@ export function DmChatArea({ dmId, otherUserName }: DmChatAreaProps) {
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<DmMessagePayload | null>(
-    null
+    null,
   );
 
   const handleDeleteRequest = useCallback(
@@ -47,7 +47,7 @@ export function DmChatArea({ dmId, otherUserName }: DmChatAreaProps) {
       const message = messages.find((m) => m.id === messageId);
       if (message) setDeleteTarget(message);
     },
-    [messages]
+    [messages],
   );
 
   const handleDeleteConfirm = useCallback(async (): Promise<boolean> => {
@@ -163,8 +163,7 @@ function DmMessageList({
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    const distanceFromBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     isAtBottomRef.current = distanceFromBottom < 50;
 
     if (el.scrollTop < 100 && hasMoreHistory) {
@@ -280,7 +279,9 @@ function DmMessageItem({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [reactions, setReactions] = useState<ReactionData[]>(message.reactions || []);
+  const [reactions, setReactions] = useState<ReactionData[]>(
+    message.reactions || [],
+  );
 
   // Sync reactions from real-time updates
   useEffect(() => {
@@ -293,7 +294,7 @@ function DmMessageItem({
       const success = await onEdit(message.id, content);
       if (success) setIsEditing(false);
     },
-    [message.id, onEdit]
+    [message.id, onEdit],
   );
 
   if (isGrouped) {

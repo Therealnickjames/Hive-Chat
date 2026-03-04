@@ -43,7 +43,8 @@ export function DeleteMessageModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Delete Message">
       <p className="text-sm text-text-secondary mb-3">
-        Are you sure you want to delete this message? This action cannot be undone.
+        Are you sure you want to delete this message? This action cannot be
+        undone.
       </p>
 
       {/* Message preview */}
@@ -57,7 +58,12 @@ export function DeleteMessageModal({
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={loading}
+        >
           Cancel
         </Button>
         <Button

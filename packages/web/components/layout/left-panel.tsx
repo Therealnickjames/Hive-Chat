@@ -25,9 +25,9 @@ export function LeftPanel() {
   } = useChatContext();
   const { openPanel, panels, activeStreams, removePanelsForServer } =
     useWorkspaceContext();
-  const [activeTab, setActiveTab] = useState<"servers" | "channels" | "messages">(
-    pathname.startsWith("/dms") ? "messages" : "channels"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "servers" | "channels" | "messages"
+  >(pathname.startsWith("/dms") ? "messages" : "channels");
   const [showCreateServer, setShowCreateServer] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
 
@@ -39,13 +39,13 @@ export function LeftPanel() {
 
   // Derive which channels have active panels
   const openChannelIds = new Set(
-    panels.filter((p) => !p.isClosed).map((p) => p.channelId)
+    panels.filter((p) => !p.isClosed).map((p) => p.channelId),
   );
 
   async function handleDeleteCurrentServer() {
     if (!currentServerId || !isOwner) return;
     const confirmed = window.confirm(
-      "Delete this server permanently? This will remove all channels, messages, and agents in the server."
+      "Delete this server permanently? This will remove all channels, messages, and agents in the server.",
     );
     if (!confirmed) return;
 
@@ -238,7 +238,7 @@ export function LeftPanel() {
                               serverName: currentServerName || "",
                             });
                             router.replace(
-                              `/servers/${currentServerId}/channels/${channel.id}`
+                              `/servers/${currentServerId}/channels/${channel.id}`,
                             );
                           }}
                           className={`group flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-colors ${
@@ -249,7 +249,9 @@ export function LeftPanel() {
                         >
                           <div className="flex items-center gap-2 truncate">
                             <span className="text-text-dim font-mono">#</span>
-                            <span className="truncate font-mono">{channel.name}</span>
+                            <span className="truncate font-mono">
+                              {channel.name}
+                            </span>
                           </div>
                           {isStreaming && (
                             <span className="relative flex h-1.5 w-1.5 mr-1">
@@ -261,7 +263,9 @@ export function LeftPanel() {
                       );
                     })}
                     {channels.length === 0 && (
-                      <div className="px-2 text-xs text-text-dim">No channels found</div>
+                      <div className="px-2 text-xs text-text-dim">
+                        No channels found
+                      </div>
                     )}
                   </div>
                   {isOwner && (
@@ -296,7 +300,6 @@ export function LeftPanel() {
           onClose={() => setShowCreateChannel(false)}
         />
       )}
-
     </>
   );
 }

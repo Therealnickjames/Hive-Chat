@@ -93,7 +93,7 @@ describe("TASK-0039: Typed Message Types", () => {
       const res = await handler(
         makeRequest({
           body: makeTypedMessageBody(msgType, content),
-        })
+        }),
       );
 
       expect(res.status).toBe(201);
@@ -128,7 +128,7 @@ describe("TASK-0039: Typed Message Types", () => {
             type: msgType,
             sequence: "1",
           },
-        })
+        }),
       );
       expect(res.status).toBe(201);
     }
@@ -142,7 +142,7 @@ describe("TASK-0039: Typed Message Types", () => {
     const res = await handler(
       makeRequest({
         body: makeTypedMessageBody("INVALID_TYPE", "test"),
-      })
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -194,10 +194,15 @@ describe("TASK-0039: Metadata Persistence", () => {
       makeRequest({
         body: makeTypedMessageBody(
           "TOOL_CALL",
-          JSON.stringify({ callId: "test", toolName: "search", arguments: {}, status: "completed" }),
-          { metadata }
+          JSON.stringify({
+            callId: "test",
+            toolName: "search",
+            arguments: {},
+            status: "completed",
+          }),
+          { metadata },
         ),
-      })
+      }),
     );
 
     expect(res.status).toBe(201);
@@ -230,8 +235,11 @@ describe("TASK-0039: Metadata Persistence", () => {
 
     const res = await handler(
       makeRequest({
-        body: makeTypedMessageBody("CODE_BLOCK", JSON.stringify({ language: "python", code: "print(1)" })),
-      })
+        body: makeTypedMessageBody(
+          "CODE_BLOCK",
+          JSON.stringify({ language: "python", code: "print(1)" }),
+        ),
+      }),
     );
 
     expect(res.status).toBe(201);
@@ -264,8 +272,12 @@ describe("TASK-0039: Metadata Persistence", () => {
 
     const res = await handler(
       makeRequest({
-        body: makeTypedMessageBody("STATUS", JSON.stringify({ state: "thinking", detail: "" }), { metadata: null }),
-      })
+        body: makeTypedMessageBody(
+          "STATUS",
+          JSON.stringify({ state: "thinking", detail: "" }),
+          { metadata: null },
+        ),
+      }),
     );
 
     expect(res.status).toBe(201);
@@ -300,8 +312,16 @@ describe("TASK-0039: Metadata Persistence", () => {
 
     const res = await handler(
       makeRequest({
-        body: makeTypedMessageBody("ARTIFACT", JSON.stringify({ artifactType: "html", title: "Preview", content: "<div/>" }), { metadata }),
-      })
+        body: makeTypedMessageBody(
+          "ARTIFACT",
+          JSON.stringify({
+            artifactType: "html",
+            title: "Preview",
+            content: "<div/>",
+          }),
+          { metadata },
+        ),
+      }),
     );
 
     expect(res.status).toBe(201);
@@ -328,9 +348,14 @@ describe("TASK-0039: BOT authorType for typed messages", () => {
       makeRequest({
         body: makeTypedMessageBody(
           "TOOL_CALL",
-          JSON.stringify({ callId: "test", toolName: "search", arguments: {}, status: "running" })
+          JSON.stringify({
+            callId: "test",
+            toolName: "search",
+            arguments: {},
+            status: "running",
+          }),
         ),
-      })
+      }),
     );
 
     expect(res.status).toBe(201);
@@ -349,9 +374,9 @@ describe("TASK-0039: BOT authorType for typed messages", () => {
       makeRequest({
         body: makeTypedMessageBody(
           "CODE_BLOCK",
-          JSON.stringify({ language: "js", code: "console.log(1)" })
+          JSON.stringify({ language: "js", code: "console.log(1)" }),
         ),
-      })
+      }),
     );
 
     expect(res.status).toBe(201);

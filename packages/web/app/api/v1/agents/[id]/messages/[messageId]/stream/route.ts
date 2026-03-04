@@ -19,7 +19,7 @@ import {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; messageId: string }> }
+  { params }: { params: Promise<{ id: string; messageId: string }> },
 ) {
   const { id: agentId, messageId } = await params;
 
@@ -27,7 +27,7 @@ export async function POST(
   if (!agent || agent.botId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -55,7 +55,7 @@ export async function POST(
   if (!resolvedChannelId) {
     return NextResponse.json(
       { error: "channelId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -78,16 +78,12 @@ export async function POST(
 
     // Handle thinking
     if (thinking) {
-      await broadcastToChannel(
-        `room:${resolvedChannelId}`,
-        "stream_thinking",
-        {
-          messageId,
-          phase: thinking.phase,
-          detail: thinking.detail || null,
-          timestamp: new Date().toISOString(),
-        }
-      );
+      await broadcastToChannel(`room:${resolvedChannelId}`, "stream_thinking", {
+        messageId,
+        phase: thinking.phase,
+        detail: thinking.detail || null,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -134,7 +130,7 @@ export async function POST(
     console.error("Agent stream failed:", err);
     return NextResponse.json(
       { error: "Failed to process stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

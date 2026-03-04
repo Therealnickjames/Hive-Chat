@@ -15,19 +15,20 @@ import { prisma } from "@/lib/db";
 /** Verify the request comes from the agent that owns this registration */
 async function authenticateAgent(
   request: NextRequest,
-  agentId: string
+  agentId: string,
 ): Promise<{ authorized: boolean; error?: string; status?: number }> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return { authorized: false, error: "Missing Authorization header", status: 401 };
+    return {
+      authorized: false,
+      error: "Missing Authorization header",
+      status: 401,
+    };
   }
 
   const apiKey = authHeader.slice(7); // Remove "Bearer "
   const crypto = await import("crypto");
-  const apiKeyHash = crypto
-    .createHash("sha256")
-    .update(apiKey)
-    .digest("hex");
+  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
 
   const registration = await prisma.agentRegistration.findFirst({
     where: { apiKeyHash, botId: agentId },
@@ -43,7 +44,7 @@ async function authenticateAgent(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
@@ -73,10 +74,7 @@ export async function GET(
   });
 
   if (!bot || !bot.agentRegistration) {
-    return NextResponse.json(
-      { error: "Agent not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -100,37 +98,37 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
   const auth = await authenticateAgent(request, id);
   if (!auth.authorized) {
-    return NextResponse.json(
-      { error: auth.error },
-      { status: auth.status }
-    );
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { displayName, avatarUrl, capabilities, healthUrl, webhookUrl, maxTokensSec } =
-    body as {
-      displayName?: string;
-      avatarUrl?: string;
-      capabilities?: string[];
-      healthUrl?: string;
-      webhookUrl?: string;
-      maxTokensSec?: number;
-    };
+  const {
+    displayName,
+    avatarUrl,
+    capabilities,
+    healthUrl,
+    webhookUrl,
+    maxTokensSec,
+  } = body as {
+    displayName?: string;
+    avatarUrl?: string;
+    capabilities?: string[];
+    healthUrl?: string;
+    webhookUrl?: string;
+    maxTokensSec?: number;
+  };
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -161,25 +159,19 @@ export async function PATCH(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Agent update failed:", error);
-    return NextResponse.json(
-      { error: "Update failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
   const auth = await authenticateAgent(request, id);
   if (!auth.authorized) {
-    return NextResponse.json(
-      { error: auth.error },
-      { status: auth.status }
-    );
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   try {
@@ -191,7 +183,7 @@ export async function DELETE(
     console.error("Agent deregistration failed:", error);
     return NextResponse.json(
       { error: "Deregistration failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

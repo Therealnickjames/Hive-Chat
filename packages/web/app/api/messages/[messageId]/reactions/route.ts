@@ -11,7 +11,7 @@ import { broadcastToChannel } from "@/lib/gateway-client";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   const { messageId } = await params;
   const session = await getServerSession(authOptions);
@@ -21,7 +21,10 @@ export async function GET(
 
   const access = await ensureMessageAccess(messageId, session.user.id);
   if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.status },
+    );
   }
 
   return getReactionsResponse(messageId, session.user.id);
@@ -34,7 +37,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   const { messageId } = await params;
   const session = await getServerSession(authOptions);
@@ -44,7 +47,10 @@ export async function POST(
 
   const access = await ensureMessageAccess(messageId, session.user.id);
   if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.status },
+    );
   }
 
   try {
@@ -96,7 +102,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ messageId: string }> }
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   const { messageId } = await params;
   const session = await getServerSession(authOptions);
@@ -106,7 +112,10 @@ export async function DELETE(
 
   const access = await ensureMessageAccess(messageId, session.user.id);
   if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status });
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.status },
+    );
   }
 
   try {
@@ -212,7 +221,11 @@ async function getReactionsResponse(messageId: string, currentUserId: string) {
 }
 
 /** Broadcast reaction update to all connected clients in the channel (TASK-0030) */
-function broadcastReactionUpdate(channelId: string, messageId: string, reactions: { emoji: string; count: number; userIds: string[] }[]) {
+function broadcastReactionUpdate(
+  channelId: string,
+  messageId: string,
+  reactions: { emoji: string; count: number; userIds: string[] }[],
+) {
   broadcastToChannel(`room:${channelId}`, "reaction_update", {
     messageId,
     reactions,

@@ -23,7 +23,7 @@ import {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: agentId } = await params;
 
@@ -31,7 +31,7 @@ export async function GET(
   if (!agent || agent.botId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -98,7 +98,7 @@ export async function GET(
     console.error("Agent message poll failed:", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -113,7 +113,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: agentId } = await params;
 
@@ -121,7 +121,7 @@ export async function POST(
   if (!agent || agent.botId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -141,7 +141,7 @@ export async function POST(
   if (!channelId || typeof channelId !== "string") {
     return NextResponse.json(
       { error: "channelId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -154,7 +154,7 @@ export async function POST(
   if (!channel || channel.serverId !== agent.serverId) {
     return NextResponse.json(
       { error: "Channel not found or not in agent's server" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -191,7 +191,7 @@ export async function POST(
           sequence,
           streamUrl: `${webUrl}/api/v1/agents/${agentId}/messages/${messageId}/stream`,
         },
-        { status: 201 }
+        { status: 201 },
       );
     }
 
@@ -199,7 +199,7 @@ export async function POST(
     if (!content || typeof content !== "string") {
       return NextResponse.json(
         { error: "content is required (or use streaming: true)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -232,7 +232,7 @@ export async function POST(
     console.error("Agent message send failed:", error);
     return NextResponse.json(
       { error: "Failed to send message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -11,7 +11,7 @@ import { serializeSequence } from "@/lib/api-safety";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ dmId: string }> }
+  { params }: { params: Promise<{ dmId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -30,13 +30,16 @@ export async function GET(
     if (!participant) {
       return NextResponse.json(
         { error: "Not a participant in this conversation" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const { searchParams } = new URL(request.url);
     const before = searchParams.get("before");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10) || 50, 100);
+    const limit = Math.min(
+      parseInt(searchParams.get("limit") || "50", 10) || 50,
+      100,
+    );
 
     const where: Record<string, unknown> = { dmId, isDeleted: false };
     if (before) {
@@ -47,7 +50,12 @@ export async function GET(
       where,
       include: {
         author: {
-          select: { id: true, displayName: true, avatarUrl: true, username: true },
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+            username: true,
+          },
         },
         reactions: {
           select: { emoji: true, userId: true },
@@ -73,11 +81,13 @@ export async function GET(
         existing.push(r.userId);
         reactionMap.set(r.emoji, existing);
       }
-      const reactions = Array.from(reactionMap.entries()).map(([emoji, userIds]) => ({
-        emoji,
-        count: userIds.length,
-        userIds,
-      }));
+      const reactions = Array.from(reactionMap.entries()).map(
+        ([emoji, userIds]) => ({
+          emoji,
+          count: userIds.length,
+          userIds,
+        }),
+      );
 
       return {
         id: m.id,
@@ -101,7 +111,7 @@ export async function GET(
     console.error("Failed to fetch DM messages:", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

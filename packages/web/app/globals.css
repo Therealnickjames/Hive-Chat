@@ -8,10 +8,10 @@
     --background-secondary: #141414;
     --background-tertiary: #050505;
     --background-floating: #1c1c1c;
-    
+
     --border-default: #222222;
     --border-bright: #333333;
-    
+
     --text-primary: #f5f5f5;
     --text-secondary: #a3a3a3;
     --text-muted: #666666;
@@ -21,7 +21,7 @@
 
 body {
   @apply bg-background-tertiary text-text-primary;
-  font-family: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
 }
 
 /* Scanline overlay */
@@ -33,9 +33,18 @@ body::after {
   left: 0;
   bottom: 0;
   right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.06),
+      rgba(0, 255, 0, 0.02),
+      rgba(0, 0, 255, 0.06)
+    );
   z-index: 999;
-  background-size: 100% 2px, 3px 100%;
+  background-size:
+    100% 2px,
+    3px 100%;
   pointer-events: none;
 }
 

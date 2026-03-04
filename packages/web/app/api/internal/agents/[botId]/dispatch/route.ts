@@ -23,7 +23,7 @@ import {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -62,7 +62,7 @@ export async function POST(
   if (!registration || !registration.webhookUrl) {
     return NextResponse.json(
       { error: "Agent has no webhook URL configured" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -102,7 +102,7 @@ export async function POST(
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      registration.webhookTimeout || 30000
+      registration.webhookTimeout || 30000,
     );
 
     const response = await fetch(registration.webhookUrl, {
@@ -123,7 +123,7 @@ export async function POST(
       console.error(`Webhook dispatch failed: ${response.status}`);
       return NextResponse.json(
         { error: `Agent returned ${response.status}` },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -248,15 +248,12 @@ export async function POST(
     return NextResponse.json({ ok: true, mode: "empty" });
   } catch (error) {
     if ((error as Error).name === "AbortError") {
-      return NextResponse.json(
-        { error: "Webhook timed out" },
-        { status: 504 }
-      );
+      return NextResponse.json({ error: "Webhook timed out" }, { status: 504 });
     }
     console.error("Webhook dispatch error:", error);
     return NextResponse.json(
       { error: "Webhook dispatch failed" },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }

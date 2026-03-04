@@ -14,7 +14,7 @@ import { validateInternalSecret } from "@/lib/internal-auth";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ channelId: string }> }
+  { params }: { params: Promise<{ channelId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

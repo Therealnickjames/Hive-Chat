@@ -14,7 +14,11 @@ const bots = [
 
 describe("parseMentionedUserIds", () => {
   it("finds a single @mention of a member", () => {
-    const result = parseMentionedUserIds("Hey @Alice check this", members, bots);
+    const result = parseMentionedUserIds(
+      "Hey @Alice check this",
+      members,
+      bots,
+    );
     expect(result).toEqual(["user-1"]);
   });
 
@@ -22,7 +26,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "@Alice and @Charlie please review",
       members,
-      bots
+      bots,
     );
     expect(result).toContain("user-1");
     expect(result).toContain("user-3");
@@ -33,7 +37,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "@Alice said hi, then @Alice said bye",
       members,
-      bots
+      bots,
     );
     expect(result).toEqual(["user-1"]);
   });
@@ -42,7 +46,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "Hey @Bob Smith please help",
       members,
-      bots
+      bots,
     );
     expect(result).toEqual(["user-2"]);
   });
@@ -53,7 +57,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "Hey @Bob Smith, can you help?",
       members,
-      bots
+      bots,
     );
     expect(result).toEqual([]);
   });
@@ -62,7 +66,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "@GPT Agent summarize this thread",
       members,
-      bots
+      bots,
     );
     expect(result).toEqual(["bot-1"]);
   });
@@ -71,7 +75,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "@alice and @CLAUDE respond",
       members,
-      bots
+      bots,
     );
     expect(result).toContain("user-1");
     expect(result).toContain("bot-2");
@@ -83,7 +87,7 @@ describe("parseMentionedUserIds", () => {
 
   it("returns empty array when there are no mentions", () => {
     expect(parseMentionedUserIds("no mentions here", members, bots)).toEqual(
-      []
+      [],
     );
   });
 
@@ -110,7 +114,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "@Alice, @Charlie, please review",
       members,
-      bots
+      bots,
     );
     expect(result).toContain("user-1");
     expect(result).toContain("user-3");
@@ -125,7 +129,7 @@ describe("parseMentionedUserIds", () => {
     const result = parseMentionedUserIds(
       "@Alice ask @Claude about this",
       members,
-      bots
+      bots,
     );
     expect(result).toContain("user-1");
     expect(result).toContain("bot-2");
@@ -133,10 +137,7 @@ describe("parseMentionedUserIds", () => {
   });
 
   it("handles members with null/empty names gracefully", () => {
-    const membersWithNull = [
-      ...members,
-      { id: "user-4", name: "" },
-    ];
+    const membersWithNull = [...members, { id: "user-4", name: "" }];
     // Should not crash
     const result = parseMentionedUserIds("@Alice hello", membersWithNull, bots);
     expect(result).toEqual(["user-1"]);

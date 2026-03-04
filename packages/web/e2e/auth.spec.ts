@@ -35,9 +35,7 @@ test.describe("Authentication", () => {
     ).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Password")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /log in/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /log in/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /register/i })).toBeVisible();
   });
 
@@ -46,13 +44,17 @@ test.describe("Authentication", () => {
     await login(page, DEMO_USER.email, DEMO_USER.password);
 
     // The app layout has tab buttons in the left panel: SERVERS, CHANNELS, DMs
-    await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("login with alice account succeeds", async ({ page }) => {
     await login(page, ALICE.email, ALICE.password);
 
-    await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "SERVERS" })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("invalid login shows error message", async ({ page }) => {
@@ -60,9 +62,9 @@ test.describe("Authentication", () => {
     await fillLoginForm(page, "wrong@example.com", "BadPassword999!");
 
     // The error message should appear inside the form
-    await expect(
-      page.getByText(/invalid email or password/i),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/invalid email or password/i)).toBeVisible({
+      timeout: 5_000,
+    });
 
     // Should stay on the login page
     expect(page.url()).toContain("/login");

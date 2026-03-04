@@ -13,13 +13,13 @@ package config
 // CharterConfig holds the channel charter / swarm mode configuration.
 // Loaded from the Next.js internal API via Loader.GetChannelCharter().
 type CharterConfig struct {
-	SwarmMode    string   `json:"swarmMode"`
-	Goal         string   `json:"charterGoal"`
-	Rules        string   `json:"charterRules"`
-	AgentOrder   []string `json:"charterAgentOrder"`
-	MaxTurns     int      `json:"charterMaxTurns"`
-	CurrentTurn  int      `json:"charterCurrentTurn"`
-	Status       string   `json:"charterStatus"`
+	SwarmMode   string   `json:"swarmMode"`
+	Goal        string   `json:"charterGoal"`
+	Rules       string   `json:"charterRules"`
+	AgentOrder  []string `json:"charterAgentOrder"`
+	MaxTurns    int      `json:"charterMaxTurns"`
+	CurrentTurn int      `json:"charterCurrentTurn"`
+	Status      string   `json:"charterStatus"`
 }
 
 // IsActive returns true if the charter session is currently running.

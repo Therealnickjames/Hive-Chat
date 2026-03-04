@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
           code: "invalid_api_key",
         },
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           code: "internal_error",
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

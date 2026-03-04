@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (!dmId || !userId) {
     return NextResponse.json(
       { error: "dmId and userId are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -42,7 +42,12 @@ export async function GET(request: NextRequest) {
       },
       include: {
         user: {
-          select: { id: true, username: true, displayName: true, avatarUrl: true },
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
         },
       },
     });
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to verify DM participant:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

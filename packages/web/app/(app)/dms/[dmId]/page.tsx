@@ -26,10 +26,12 @@ export default function DmPage() {
         if (res.ok) {
           const data = await res.json();
           const dm = data.conversations?.find(
-            (c: { id: string }) => c.id === dmId
+            (c: { id: string }) => c.id === dmId,
           );
           if (dm) {
-            setOtherUserName(dm.otherUser?.displayName || dm.otherUser?.username || "User");
+            setOtherUserName(
+              dm.otherUser?.displayName || dm.otherUser?.username || "User",
+            );
           }
         }
         setLoading(false);

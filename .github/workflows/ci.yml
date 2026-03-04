@@ -10,8 +10,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: streaming/go.sum
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.17'
+
+      - name: Install web dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check web formatting
+        run: pnpm --filter web format:check
+
+      - name: Lint web
+        run: pnpm --filter web lint
+
+      - name: Install Elixir dependencies
+        run: cd gateway && mix deps.get
+
+      - name: Check Elixir formatting
+        run: cd gateway && mix format --check-formatted
+
+      - name: Check Go formatting
+        run: |
+          cd streaming
+          test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+
+      - name: Go vet
+        run: cd streaming && go vet ./...
+
   test-web:
     name: Web (Vitest)
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -43,6 +93,7 @@ jobs:
 
   test-streaming:
     name: Streaming Proxy (Go)
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -58,6 +109,7 @@ jobs:
 
   test-gateway:
     name: Gateway (ExUnit)
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -88,25 +140,3 @@ jobs:
           JWT_SECRET: ci-test-jwt-secret
           INTERNAL_API_SECRET: ci-test-internal-secret
         run: cd gateway && mix test --trace
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: ESLint
-        run: pnpm --filter web lint

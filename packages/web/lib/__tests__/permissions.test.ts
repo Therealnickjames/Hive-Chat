@@ -26,18 +26,18 @@ describe("Permissions constants", () => {
   it("DEFAULT_PERMISSIONS includes SEND_MESSAGES and CREATE_INVITE", () => {
     expect(
       (DEFAULT_PERMISSIONS & Permissions.SEND_MESSAGES) ===
-        Permissions.SEND_MESSAGES
+        Permissions.SEND_MESSAGES,
     ).toBe(true);
     expect(
       (DEFAULT_PERMISSIONS & Permissions.CREATE_INVITE) ===
-        Permissions.CREATE_INVITE
+        Permissions.CREATE_INVITE,
     ).toBe(true);
   });
 
   it("DEFAULT_PERMISSIONS does NOT include ADMINISTRATOR", () => {
     expect(
       (DEFAULT_PERMISSIONS & Permissions.ADMINISTRATOR) ===
-        Permissions.ADMINISTRATOR
+        Permissions.ADMINISTRATOR,
     ).toBe(false);
   });
 
@@ -64,11 +64,15 @@ describe("Permissions constants", () => {
 
 describe("hasPermission", () => {
   it("returns true when the exact bit is set", () => {
-    expect(hasPermission(Permissions.SEND_MESSAGES, Permissions.SEND_MESSAGES)).toBe(true);
+    expect(
+      hasPermission(Permissions.SEND_MESSAGES, Permissions.SEND_MESSAGES),
+    ).toBe(true);
   });
 
   it("returns false when the bit is not set", () => {
-    expect(hasPermission(Permissions.SEND_MESSAGES, Permissions.MANAGE_CHANNELS)).toBe(false);
+    expect(
+      hasPermission(Permissions.SEND_MESSAGES, Permissions.MANAGE_CHANNELS),
+    ).toBe(false);
   });
 
   it("works with combined permissions (bitwise OR)", () => {
@@ -93,7 +97,10 @@ describe("hasPermission", () => {
 
   it("handles checking for a multi-bit permission mask", () => {
     const mask = Permissions.SEND_MESSAGES | Permissions.CREATE_INVITE;
-    const perms = Permissions.SEND_MESSAGES | Permissions.CREATE_INVITE | Permissions.KICK_MEMBERS;
+    const perms =
+      Permissions.SEND_MESSAGES |
+      Permissions.CREATE_INVITE |
+      Permissions.KICK_MEMBERS;
     // hasPermission checks (perms & mask) === mask
     expect(hasPermission(perms, mask)).toBe(true);
 
@@ -120,7 +127,9 @@ describe("computeMemberPermissions", () => {
       { permissions: Permissions.MANAGE_CHANNELS },
     ];
     const result = computeMemberPermissions("user-2", "user-1", roles);
-    expect(result).toBe(Permissions.SEND_MESSAGES | Permissions.MANAGE_CHANNELS);
+    expect(result).toBe(
+      Permissions.SEND_MESSAGES | Permissions.MANAGE_CHANNELS,
+    );
   });
 
   it("non-owner with no roles gets zero permissions", () => {

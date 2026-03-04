@@ -7,11 +7,23 @@ import type { AgentListItem } from "./types";
 
 const PROVIDER_DEFAULTS: Record<string, { endpoint: string; model: string }> = {
   openai: { endpoint: "https://api.openai.com", model: "gpt-4o" },
-  anthropic: { endpoint: "https://api.anthropic.com", model: "claude-sonnet-4-20250514" },
-  google: { endpoint: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.0-flash" },
+  anthropic: {
+    endpoint: "https://api.anthropic.com",
+    model: "claude-sonnet-4-20250514",
+  },
+  google: {
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "gemini-2.0-flash",
+  },
   xai: { endpoint: "https://api.x.ai", model: "grok-3" },
-  groq: { endpoint: "https://api.groq.com/openai", model: "llama-3.3-70b-versatile" },
-  mistral: { endpoint: "https://api.mistral.ai", model: "mistral-large-latest" },
+  groq: {
+    endpoint: "https://api.groq.com/openai",
+    model: "llama-3.3-70b-versatile",
+  },
+  mistral: {
+    endpoint: "https://api.mistral.ai",
+    model: "mistral-large-latest",
+  },
   moonshot: { endpoint: "https://api.moonshot.ai", model: "kimi-k2" },
   ollama: { endpoint: "http://localhost:11434", model: "llama3" },
   openrouter: { endpoint: "https://openrouter.ai/api", model: "openai/gpt-4o" },
@@ -25,16 +37,31 @@ interface BYOKFormProps {
   onCancel: () => void;
 }
 
-export function BYOKForm({ serverId, editingBot, onSave, onCancel }: BYOKFormProps) {
+export function BYOKForm({
+  serverId,
+  editingBot,
+  onSave,
+  onCancel,
+}: BYOKFormProps) {
   const [name, setName] = useState(editingBot?.name || "");
   const [provider, setProvider] = useState(editingBot?.llmProvider || "openai");
   const [model, setModel] = useState(editingBot?.llmModel || "gpt-4o");
-  const [endpoint, setEndpoint] = useState(editingBot?.apiEndpoint || "https://api.openai.com");
+  const [endpoint, setEndpoint] = useState(
+    editingBot?.apiEndpoint || "https://api.openai.com",
+  );
   const [apiKey, setApiKey] = useState("");
-  const [systemPrompt, setSystemPrompt] = useState(editingBot?.systemPrompt || "You are a helpful assistant.");
-  const [temperature, setTemperature] = useState(String(editingBot?.temperature ?? 0.7));
-  const [maxTokens, setMaxTokens] = useState(String(editingBot?.maxTokens ?? 4096));
-  const [triggerMode, setTriggerMode] = useState(editingBot?.triggerMode || "ALWAYS");
+  const [systemPrompt, setSystemPrompt] = useState(
+    editingBot?.systemPrompt || "You are a helpful assistant.",
+  );
+  const [temperature, setTemperature] = useState(
+    String(editingBot?.temperature ?? 0.7),
+  );
+  const [maxTokens, setMaxTokens] = useState(
+    String(editingBot?.maxTokens ?? 4096),
+  );
+  const [triggerMode, setTriggerMode] = useState(
+    editingBot?.triggerMode || "ALWAYS",
+  );
   const [thinkingSteps, setThinkingSteps] = useState(
     editingBot?.thinkingSteps
       ? (() => {
@@ -45,7 +72,7 @@ export function BYOKForm({ serverId, editingBot, onSave, onCancel }: BYOKFormPro
             return "";
           }
         })()
-      : ""
+      : "",
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -76,7 +103,10 @@ export function BYOKForm({ serverId, editingBot, onSave, onCancel }: BYOKFormPro
       maxTokens: parseInt(maxTokens),
       triggerMode,
       thinkingSteps: thinkingSteps.trim()
-        ? thinkingSteps.split(",").map((s: string) => s.trim()).filter(Boolean)
+        ? thinkingSteps
+            .split(",")
+            .map((s: string) => s.trim())
+            .filter(Boolean)
         : undefined,
     };
 
@@ -156,7 +186,9 @@ export function BYOKForm({ serverId, editingBot, onSave, onCancel }: BYOKFormPro
       />
 
       <Input
-        label={editingBot ? "API Key (leave blank to keep existing)" : "API Key"}
+        label={
+          editingBot ? "API Key (leave blank to keep existing)" : "API Key"
+        }
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
         placeholder="sk-..."
@@ -214,9 +246,7 @@ export function BYOKForm({ serverId, editingBot, onSave, onCancel }: BYOKFormPro
         placeholder="Thinking, Writing"
       />
 
-      {error && (
-        <p className="text-sm text-status-danger">{error}</p>
-      )}
+      {error && <p className="text-sm text-status-danger">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onCancel}>

@@ -11,7 +11,11 @@ interface SDKSetupFormProps {
   onCancel: () => void;
 }
 
-export function SDKSetupForm({ serverId, onCreated, onCancel }: SDKSetupFormProps) {
+export function SDKSetupForm({
+  serverId,
+  onCreated,
+  onCancel,
+}: SDKSetupFormProps) {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -65,19 +69,25 @@ export function SDKSetupForm({ serverId, onCreated, onCancel }: SDKSetupFormProp
       />
 
       <div className="space-y-3">
-        <p className="text-xs font-bold uppercase text-text-muted">Quick Start</p>
+        <p className="text-xs font-bold uppercase text-text-muted">
+          Quick Start
+        </p>
 
         <div className="rounded bg-background-primary p-3">
-          <p className="mb-2 text-xs font-medium text-text-secondary">1. Install the SDK</p>
+          <p className="mb-2 text-xs font-medium text-text-secondary">
+            1. Install the SDK
+          </p>
           <code className="block text-xs font-mono text-accent-cyan bg-background-tertiary rounded px-2 py-1.5">
             pip install tavok-sdk
           </code>
         </div>
 
         <div className="rounded bg-background-primary p-3">
-          <p className="mb-2 text-xs font-medium text-text-secondary">2. Connect your agent</p>
+          <p className="mb-2 text-xs font-medium text-text-secondary">
+            2. Connect your agent
+          </p>
           <pre className="text-xs font-mono text-text-secondary bg-background-tertiary rounded px-2 py-1.5 overflow-x-auto">
-{`from tavok import Agent
+            {`from tavok import Agent
 
 agent = Agent(
     api_key="YOUR_API_KEY",
@@ -94,7 +104,8 @@ agent.run()`}
       </div>
 
       <p className="text-xs text-text-muted">
-        Your API key will be shown after creation. You&apos;ll need it for the SDK connection.
+        Your API key will be shown after creation. You&apos;ll need it for the
+        SDK connection.
       </p>
 
       {error && <p className="text-sm text-status-danger">{error}</p>}

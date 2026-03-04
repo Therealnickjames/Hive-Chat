@@ -14,7 +14,7 @@ import { validateInternalSecret } from "@/lib/internal-auth";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,7 +42,7 @@ export async function POST(
   if (!channelId || !messageId || !content) {
     return NextResponse.json(
       { error: "channelId, messageId, and content are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -67,7 +67,7 @@ export async function POST(
     console.error("Agent message enqueue failed:", error);
     return NextResponse.json(
       { error: "Failed to enqueue message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

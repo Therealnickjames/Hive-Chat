@@ -18,7 +18,7 @@ func silentLogger() *slog.Logger {
 }
 
 func TestNewManagerDefaultsToConfiguredConcurrency(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, nil,3)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil, 3)
 
 	if manager.maxConcurrentStreams != 3 {
 		t.Fatalf("expected maxConcurrentStreams=3, got %d", manager.maxConcurrentStreams)
@@ -29,7 +29,7 @@ func TestNewManagerDefaultsToConfiguredConcurrency(t *testing.T) {
 }
 
 func TestNewManagerDefaultsConcurrencyWhenZero(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, nil,0)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil, 0)
 
 	if manager.maxConcurrentStreams != 32 {
 		t.Fatalf("expected default maxConcurrentStreams=32, got %d", manager.maxConcurrentStreams)
@@ -40,7 +40,7 @@ func TestNewManagerDefaultsConcurrencyWhenZero(t *testing.T) {
 }
 
 func TestNewManagerDefaultsConcurrencyWhenNegative(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, nil,-5)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil, -5)
 
 	if manager.maxConcurrentStreams != 32 {
 		t.Fatalf("expected default maxConcurrentStreams=32, got %d", manager.maxConcurrentStreams)
@@ -49,10 +49,10 @@ func TestNewManagerDefaultsConcurrencyWhenNegative(t *testing.T) {
 
 func TestConcurrencyLimitRejectsAdditionalSlots(t *testing.T) {
 	manager := &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 1,
-		semaphore:           make(chan struct{}, 1),
+		semaphore:            make(chan struct{}, 1),
 	}
 
 	if !manager.tryAcquireSlot() {
@@ -70,7 +70,7 @@ func TestConcurrencyLimitRejectsAdditionalSlots(t *testing.T) {
 }
 
 func TestActiveCountStartsAtZero(t *testing.T) {
-	manager := NewManager(silentLogger(), nil, nil, nil, nil,10)
+	manager := NewManager(silentLogger(), nil, nil, nil, nil, 10)
 
 	if manager.ActiveCount() != 0 {
 		t.Fatalf("expected ActiveCount=0, got %d", manager.ActiveCount())
@@ -79,10 +79,10 @@ func TestActiveCountStartsAtZero(t *testing.T) {
 
 func TestActiveCountTracksConcurrentStreams(t *testing.T) {
 	manager := &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 10,
-		semaphore:           make(chan struct{}, 10),
+		semaphore:            make(chan struct{}, 10),
 	}
 
 	manager.mu.Lock()
@@ -106,10 +106,10 @@ func TestActiveCountTracksConcurrentStreams(t *testing.T) {
 
 func TestSemaphoreConcurrency(t *testing.T) {
 	manager := &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 5,
-		semaphore:           make(chan struct{}, 5),
+		semaphore:            make(chan struct{}, 5),
 	}
 
 	for i := 0; i < 5; i++ {
@@ -194,10 +194,10 @@ func TestStreamRequestDeserializationEmpty(t *testing.T) {
 
 func TestMultipleBotsTrackedIndependently(t *testing.T) {
 	manager := &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 10,
-		semaphore:           make(chan struct{}, 10),
+		semaphore:            make(chan struct{}, 10),
 	}
 
 	// Simulate 3 bots streaming concurrently in the same channel
@@ -251,10 +251,10 @@ func TestMultipleBotsTrackedIndependently(t *testing.T) {
 func TestMultiStreamSemaphoreIsolation(t *testing.T) {
 	// With concurrency limit of 3, exactly 3 bots can stream simultaneously
 	manager := &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 3,
-		semaphore:           make(chan struct{}, 3),
+		semaphore:            make(chan struct{}, 3),
 	}
 
 	// Acquire 3 slots (one per bot)
@@ -321,10 +321,10 @@ func TestMultiStreamRequestDeserialization(t *testing.T) {
 
 func TestActiveCountIsThreadSafe(t *testing.T) {
 	manager := &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 100,
-		semaphore:           make(chan struct{}, 100),
+		semaphore:            make(chan struct{}, 100),
 	}
 
 	var wg sync.WaitGroup
@@ -353,10 +353,10 @@ func TestActiveCountIsThreadSafe(t *testing.T) {
 
 func newTestManager() *Manager {
 	return &Manager{
-		logger:              silentLogger(),
-		active:              make(map[string]struct{}),
+		logger:               silentLogger(),
+		active:               make(map[string]struct{}),
 		maxConcurrentStreams: 10,
-		semaphore:           make(chan struct{}, 10),
+		semaphore:            make(chan struct{}, 10),
 	}
 }
 

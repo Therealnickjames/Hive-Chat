@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
+  { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
 
@@ -34,7 +34,7 @@ export async function GET(
   if (invite.maxUses && invite.uses >= invite.maxUses) {
     return NextResponse.json(
       { error: "Invite has reached max uses" },
-      { status: 410 }
+      { status: 410 },
     );
   }
 

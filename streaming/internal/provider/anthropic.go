@@ -57,14 +57,14 @@ type anthropicMessage struct {
 
 // anthropicContentBlock is used for structured content (tool_use, tool_result).
 type anthropicContentBlock struct {
-	Type      string `json:"type"`
-	ID        string `json:"id,omitempty"`
-	Name      string `json:"name,omitempty"`
+	Type      string      `json:"type"`
+	ID        string      `json:"id,omitempty"`
+	Name      string      `json:"name,omitempty"`
 	Input     interface{} `json:"input,omitempty"`
-	Text      string `json:"text,omitempty"`
-	ToolUseID string `json:"tool_use_id,omitempty"` // for tool_result
-	Content   string `json:"content,omitempty"`     // for tool_result
-	IsError   bool   `json:"is_error,omitempty"`    // for tool_result
+	Text      string      `json:"text,omitempty"`
+	ToolUseID string      `json:"tool_use_id,omitempty"` // for tool_result
+	Content   string      `json:"content,omitempty"`     // for tool_result
+	IsError   bool        `json:"is_error,omitempty"`    // for tool_result
 }
 
 // anthropicDelta is the content_block_delta event payload
@@ -72,9 +72,9 @@ type anthropicDelta struct {
 	Type  string `json:"type"`
 	Index int    `json:"index"`
 	Delta struct {
-		Type         string `json:"type"`
-		Text         string `json:"text"`
-		PartialJSON  string `json:"partial_json,omitempty"` // TASK-0018: input_json_delta
+		Type        string `json:"type"`
+		Text        string `json:"text"`
+		PartialJSON string `json:"partial_json,omitempty"` // TASK-0018: input_json_delta
 	} `json:"delta"`
 }
 
@@ -83,9 +83,9 @@ type anthropicBlockStart struct {
 	Type         string `json:"type"`
 	Index        int    `json:"index"`
 	ContentBlock struct {
-		Type  string `json:"type"` // "text" or "tool_use"
-		ID    string `json:"id,omitempty"`
-		Name  string `json:"name,omitempty"`
+		Type  string      `json:"type"` // "text" or "tool_use"
+		ID    string      `json:"id,omitempty"`
+		Name  string      `json:"name,omitempty"`
 		Input interface{} `json:"input,omitempty"`
 	} `json:"content_block"`
 }
@@ -184,12 +184,12 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 	// TASK-0018: Tool call tracking
 	// Track active tool_use blocks by content block index
 	type activeToolUse struct {
-		ID        string
-		Name      string
-		ArgsJSON  strings.Builder // accumulates input_json_delta partial_json chunks
+		ID       string
+		Name     string
+		ArgsJSON strings.Builder // accumulates input_json_delta partial_json chunks
 	}
-	activeTools := make(map[int]*activeToolUse)     // blockIndex → tool data
-	var completedToolCalls []ToolCall                 // finalized tool calls
+	activeTools := make(map[int]*activeToolUse) // blockIndex → tool data
+	var completedToolCalls []ToolCall           // finalized tool calls
 
 	err = sse.Parse(respBody, func(event sse.Event) {
 		eventCounts[event.EventType]++

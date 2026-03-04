@@ -16,7 +16,7 @@ interface PermissionCheckResult {
 export async function checkMemberPermission(
   userId: string,
   serverId: string,
-  requiredPermission: bigint
+  requiredPermission: bigint,
 ): Promise<PermissionCheckResult> {
   const member = await prisma.member.findUnique({
     where: {
@@ -35,7 +35,7 @@ export async function checkMemberPermission(
   const effectivePermissions = computeMemberPermissions(
     userId,
     member.server.ownerId,
-    member.roles
+    member.roles,
   );
 
   if (!hasPermission(effectivePermissions, requiredPermission)) {
@@ -55,7 +55,7 @@ export async function checkMemberPermission(
  */
 export async function checkMembership(
   userId: string,
-  serverId: string
+  serverId: string,
 ): Promise<{ isMember: boolean; memberId?: string }> {
   const member = await prisma.member.findUnique({
     where: {

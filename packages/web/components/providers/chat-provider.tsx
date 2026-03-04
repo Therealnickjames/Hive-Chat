@@ -95,9 +95,7 @@ export function useChatContext() {
  * Expected pattern: /servers/{serverId}/channels/{channelId}
  */
 function parsePathIds(pathname: string) {
-  const match = pathname.match(
-    /\/servers\/([^/]+)(?:\/channels\/([^/]+))?/
-  );
+  const match = pathname.match(/\/servers\/([^/]+)(?:\/channels\/([^/]+))?/);
   return {
     serverId: match?.[1] || null,
     channelId: match?.[2] || null,
@@ -116,7 +114,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     Record<string, ServerScopedData>
   >({});
   const [currentServerName, setCurrentServerName] = useState<string | null>(
-    null
+    null,
   );
   const [currentServerOwnerId, setCurrentServerOwnerId] = useState<
     string | null
@@ -245,54 +243,60 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (isOwner) return true;
       return hasPermissionBit(userPermissions, permission);
     },
-    [userPermissions, isOwner]
+    [userPermissions, isOwner],
   );
 
   // TASK-0016: Unread state for all channels in the current server
-  const { unreadMap, markAsRead: markAsReadHook, refreshUnread } = useUnread(serverId);
+  const {
+    unreadMap,
+    markAsRead: markAsReadHook,
+    refreshUnread,
+  } = useUnread(serverId);
 
   // TASK-0016: Aggregate unread per server (for server sidebar dots)
   const [serverUnreadMap, setServerUnreadMap] = useState<
     Map<string, { hasUnread: boolean; hasMentions: boolean }>
   >(new Map());
 
-  const refreshAllServerUnreads = useCallback(async (
-    serverList: ServerData[],
-    skipServerId: string | null
-  ) => {
-    if (serverList.length === 0) return;
-    try {
-      // Skip the current server — useUnread already fetches it
-      const toFetch = serverList.filter((s) => s.id !== skipServerId);
-      const results = await Promise.allSettled(
-        toFetch.map(async (s) => {
-          const res = await fetch(`/api/servers/${s.id}/unread`);
-          if (!res.ok) return { serverId: s.id, hasUnread: false, hasMentions: false };
-          const data = await res.json();
-          const channels: { hasUnread: boolean; mentionCount: number }[] = data.channels || [];
-          return {
-            serverId: s.id,
-            hasUnread: channels.some((c) => c.hasUnread),
-            hasMentions: channels.some((c) => c.mentionCount > 0),
-          };
-        })
-      );
-      setServerUnreadMap((prev) => {
-        const nextMap = new Map(prev);
-        for (const r of results) {
-          if (r.status === "fulfilled") {
-            nextMap.set(r.value.serverId, {
-              hasUnread: r.value.hasUnread,
-              hasMentions: r.value.hasMentions,
-            });
+  const refreshAllServerUnreads = useCallback(
+    async (serverList: ServerData[], skipServerId: string | null) => {
+      if (serverList.length === 0) return;
+      try {
+        // Skip the current server — useUnread already fetches it
+        const toFetch = serverList.filter((s) => s.id !== skipServerId);
+        const results = await Promise.allSettled(
+          toFetch.map(async (s) => {
+            const res = await fetch(`/api/servers/${s.id}/unread`);
+            if (!res.ok)
+              return { serverId: s.id, hasUnread: false, hasMentions: false };
+            const data = await res.json();
+            const channels: { hasUnread: boolean; mentionCount: number }[] =
+              data.channels || [];
+            return {
+              serverId: s.id,
+              hasUnread: channels.some((c) => c.hasUnread),
+              hasMentions: channels.some((c) => c.mentionCount > 0),
+            };
+          }),
+        );
+        setServerUnreadMap((prev) => {
+          const nextMap = new Map(prev);
+          for (const r of results) {
+            if (r.status === "fulfilled") {
+              nextMap.set(r.value.serverId, {
+                hasUnread: r.value.hasUnread,
+                hasMentions: r.value.hasMentions,
+              });
+            }
           }
-        }
-        return nextMap;
-      });
-    } catch (error) {
-      console.error("[ChatProvider] Failed to fetch server unreads:", error);
-    }
-  }, []);
+          return nextMap;
+        });
+      } catch (error) {
+        console.error("[ChatProvider] Failed to fetch server unreads:", error);
+      }
+    },
+    [],
+  );
 
   // Wrapper that also optimistically updates serverUnreadMap when marking a channel read
   const markAsRead = useCallback(
@@ -312,42 +316,50 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             if (state.hasUnread) stillHasUnread = true;
             if (state.mentionCount > 0) stillHasMentions = true;
           }
-          next.set(serverId, { hasUnread: stillHasUnread, hasMentions: stillHasMentions });
+          next.set(serverId, {
+            hasUnread: stillHasUnread,
+            hasMentions: stillHasMentions,
+          });
           return next;
         });
       }
     },
-    [markAsReadHook, serverId, unreadMap]
+    [markAsReadHook, serverId, unreadMap],
   );
 
-  const refreshServerScopedData = useCallback(async (targetServerId: string) => {
-    if (!targetServerId) return;
+  const refreshServerScopedData = useCallback(
+    async (targetServerId: string) => {
+      if (!targetServerId) return;
 
-    try {
-      const [serverRes, membersRes, botsRes] = await Promise.all([
-        fetch(`/api/servers/${targetServerId}`),
-        fetch(`/api/servers/${targetServerId}/members`),
-        fetch(`/api/servers/${targetServerId}/bots`),
-      ]);
+      try {
+        const [serverRes, membersRes, botsRes] = await Promise.all([
+          fetch(`/api/servers/${targetServerId}`),
+          fetch(`/api/servers/${targetServerId}/members`),
+          fetch(`/api/servers/${targetServerId}/bots`),
+        ]);
 
-      if (!serverRes.ok) return;
+        if (!serverRes.ok) return;
 
-      const serverJson = await serverRes.json();
-      const membersJson = membersRes.ok ? await membersRes.json() : { members: [] };
-      const botsJson = botsRes.ok ? await botsRes.json() : { bots: [] };
+        const serverJson = await serverRes.json();
+        const membersJson = membersRes.ok
+          ? await membersRes.json()
+          : { members: [] };
+        const botsJson = botsRes.ok ? await botsRes.json() : { bots: [] };
 
-      setServerDataById((prev) => ({
-        ...prev,
-        [targetServerId]: {
-          channels: serverJson.channels || [],
-          members: membersJson.members || [],
-          bots: (botsJson.bots || []).filter((b: BotData) => b.isActive),
-        },
-      }));
-    } catch (error) {
-      console.error("Failed to refresh server scoped data:", error);
-    }
-  }, []);
+        setServerDataById((prev) => ({
+          ...prev,
+          [targetServerId]: {
+            channels: serverJson.channels || [],
+            members: membersJson.members || [],
+            bots: (botsJson.bots || []).filter((b: BotData) => b.isActive),
+          },
+        }));
+      } catch (error) {
+        console.error("Failed to refresh server scoped data:", error);
+      }
+    },
+    [],
+  );
 
   const ensureServerScopedData = useCallback(
     async (targetServerId: string) => {
@@ -355,7 +367,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (serverDataById[targetServerId]) return;
       await refreshServerScopedData(targetServerId);
     },
-    [serverDataById, refreshServerScopedData]
+    [serverDataById, refreshServerScopedData],
   );
 
   // Fetch servers on mount

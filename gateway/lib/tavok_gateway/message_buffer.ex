@@ -36,7 +36,8 @@ defmodule TavokGateway.MessageBuffer do
   Called from room_channel.ex handle_in("new_message", ...) right after broadcast.
   The message_map must include :id, :channelId, :sequence, and all broadcast fields.
   """
-  def buffer_message(channel_id, message_map) when is_binary(channel_id) and is_map(message_map) do
+  def buffer_message(channel_id, message_map)
+      when is_binary(channel_id) and is_map(message_map) do
     now = System.monotonic_time(:millisecond)
     message_id = Map.get(message_map, :id) || Map.get(message_map, "id")
     sequence = Map.get(message_map, :sequence) || Map.get(message_map, "sequence")

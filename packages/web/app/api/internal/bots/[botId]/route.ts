@@ -12,7 +12,7 @@ import { validateInternalSecret } from "@/lib/internal-auth";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,7 +37,7 @@ export async function GET(
       console.error(`[Internal] Failed to decrypt API key for bot ${bot.id}`);
       return NextResponse.json(
         { error: "Failed to decrypt bot API key" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -58,9 +58,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("[Internal] Failed to get bot:", error);
-    return NextResponse.json(
-      { error: "Failed to get bot" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get bot" }, { status: 500 });
   }
 }

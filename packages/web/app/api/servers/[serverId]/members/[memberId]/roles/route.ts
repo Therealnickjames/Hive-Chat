@@ -14,7 +14,7 @@ import { Permissions } from "@/lib/permissions";
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; memberId: string }> }
+  { params }: { params: Promise<{ serverId: string; memberId: string }> },
 ) {
   const { serverId, memberId } = await params;
   const session = await getServerSession(authOptions);
@@ -25,19 +25,21 @@ export async function PUT(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_ROLES
+    Permissions.MANAGE_ROLES,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Roles" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   try {
     const body = await request.json();
     const providedRoleIds: string[] = Array.isArray(body?.roleIds)
-      ? body.roleIds.filter((id: unknown): id is string => typeof id === "string")
+      ? body.roleIds.filter(
+          (id: unknown): id is string => typeof id === "string",
+        )
       : [];
 
     const member = await prisma.member.findUnique({

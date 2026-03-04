@@ -18,7 +18,11 @@ interface StreamingMessageProps {
   message: MessagePayload;
   isGrouped: boolean;
   onReactionsChange?: (messageId: string, reactions: ReactionData[]) => void;
-  onResumeStream?: (messageId: string, checkpointIndex: number, botId: string) => void;
+  onResumeStream?: (
+    messageId: string,
+    checkpointIndex: number,
+    botId: string,
+  ) => void;
   currentUserId?: string;
   canManageMessages?: boolean;
   onDelete?: (messageId: string) => void;
@@ -43,23 +47,27 @@ export function StreamingMessage({
   const [showRewind, setShowRewind] = useState(false);
   const { members, bots } = useChatContext();
   const mentionNames = useMemo(
-    () => [...members.map((member) => member.displayName), ...bots.map((bot) => bot.name)],
-    [members, bots]
+    () => [
+      ...members.map((member) => member.displayName),
+      ...bots.map((bot) => bot.name),
+    ],
+    [members, bots],
   );
   const { text, files } = useMemo(
     () => parseFileReferences(message.content || ""),
-    [message.content]
+    [message.content],
   );
   const handleReactionsChange = useCallback(
     (reactions: ReactionData[]) => {
       onReactionsChange?.(message.id, reactions);
     },
-    [message.id, onReactionsChange]
+    [message.id, onReactionsChange],
   );
   const isActive = message.streamingStatus === "ACTIVE";
   const isError = message.streamingStatus === "ERROR";
   const isComplete = message.streamingStatus === "COMPLETE";
-  const hasTimeline = message.thinkingTimeline && message.thinkingTimeline.length > 0;
+  const hasTimeline =
+    message.thinkingTimeline && message.thinkingTimeline.length > 0;
 
   // Delete only when not actively streaming, not already deleted, and user has MANAGE_MESSAGES
   const canDelete = !isActive && !message.isDeleted && !!canManageMessages;
@@ -71,7 +79,9 @@ export function StreamingMessage({
         <div className="group flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 border-l-2 border-transparent">
           <div className="w-10 flex-shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-mono text-text-muted italic">[message deleted]</p>
+            <p className="text-sm font-mono text-text-muted italic">
+              [message deleted]
+            </p>
           </div>
         </div>
       );
@@ -92,7 +102,9 @@ export function StreamingMessage({
               {formatTime(message.createdAt)}
             </span>
           </div>
-          <p className="text-sm font-mono text-text-muted italic">[message deleted]</p>
+          <p className="text-sm font-mono text-text-muted italic">
+            [message deleted]
+          </p>
         </div>
       </div>
     );
@@ -100,7 +112,9 @@ export function StreamingMessage({
 
   if (isGrouped) {
     return (
-      <div className={`group relative flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 ${isActive ? 'bg-accent-cyan/5 border-l-2 border-accent-cyan/50' : 'border-l-2 border-transparent'}`}>
+      <div
+        className={`group relative flex gap-4 px-4 py-0.5 hover:bg-background-secondary/50 ${isActive ? "bg-accent-cyan/5 border-l-2 border-accent-cyan/50" : "border-l-2 border-transparent"}`}
+      >
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           {isActive && message.thinkingPhase && (
@@ -111,9 +125,13 @@ export function StreamingMessage({
           )}
           <div className="text-sm font-mono text-text-primary leading-relaxed">
             <MarkdownContent content={text} mentionNames={mentionNames} />
-            {isActive && <span className="inline-block w-2 h-4 ml-1 bg-accent-cyan animate-pulse align-middle" />}
+            {isActive && (
+              <span className="inline-block w-2 h-4 ml-1 bg-accent-cyan animate-pulse align-middle" />
+            )}
             {message.editedAt && (
-              <span className="text-[10px] text-text-muted font-mono ml-1">(edited)</span>
+              <span className="text-[10px] text-text-muted font-mono ml-1">
+                (edited)
+              </span>
             )}
           </div>
           {files.map((file) => (
@@ -132,29 +150,42 @@ export function StreamingMessage({
             </p>
           )}
           {/* Stream rewind slider (TASK-0021) */}
-          {isComplete && message.tokenHistory && message.tokenHistory.length > 0 && showRewind && (
-            <RewindSlider
-              content={message.content || ""}
-              tokenHistory={message.tokenHistory}
-              checkpoints={message.checkpoints}
-              mentionNames={mentionNames}
-              onClose={() => setShowRewind(false)}
-            />
-          )}
+          {isComplete &&
+            message.tokenHistory &&
+            message.tokenHistory.length > 0 &&
+            showRewind && (
+              <RewindSlider
+                content={message.content || ""}
+                tokenHistory={message.tokenHistory}
+                checkpoints={message.checkpoints}
+                mentionNames={mentionNames}
+                onClose={() => setShowRewind(false)}
+              />
+            )}
           {/* Rewind toggle button (TASK-0021) */}
-          {isComplete && message.tokenHistory && message.tokenHistory.length > 0 && !showRewind && (
-            <button
-              onClick={() => setShowRewind(true)}
-              className="mt-1 text-[10px] px-1.5 py-0.5 rounded bg-background-tertiary text-text-muted hover:text-accent hover:bg-accent/10 transition flex items-center gap-1"
-              title="Rewind stream"
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="19,20 9,12 19,4" />
-                <line x1="5" y1="19" x2="5" y2="5" />
-              </svg>
-              Rewind
-            </button>
-          )}
+          {isComplete &&
+            message.tokenHistory &&
+            message.tokenHistory.length > 0 &&
+            !showRewind && (
+              <button
+                onClick={() => setShowRewind(true)}
+                className="mt-1 text-[10px] px-1.5 py-0.5 rounded bg-background-tertiary text-text-muted hover:text-accent hover:bg-accent/10 transition flex items-center gap-1"
+                title="Rewind stream"
+              >
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polygon points="19,20 9,12 19,4" />
+                  <line x1="5" y1="19" x2="5" y2="5" />
+                </svg>
+                Rewind
+              </button>
+            )}
           {/* Checkpoint resume (TASK-0021) */}
           {isError && message.checkpoints && message.checkpoints.length > 0 && (
             <CheckpointResume
@@ -167,16 +198,21 @@ export function StreamingMessage({
           {hasTimeline && (
             <div className="flex items-center gap-1 mt-1.5">
               {message.thinkingTimeline!.map((entry, i) => {
-                const isCurrent = isActive && i === message.thinkingTimeline!.length - 1;
+                const isCurrent =
+                  isActive && i === message.thinkingTimeline!.length - 1;
                 return (
                   <div key={i} className="flex items-center gap-1">
                     {i > 0 && <span className="w-3 h-px bg-text-muted/30" />}
-                    <span className={`inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
-                      isCurrent
-                        ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
-                        : 'bg-background-secondary text-text-muted border border-border'
-                    }`}>
-                      <span className={`w-1 h-1 rounded-full ${isCurrent ? 'bg-accent-cyan animate-pulse' : 'bg-accent-cyan/50'}`} />
+                    <span
+                      className={`inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                        isCurrent
+                          ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
+                          : "bg-background-secondary text-text-muted border border-border"
+                      }`}
+                    >
+                      <span
+                        className={`w-1 h-1 rounded-full ${isCurrent ? "bg-accent-cyan animate-pulse" : "bg-accent-cyan/50"}`}
+                      />
                       {entry.phase}
                     </span>
                   </div>
@@ -208,7 +244,9 @@ export function StreamingMessage({
   }
 
   return (
-    <div className={`group relative mt-3 flex gap-4 px-4 py-2 hover:bg-background-secondary/50 ${isActive ? 'bg-accent-cyan/5 border-l-2 border-accent-cyan' : 'border-l-2 border-transparent'}`}>
+    <div
+      className={`group relative mt-3 flex gap-4 px-4 py-2 hover:bg-background-secondary/50 ${isActive ? "bg-accent-cyan/5 border-l-2 border-accent-cyan" : "border-l-2 border-transparent"}`}
+    >
       {/* Avatar with pulse while streaming */}
       <div className="flex-shrink-0 pt-0.5">
         <div className="relative">
@@ -223,7 +261,9 @@ export function StreamingMessage({
               className="h-10 w-10 rounded-sm object-cover"
             />
           ) : (
-            <div className={`flex h-10 w-10 items-center justify-center rounded-sm bg-background-secondary border ${isActive ? 'border-accent-cyan text-accent-cyan' : 'border-text-dim text-text-dim'} text-sm font-bold font-mono`}>
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-sm bg-background-secondary border ${isActive ? "border-accent-cyan text-accent-cyan" : "border-text-dim text-text-dim"} text-sm font-bold font-mono`}
+            >
               {message.authorName?.charAt(0)?.toUpperCase() || "?"}
             </div>
           )}
@@ -236,10 +276,14 @@ export function StreamingMessage({
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 mb-1">
-          <span className={`text-sm font-bold font-mono ${isActive ? "text-accent-cyan" : "text-text-secondary"}`}>
+          <span
+            className={`text-sm font-bold font-mono ${isActive ? "text-accent-cyan" : "text-text-secondary"}`}
+          >
             {message.authorName}
           </span>
-          <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${isActive ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30' : 'bg-background-secondary text-text-muted border border-border'}`}>
+          <span
+            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${isActive ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30" : "bg-background-secondary text-text-muted border border-border"}`}
+          >
             AGENT
           </span>
           <span className="text-[10px] text-text-muted font-mono">
@@ -252,12 +296,16 @@ export function StreamingMessage({
             </span>
           )}
           {message.editedAt && (
-            <span className="text-[10px] text-text-muted font-mono">(edited)</span>
+            <span className="text-[10px] text-text-muted font-mono">
+              (edited)
+            </span>
           )}
         </div>
         <div className="text-sm font-mono text-text-primary leading-relaxed">
           <MarkdownContent content={text} mentionNames={mentionNames} />
-          {isActive && <span className="inline-block w-2 h-4 ml-1 bg-accent-cyan animate-pulse align-middle" />}
+          {isActive && (
+            <span className="inline-block w-2 h-4 ml-1 bg-accent-cyan animate-pulse align-middle" />
+          )}
         </div>
         {files.map((file) => (
           <FileAttachment
@@ -275,29 +323,42 @@ export function StreamingMessage({
           </p>
         )}
         {/* Stream rewind slider (TASK-0021) */}
-        {isComplete && message.tokenHistory && message.tokenHistory.length > 0 && showRewind && (
-          <RewindSlider
-            content={message.content || ""}
-            tokenHistory={message.tokenHistory}
-            checkpoints={message.checkpoints}
-            mentionNames={mentionNames}
-            onClose={() => setShowRewind(false)}
-          />
-        )}
+        {isComplete &&
+          message.tokenHistory &&
+          message.tokenHistory.length > 0 &&
+          showRewind && (
+            <RewindSlider
+              content={message.content || ""}
+              tokenHistory={message.tokenHistory}
+              checkpoints={message.checkpoints}
+              mentionNames={mentionNames}
+              onClose={() => setShowRewind(false)}
+            />
+          )}
         {/* Rewind toggle button (TASK-0021) */}
-        {isComplete && message.tokenHistory && message.tokenHistory.length > 0 && !showRewind && (
-          <button
-            onClick={() => setShowRewind(true)}
-            className="mt-1 text-[10px] px-1.5 py-0.5 rounded bg-background-tertiary text-text-muted hover:text-accent hover:bg-accent/10 transition flex items-center gap-1"
-            title="Rewind stream"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="19,20 9,12 19,4" />
-              <line x1="5" y1="19" x2="5" y2="5" />
-            </svg>
-            Rewind
-          </button>
-        )}
+        {isComplete &&
+          message.tokenHistory &&
+          message.tokenHistory.length > 0 &&
+          !showRewind && (
+            <button
+              onClick={() => setShowRewind(true)}
+              className="mt-1 text-[10px] px-1.5 py-0.5 rounded bg-background-tertiary text-text-muted hover:text-accent hover:bg-accent/10 transition flex items-center gap-1"
+              title="Rewind stream"
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polygon points="19,20 9,12 19,4" />
+                <line x1="5" y1="19" x2="5" y2="5" />
+              </svg>
+              Rewind
+            </button>
+          )}
         {/* Checkpoint resume (TASK-0021) */}
         {isError && message.checkpoints && message.checkpoints.length > 0 && (
           <CheckpointResume
@@ -310,16 +371,21 @@ export function StreamingMessage({
         {hasTimeline && (
           <div className="flex items-center gap-1 mt-1.5">
             {message.thinkingTimeline!.map((entry, i) => {
-              const isCurrent = isActive && i === message.thinkingTimeline!.length - 1;
+              const isCurrent =
+                isActive && i === message.thinkingTimeline!.length - 1;
               return (
                 <div key={i} className="flex items-center gap-1">
                   {i > 0 && <span className="w-3 h-px bg-text-muted/30" />}
-                  <span className={`inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
-                    isCurrent
-                      ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
-                      : 'bg-background-secondary text-text-muted border border-border'
-                  }`}>
-                    <span className={`w-1 h-1 rounded-full ${isCurrent ? 'bg-accent-cyan animate-pulse' : 'bg-accent-cyan/50'}`} />
+                  <span
+                    className={`inline-flex items-center gap-1 rounded px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                      isCurrent
+                        ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
+                        : "bg-background-secondary text-text-muted border border-border"
+                    }`}
+                  >
+                    <span
+                      className={`w-1 h-1 rounded-full ${isCurrent ? "bg-accent-cyan animate-pulse" : "bg-accent-cyan/50"}`}
+                    />
                     {entry.phase}
                   </span>
                 </div>

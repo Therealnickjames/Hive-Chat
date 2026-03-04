@@ -87,7 +87,9 @@ export default function InvitePage() {
                 />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-text-primary">Invalid Invite</h1>
+            <h1 className="text-xl font-bold text-text-primary">
+              Invalid Invite
+            </h1>
             <p className="mt-2 text-sm text-text-secondary">{error}</p>
             <button
               onClick={() => router.push("/")}

@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
-import { authenticateAgentKey, authenticateAgentRequest } from "@/lib/agent-auth";
+import {
+  authenticateAgentKey,
+  authenticateAgentRequest,
+} from "@/lib/agent-auth";
 import { prisma } from "@/lib/db";
 
 /**
@@ -20,7 +23,7 @@ import { prisma } from "@/lib/db";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: agentId } = await params;
 
@@ -47,11 +50,14 @@ export async function GET(
   if (!channelsParam) {
     return new Response(
       JSON.stringify({ error: "channels query parameter is required" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
+      { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
 
-  const channelIds = channelsParam.split(",").map((s) => s.trim()).filter(Boolean);
+  const channelIds = channelsParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   // Verify all channels belong to agent's server
   const channels = await prisma.channel.findMany({
@@ -59,11 +65,13 @@ export async function GET(
     select: { id: true, serverId: true },
   });
 
-  const invalidChannels = channels.filter((c) => c.serverId !== agent!.serverId);
+  const invalidChannels = channels.filter(
+    (c) => c.serverId !== agent!.serverId,
+  );
   if (invalidChannels.length > 0) {
     return new Response(
       JSON.stringify({ error: "Some channels don't belong to agent's server" }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
+      { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
 

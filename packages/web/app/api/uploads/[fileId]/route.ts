@@ -15,7 +15,7 @@ export const runtime = "nodejs";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ fileId: string }> }
+  { params }: { params: Promise<{ fileId: string }> },
 ) {
   const { fileId } = await params;
   const session = await getServerSession(authOptions);

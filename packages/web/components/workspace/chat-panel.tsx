@@ -36,7 +36,8 @@ export function ChatPanel({ panel }: ChatPanelProps) {
 
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
-  const { servers, serverDataById, ensureServerScopedData, hasPermission } = useChatContext();
+  const { servers, serverDataById, ensureServerScopedData, hasPermission } =
+    useChatContext();
   const canManageMessages = hasPermission(Permissions.MANAGE_MESSAGES);
   const [showChannelSettings, setShowChannelSettings] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MessagePayload | null>(null);
@@ -61,7 +62,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
       const message = messages.find((m) => m.id === messageId);
       if (message) setDeleteTarget(message);
     },
-    [messages]
+    [messages],
   );
 
   const handleDeleteConfirm = useCallback(async (): Promise<boolean> => {
@@ -83,7 +84,13 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     offsetY: 0,
   });
 
-  const resizeRef = useRef<{ isResizing: boolean; startX: number; startY: number; panelW: number; panelH: number }>({
+  const resizeRef = useRef<{
+    isResizing: boolean;
+    startX: number;
+    startY: number;
+    panelW: number;
+    panelH: number;
+  }>({
     isResizing: false,
     startX: 0,
     startY: 0,
@@ -118,7 +125,9 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     if (typeof navigator === "undefined") return "windows";
     const platform =
       (navigator as Navigator & { userAgentData?: { platform?: string } })
-        .userAgentData?.platform || navigator.platform || navigator.userAgent;
+        .userAgentData?.platform ||
+      navigator.platform ||
+      navigator.userAgent;
     return /mac/i.test(platform) ? "mac" : "windows";
   }, []);
 
@@ -139,13 +148,13 @@ export function ChatPanel({ panel }: ChatPanelProps) {
         (candidate) =>
           candidate.id !== panel.id &&
           !candidate.isClosed &&
-          !candidate.isMinimized
+          !candidate.isMinimized,
       )
       .sort((a, b) => b.zIndex - a.zIndex)[0];
 
     if (fallbackPanel) {
       router.replace(
-        `/servers/${fallbackPanel.serverId}/channels/${fallbackPanel.channelId}`
+        `/servers/${fallbackPanel.serverId}/channels/${fallbackPanel.channelId}`,
       );
       return;
     }
@@ -171,7 +180,9 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     if (e.target instanceof HTMLElement && e.target.closest("button")) return;
     e.preventDefault();
     const workspace = document.getElementById("workspace-root");
-    const panelRect = (e.currentTarget.parentElement as HTMLDivElement | null)?.getBoundingClientRect();
+    const panelRect = (
+      e.currentTarget.parentElement as HTMLDivElement | null
+    )?.getBoundingClientRect();
     if (!workspace || !panelRect) return;
     dragRef.current.isDragging = true;
     dragRef.current.offsetX = e.clientX - panelRect.left;
@@ -198,7 +209,11 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     const workspace = document.getElementById("workspace-root");
     if (!workspace) return;
     const rect = workspace.getBoundingClientRect();
-    toggleMaximizePanel(panel.id, Math.floor(rect.width), Math.floor(rect.height));
+    toggleMaximizePanel(
+      panel.id,
+      Math.floor(rect.width),
+      Math.floor(rect.height),
+    );
     focusAndSyncRoute();
   };
 
@@ -211,8 +226,14 @@ export function ChatPanel({ panel }: ChatPanelProps) {
       if (dragRef.current.isDragging) {
         const rawX = e.clientX - workspaceRect.left - dragRef.current.offsetX;
         const rawY = e.clientY - workspaceRect.top - dragRef.current.offsetY;
-        const maxX = Math.max(0, workspaceRect.width - panelMetricsRef.current.width);
-        const maxY = Math.max(0, workspaceRect.height - panelMetricsRef.current.height);
+        const maxX = Math.max(
+          0,
+          workspaceRect.width - panelMetricsRef.current.width,
+        );
+        const maxY = Math.max(
+          0,
+          workspaceRect.height - panelMetricsRef.current.height,
+        );
         const newX = Math.min(maxX, Math.max(0, rawX));
         const newY = Math.min(maxY, Math.max(0, rawY));
         updatePanelPosition(panel.id, newX, newY);
@@ -220,10 +241,22 @@ export function ChatPanel({ panel }: ChatPanelProps) {
       if (resizeRef.current.isResizing) {
         const dx = e.clientX - resizeRef.current.startX;
         const dy = e.clientY - resizeRef.current.startY;
-        const maxW = Math.max(300, workspaceRect.width - panelMetricsRef.current.x);
-        const maxH = Math.max(200, workspaceRect.height - panelMetricsRef.current.y);
-        const newW = Math.min(maxW, Math.max(300, resizeRef.current.panelW + dx));
-        const newH = Math.min(maxH, Math.max(200, resizeRef.current.panelH + dy));
+        const maxW = Math.max(
+          300,
+          workspaceRect.width - panelMetricsRef.current.x,
+        );
+        const maxH = Math.max(
+          200,
+          workspaceRect.height - panelMetricsRef.current.y,
+        );
+        const newW = Math.min(
+          maxW,
+          Math.max(300, resizeRef.current.panelW + dx),
+        );
+        const newH = Math.min(
+          maxH,
+          Math.max(200, resizeRef.current.panelH + dy),
+        );
         updatePanelSize(panel.id, newW, newH);
       }
     };
@@ -264,7 +297,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
   }, [panel.serverId, serverDataById]);
   const panelServerName = useMemo(
     () => servers.find((server) => server.id === panel.serverId)?.name,
-    [servers, panel.serverId]
+    [servers, panel.serverId],
   );
 
   const channelData = useMemo(() => {
@@ -300,7 +333,9 @@ export function ChatPanel({ panel }: ChatPanelProps) {
       <div
         onMouseDown={handleMouseDownDrag}
         className={`flex h-[38px] shrink-0 items-center justify-between border-b border-border bg-background-secondary px-3 ${
-          panel.isMaximized ? "cursor-default" : "cursor-grab active:cursor-grabbing"
+          panel.isMaximized
+            ? "cursor-default"
+            : "cursor-grab active:cursor-grabbing"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -322,7 +357,9 @@ export function ChatPanel({ panel }: ChatPanelProps) {
               <button
                 onClick={handleToggleMaximize}
                 className="h-3 w-3 rounded-full bg-status-online opacity-70 transition-opacity hover:opacity-100"
-                aria-label={panel.isMaximized ? "Restore panel" : "Maximize panel"}
+                aria-label={
+                  panel.isMaximized ? "Restore panel" : "Maximize panel"
+                }
               />
             </div>
           )}
@@ -341,7 +378,17 @@ export function ChatPanel({ panel }: ChatPanelProps) {
               className="ml-1 text-text-dim hover:text-text-primary transition-colors"
               title="Channel Settings"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
@@ -375,7 +422,9 @@ export function ChatPanel({ panel }: ChatPanelProps) {
               <button
                 onClick={handleToggleMaximize}
                 className="h-5 w-6 text-[10px] text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
-                aria-label={panel.isMaximized ? "Restore panel" : "Maximize panel"}
+                aria-label={
+                  panel.isMaximized ? "Restore panel" : "Maximize panel"
+                }
               >
                 {panel.isMaximized ? "❐" : "□"}
               </button>

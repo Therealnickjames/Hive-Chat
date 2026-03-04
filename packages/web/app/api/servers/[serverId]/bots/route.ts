@@ -18,14 +18,19 @@ import { Permissions } from "@/lib/permissions";
  */
 
 const VALID_CONNECTION_METHODS = [
-  "WEBSOCKET", "WEBHOOK", "INBOUND_WEBHOOK", "REST_POLL", "SSE", "OPENAI_COMPAT",
+  "WEBSOCKET",
+  "WEBHOOK",
+  "INBOUND_WEBHOOK",
+  "REST_POLL",
+  "SSE",
+  "OPENAI_COMPAT",
 ] as const;
 
 type ConnectionMethodValue = (typeof VALID_CONNECTION_METHODS)[number];
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -96,7 +101,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -108,12 +113,12 @@ export async function POST(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_BOTS
+    Permissions.MANAGE_BOTS,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Bots" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -136,10 +141,7 @@ export async function POST(
   } = body;
 
   if (!name || typeof name !== "string" || !name.trim()) {
-    return NextResponse.json(
-      { error: "name is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
   // ─── Non-BYOK creation (DEC-0047) ───
@@ -157,8 +159,11 @@ export async function POST(
   // ─── BYOK creation (existing flow) ───
   if (!llmProvider || !llmModel || !apiEndpoint || !apiKey || !systemPrompt) {
     return NextResponse.json(
-      { error: "Missing required fields: name, llmProvider, llmModel, apiEndpoint, apiKey, systemPrompt" },
-      { status: 400 }
+      {
+        error:
+          "Missing required fields: name, llmProvider, llmModel, apiEndpoint, apiKey, systemPrompt",
+      },
+      { status: 400 },
     );
   }
 
@@ -197,7 +202,7 @@ export async function POST(
       triggerMode: bot.triggerMode,
       thinkingSteps: bot.thinkingSteps ? JSON.parse(bot.thinkingSteps) : null,
     },
-    { status: 201 }
+    { status: 201 },
   );
 }
 
@@ -214,7 +219,7 @@ async function createNonBYOKAgent(
     webhookUrl?: string;
     capabilities?: string[];
     systemPrompt?: string;
-  }
+  },
 ) {
   const botId = ulid();
   const registrationId = ulid();
@@ -245,7 +250,10 @@ async function createNonBYOKAgent(
           temperature: 0.7,
           maxTokens: 4096,
           isActive: true,
-          triggerMode: (opts.triggerMode || "MENTION") as "ALWAYS" | "MENTION" | "KEYWORD",
+          triggerMode: (opts.triggerMode || "MENTION") as
+            | "ALWAYS"
+            | "MENTION"
+            | "KEYWORD",
           connectionMethod: opts.connectionMethod,
         },
       });
@@ -255,7 +263,9 @@ async function createNonBYOKAgent(
           id: registrationId,
           botId: bot.id,
           apiKeyHash,
-          capabilities: Array.isArray(opts.capabilities) ? opts.capabilities : [],
+          capabilities: Array.isArray(opts.capabilities)
+            ? opts.capabilities
+            : [],
           webhookUrl: opts.webhookUrl,
           connectionMethod: opts.connectionMethod,
           webhookSecret,
@@ -305,7 +315,7 @@ async function createNonBYOKAgent(
     console.error("Non-BYOK agent creation failed:", error);
     return NextResponse.json(
       { error: "Agent creation failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

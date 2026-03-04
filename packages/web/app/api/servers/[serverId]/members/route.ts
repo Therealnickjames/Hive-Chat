@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -71,6 +71,6 @@ export async function GET(
 export async function POST() {
   return NextResponse.json(
     { error: "Direct join is disabled. Use an invite link to join servers." },
-    { status: 410 }
+    { status: 410 },
   );
 }

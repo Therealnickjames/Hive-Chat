@@ -12,7 +12,13 @@ interface FileAttachmentProps {
   height?: number; // TASK-0025: actual image height
 }
 
-export function FileAttachment({ fileId, filename, mimeType, width, height }: FileAttachmentProps) {
+export function FileAttachment({
+  fileId,
+  filename,
+  mimeType,
+  width,
+  height,
+}: FileAttachmentProps) {
   const [imageError, setImageError] = useState(false);
   const url = `/api/uploads/${fileId}`;
   const isImage = mimeType.startsWith("image/") && !imageError;
@@ -88,16 +94,40 @@ function getFileIcon(mimeType: string): string {
  */
 export function parseFileReferences(content: string): {
   text: string;
-  files: { fileId: string; filename: string; mimeType: string; width?: number; height?: number }[];
+  files: {
+    fileId: string;
+    filename: string;
+    mimeType: string;
+    width?: number;
+    height?: number;
+  }[];
 } {
   // Extended regex: optional 5th field for dimensions (WxH)
   const fileRegex = /\[file:([^:\]]+):([^:\]]+):([^:\]]+)(?::(\d+x\d+))?\]/g;
-  const files: { fileId: string; filename: string; mimeType: string; width?: number; height?: number }[] = [];
+  const files: {
+    fileId: string;
+    filename: string;
+    mimeType: string;
+    width?: number;
+    height?: number;
+  }[] = [];
 
   const withoutRefs = content.replace(
     fileRegex,
-    (_, fileId: string, filename: string, mimeType: string, dimensions?: string) => {
-      const file: { fileId: string; filename: string; mimeType: string; width?: number; height?: number } = {
+    (
+      _,
+      fileId: string,
+      filename: string,
+      mimeType: string,
+      dimensions?: string,
+    ) => {
+      const file: {
+        fileId: string;
+        filename: string;
+        mimeType: string;
+        width?: number;
+        height?: number;
+      } = {
         fileId,
         filename,
         mimeType,
@@ -111,7 +141,7 @@ export function parseFileReferences(content: string): {
       }
       files.push(file);
       return "";
-    }
+    },
   );
 
   return {

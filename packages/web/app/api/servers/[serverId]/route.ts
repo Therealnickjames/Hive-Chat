@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -78,7 +78,7 @@ export async function GET(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -100,7 +100,7 @@ export async function DELETE(
     if (server.ownerId !== session.user.id) {
       return NextResponse.json(
         { error: "Only the server owner can delete this server" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 

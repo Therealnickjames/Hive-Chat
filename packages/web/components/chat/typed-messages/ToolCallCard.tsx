@@ -8,10 +8,30 @@ interface ToolCallCardProps {
 }
 
 const statusConfig = {
-  pending: { label: "Pending", color: "text-text-muted", bg: "bg-background-secondary", icon: "\u25CB" },
-  running: { label: "Running", color: "text-accent-cyan", bg: "bg-accent-cyan/10", icon: "\u25D4" },
-  completed: { label: "Done", color: "text-status-online", bg: "bg-status-online/10", icon: "\u2713" },
-  failed: { label: "Failed", color: "text-status-dnd", bg: "bg-status-dnd/10", icon: "\u2717" },
+  pending: {
+    label: "Pending",
+    color: "text-text-muted",
+    bg: "bg-background-secondary",
+    icon: "\u25CB",
+  },
+  running: {
+    label: "Running",
+    color: "text-accent-cyan",
+    bg: "bg-accent-cyan/10",
+    icon: "\u25D4",
+  },
+  completed: {
+    label: "Done",
+    color: "text-status-online",
+    bg: "bg-status-online/10",
+    icon: "\u2713",
+  },
+  failed: {
+    label: "Failed",
+    color: "text-status-dnd",
+    bg: "bg-status-dnd/10",
+    icon: "\u2717",
+  },
 };
 
 export function ToolCallCard({ content }: ToolCallCardProps) {
@@ -29,16 +49,22 @@ export function ToolCallCard({ content }: ToolCallCardProps) {
   const hasArgs = Object.keys(content.arguments || {}).length > 0;
 
   return (
-    <div className={`rounded border ${content.status === "failed" ? "border-status-dnd/30" : "border-border"} ${status.bg} my-1`}>
+    <div
+      className={`rounded border ${content.status === "failed" ? "border-status-dnd/30" : "border-border"} ${status.bg} my-1`}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 w-full px-3 py-2 text-left"
       >
-        <span className={`text-xs font-mono ${status.color}`}>{status.icon}</span>
+        <span className={`text-xs font-mono ${status.color}`}>
+          {status.icon}
+        </span>
         <span className="text-xs font-bold font-mono text-text-secondary uppercase tracking-wider">
           {content.toolName}
         </span>
-        <span className={`ml-auto text-[9px] font-bold uppercase tracking-wider ${status.color}`}>
+        <span
+          className={`ml-auto text-[9px] font-bold uppercase tracking-wider ${status.color}`}
+        >
           {status.label}
         </span>
         {hasArgs && (

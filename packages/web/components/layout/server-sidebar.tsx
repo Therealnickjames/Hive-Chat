@@ -24,15 +24,20 @@ export function ServerSidebar() {
               : "bg-background-primary text-brand"
           }`}
         >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
             <path d="M2.3 7.7L11.3 2.2C11.7 2 12.3 2 12.7 2.2L21.7 7.7C22.1 7.9 22.1 8.5 21.7 8.7L12.7 14.2C12.3 14.4 11.7 14.4 11.3 14.2L2.3 8.7C1.9 8.5 1.9 7.9 2.3 7.7Z" />
-            <path d="M2.3 11.7L11.3 17.2C11.7 17.4 12.3 17.4 12.7 17.2L21.7 11.7" strokeWidth="2" stroke="currentColor" fill="none" />
-            <path d="M2.3 15.7L11.3 21.2C11.7 21.4 12.3 21.4 12.7 21.2L21.7 15.7" strokeWidth="2" stroke="currentColor" fill="none" />
+            <path
+              d="M2.3 11.7L11.3 17.2C11.7 17.4 12.3 17.4 12.7 17.2L21.7 11.7"
+              strokeWidth="2"
+              stroke="currentColor"
+              fill="none"
+            />
+            <path
+              d="M2.3 15.7L11.3 21.2C11.7 21.4 12.3 21.4 12.7 21.2L21.7 15.7"
+              strokeWidth="2"
+              stroke="currentColor"
+              fill="none"
+            />
           </svg>
         </button>
 

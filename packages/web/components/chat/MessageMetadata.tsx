@@ -29,7 +29,9 @@ export function MessageMetadata({ metadata }: MessageMetadataProps) {
     parts.push(`${total} tokens`);
   }
   if (latencyMs !== undefined) {
-    parts.push(latencyMs > 1000 ? `${(latencyMs / 1000).toFixed(1)}s` : `${latencyMs}ms`);
+    parts.push(
+      latencyMs > 1000 ? `${(latencyMs / 1000).toFixed(1)}s` : `${latencyMs}ms`,
+    );
   }
 
   if (parts.length === 0) return null;
@@ -57,22 +59,28 @@ export function MessageMetadata({ metadata }: MessageMetadataProps) {
           )}
           {tokensIn !== undefined && (
             <div className="text-[10px] font-mono text-text-muted">
-              <span className="text-text-secondary">Input:</span> {tokensIn.toLocaleString()} tokens
+              <span className="text-text-secondary">Input:</span>{" "}
+              {tokensIn.toLocaleString()} tokens
             </div>
           )}
           {tokensOut !== undefined && (
             <div className="text-[10px] font-mono text-text-muted">
-              <span className="text-text-secondary">Output:</span> {tokensOut.toLocaleString()} tokens
+              <span className="text-text-secondary">Output:</span>{" "}
+              {tokensOut.toLocaleString()} tokens
             </div>
           )}
           {latencyMs !== undefined && (
             <div className="text-[10px] font-mono text-text-muted">
-              <span className="text-text-secondary">Latency:</span> {latencyMs > 1000 ? `${(latencyMs / 1000).toFixed(2)}s` : `${latencyMs}ms`}
+              <span className="text-text-secondary">Latency:</span>{" "}
+              {latencyMs > 1000
+                ? `${(latencyMs / 1000).toFixed(2)}s`
+                : `${latencyMs}ms`}
             </div>
           )}
           {costUsd !== undefined && (
             <div className="text-[10px] font-mono text-text-muted">
-              <span className="text-text-secondary">Cost:</span> ${costUsd.toFixed(4)}
+              <span className="text-text-secondary">Cost:</span> $
+              {costUsd.toFixed(4)}
             </div>
           )}
         </div>

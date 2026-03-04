@@ -24,15 +24,12 @@ export async function GET(request: NextRequest) {
   if (!apiKey || !apiKey.startsWith("sk-tvk-")) {
     return NextResponse.json(
       { error: "Invalid API key format" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   // SHA-256 hash for indexed lookup
-  const apiKeyHash = crypto
-    .createHash("sha256")
-    .update(apiKey)
-    .digest("hex");
+  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
 
   try {
     const registration = await prisma.agentRegistration.findFirst({
@@ -55,14 +52,14 @@ export async function GET(request: NextRequest) {
     if (!registration) {
       return NextResponse.json(
         { error: "Agent not found", valid: false },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!registration.bot.isActive) {
       return NextResponse.json(
         { error: "Agent is deactivated", valid: false },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -76,9 +73,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Agent verification failed:", error);
-    return NextResponse.json(
-      { error: "Verification failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Verification failed" }, { status: 500 });
   }
 }

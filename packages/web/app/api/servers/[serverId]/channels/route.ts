@@ -11,7 +11,7 @@ import { Permissions } from "@/lib/permissions";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -58,7 +58,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -71,12 +71,12 @@ export async function POST(
     const check = await checkMemberPermission(
       session.user.id,
       serverId,
-      Permissions.MANAGE_CHANNELS
+      Permissions.MANAGE_CHANNELS,
     );
     if (!check.allowed) {
       return NextResponse.json(
         { error: "Missing permission: Manage Channels" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -91,7 +91,7 @@ export async function POST(
     if (!name || name.length < 1 || name.length > 100) {
       return NextResponse.json(
         { error: "Channel name must be 1-100 characters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -122,7 +122,7 @@ export async function POST(
         topic: channel.topic,
         position: channel.position,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Failed to create channel:", error);

@@ -14,13 +14,41 @@ interface Bot {
 
 // TASK-0020: Swarm mode options
 const SWARM_MODES = [
-  { value: "HUMAN_IN_THE_LOOP", label: "Human in the Loop", description: "Agents only respond when mentioned or triggered" },
-  { value: "LEAD_AGENT", label: "Lead Agent", description: "One agent leads, others assist when asked" },
-  { value: "ROUND_ROBIN", label: "Round Robin", description: "Agents take turns in defined order" },
-  { value: "STRUCTURED_DEBATE", label: "Structured Debate", description: "Agents present opposing viewpoints" },
-  { value: "CODE_REVIEW_SPRINT", label: "Code Review Sprint", description: "Sequential code review pattern" },
-  { value: "FREEFORM", label: "Freeform", description: "Any agent can respond anytime" },
-  { value: "CUSTOM", label: "Custom", description: "User-defined rules via charter text" },
+  {
+    value: "HUMAN_IN_THE_LOOP",
+    label: "Human in the Loop",
+    description: "Agents only respond when mentioned or triggered",
+  },
+  {
+    value: "LEAD_AGENT",
+    label: "Lead Agent",
+    description: "One agent leads, others assist when asked",
+  },
+  {
+    value: "ROUND_ROBIN",
+    label: "Round Robin",
+    description: "Agents take turns in defined order",
+  },
+  {
+    value: "STRUCTURED_DEBATE",
+    label: "Structured Debate",
+    description: "Agents present opposing viewpoints",
+  },
+  {
+    value: "CODE_REVIEW_SPRINT",
+    label: "Code Review Sprint",
+    description: "Sequential code review pattern",
+  },
+  {
+    value: "FREEFORM",
+    label: "Freeform",
+    description: "Any agent can respond anytime",
+  },
+  {
+    value: "CUSTOM",
+    label: "Custom",
+    description: "User-defined rules via charter text",
+  },
 ] as const;
 
 interface ChannelSettingsModalProps {
@@ -74,7 +102,9 @@ export function ChannelSettingsModal({
   const fetchChannelData = useCallback(async () => {
     if (!currentServerId || !channelId) return;
     try {
-      const res = await fetch(`/api/servers/${currentServerId}/channels/${channelId}`);
+      const res = await fetch(
+        `/api/servers/${currentServerId}/channels/${channelId}`,
+      );
       if (res.ok) {
         const data = await res.json();
         setSwarmMode(data.swarmMode || "HUMAN_IN_THE_LOOP");
@@ -134,7 +164,7 @@ export function ChannelSettingsModal({
             charterRules: charterRules || null,
             charterMaxTurns,
           }),
-        }
+        },
       );
 
       if (!res.ok) {
@@ -159,12 +189,14 @@ export function ChannelSettingsModal({
             Channel Agents
           </label>
           <p className="mb-3 text-xs text-text-muted">
-            Select one or more agents to respond in this channel. Multiple agents can stream simultaneously.
+            Select one or more agents to respond in this channel. Multiple
+            agents can stream simultaneously.
           </p>
 
           {bots.length === 0 ? (
             <p className="text-xs text-text-muted py-2">
-              No bots created yet. Use &quot;Manage Bots&quot; to create one first.
+              No bots created yet. Use &quot;Manage Bots&quot; to create one
+              first.
             </p>
           ) : (
             <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -184,7 +216,9 @@ export function ChannelSettingsModal({
                     className="rounded border-text-dim text-accent-cyan focus:ring-accent-cyan"
                   />
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm font-mono text-text-primary">{bot.name}</span>
+                    <span className="text-sm font-mono text-text-primary">
+                      {bot.name}
+                    </span>
                     <span className="ml-2 text-[10px] text-text-muted">
                       {bot.llmProvider}/{bot.llmModel}
                     </span>
@@ -258,11 +292,17 @@ export function ChannelSettingsModal({
                   type="number"
                   min={0}
                   value={charterMaxTurns}
-                  onChange={(e) => setCharterMaxTurns(Math.max(0, parseInt(e.target.value) || 0))}
+                  onChange={(e) =>
+                    setCharterMaxTurns(
+                      Math.max(0, parseInt(e.target.value) || 0),
+                    )
+                  }
                   className="w-20 rounded border border-background-tertiary bg-background-primary px-3 py-2 text-sm text-text-primary focus:border-accent-cyan focus:outline-none"
                 />
                 <span className="text-xs text-text-muted">
-                  {charterMaxTurns === 0 ? "Unlimited" : `${charterMaxTurns} turns`}
+                  {charterMaxTurns === 0
+                    ? "Unlimited"
+                    : `${charterMaxTurns} turns`}
                 </span>
               </div>
             </div>

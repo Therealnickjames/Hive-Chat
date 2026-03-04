@@ -11,7 +11,9 @@ defmodule TavokGatewayWeb.HealthController do
       web: check_web_health()
     }
 
-    status = if Enum.all?(checks, fn {_name, check} -> check["status"] == "ok" end), do: 200, else: 503
+    status =
+      if Enum.all?(checks, fn {_name, check} -> check["status"] == "ok" end), do: 200, else: 503
+
     response_status = if status == 200, do: "ok", else: "degraded"
 
     conn

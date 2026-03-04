@@ -11,7 +11,7 @@ import { Permissions } from "@/lib/permissions";
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; inviteId: string }> }
+  { params }: { params: Promise<{ serverId: string; inviteId: string }> },
 ) {
   const { serverId, inviteId } = await params;
   const session = await getServerSession(authOptions);
@@ -22,12 +22,12 @@ export async function DELETE(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_SERVER
+    Permissions.MANAGE_SERVER,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Server" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 

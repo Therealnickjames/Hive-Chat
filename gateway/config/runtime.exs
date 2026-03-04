@@ -28,22 +28,26 @@ if config_env() == :prod do
 end
 
 # JWT secret for validating tokens from Next.js (DEC-0003)
-config :tavok_gateway, :jwt_secret,
-  System.get_env("GATEWAY_JWT_SECRET") || System.get_env("JWT_SECRET") ||
-    raise("GATEWAY_JWT_SECRET or JWT_SECRET must be set")
+config :tavok_gateway,
+       :jwt_secret,
+       System.get_env("GATEWAY_JWT_SECRET") || System.get_env("JWT_SECRET") ||
+         raise("GATEWAY_JWT_SECRET or JWT_SECRET must be set")
 
 # Redis connection
-config :tavok_gateway, :redis_url,
-  System.get_env("GATEWAY_REDIS_URL") || System.get_env("REDIS_URL") || "redis://localhost:6379"
+config :tavok_gateway,
+       :redis_url,
+       System.get_env("GATEWAY_REDIS_URL") || System.get_env("REDIS_URL") ||
+         "redis://localhost:6379"
 
 # Next.js internal API URL
-config :tavok_gateway, :web_url,
-  System.get_env("GATEWAY_WEB_URL") || "http://localhost:3000"
+config :tavok_gateway, :web_url, System.get_env("GATEWAY_WEB_URL") || "http://localhost:3000"
 
 # Internal API secret
-config :tavok_gateway, :internal_api_secret,
-  System.get_env("INTERNAL_API_SECRET") ||
-    raise("INTERNAL_API_SECRET must be set")
+config :tavok_gateway,
+       :internal_api_secret,
+       System.get_env("INTERNAL_API_SECRET") ||
+         raise("INTERNAL_API_SECRET must be set")
 
-config :tavok_gateway, :stream_watchdog_timeout_ms,
-  String.to_integer(System.get_env("STREAM_WATCHDOG_TIMEOUT_MS") || "45000")
+config :tavok_gateway,
+       :stream_watchdog_timeout_ms,
+       String.to_integer(System.get_env("STREAM_WATCHDOG_TIMEOUT_MS") || "45000")

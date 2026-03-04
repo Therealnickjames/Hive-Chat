@@ -20,7 +20,7 @@ export function CreateChannelModal({
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
   const [channelType, setChannelType] = useState<"TEXT" | "ANNOUNCEMENT">(
-    "TEXT"
+    "TEXT",
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -103,10 +103,7 @@ export function CreateChannelModal({
               <Button type="button" variant="ghost" onClick={resetModal}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={!name.trim()}
-              >
+              <Button type="submit" disabled={!name.trim()}>
                 Configure
               </Button>
             </div>
@@ -122,7 +119,9 @@ export function CreateChannelModal({
                   value={channelType}
                   onChange={(e) =>
                     setChannelType(
-                      e.target.value === "ANNOUNCEMENT" ? "ANNOUNCEMENT" : "TEXT"
+                      e.target.value === "ANNOUNCEMENT"
+                        ? "ANNOUNCEMENT"
+                        : "TEXT",
                     )
                   }
                   className="w-full rounded bg-background-tertiary px-3 py-2 text-text-primary outline-none ring-1 ring-transparent transition focus:ring-brand"
@@ -138,12 +137,17 @@ export function CreateChannelModal({
                 placeholder="What should this channel be used for?"
               />
               <div className="rounded border border-border bg-background-secondary px-3 py-2 text-xs text-text-muted">
-                Permissions: <span className="text-text-primary">Server defaults</span>
+                Permissions:{" "}
+                <span className="text-text-primary">Server defaults</span>
               </div>
               {error && <p className="text-xs text-status-dnd">{error}</p>}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setStep("name")}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setStep("name")}
+              >
                 Back
               </Button>
               <Button type="submit" loading={loading} disabled={!name.trim()}>

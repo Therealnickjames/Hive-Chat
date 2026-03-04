@@ -11,9 +11,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ChatProvider>
       <WorkspaceProvider>
-        <div 
+        <div
           className="grid h-screen overflow-hidden bg-background-tertiary"
-          style={{ gridTemplateColumns: "200px 1fr 240px", gridTemplateRows: "38px 1fr 44px" }}
+          style={{
+            gridTemplateColumns: "200px 1fr 240px",
+            gridTemplateRows: "38px 1fr 44px",
+          }}
         >
           <TopBar />
           <LeftPanel />

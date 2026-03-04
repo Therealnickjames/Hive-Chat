@@ -17,9 +17,9 @@ async function openChannel(page: Page, channelName: string): Promise<void> {
   });
   await channelButton.first().click();
 
-  await expect(
-    page.getByPlaceholder(`Message #${channelName}`),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByPlaceholder(`Message #${channelName}`)).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 async function selectServer(page: Page): Promise<void> {
@@ -123,9 +123,9 @@ test.describe("File Upload", () => {
     await messageInput.press("Enter");
 
     // After sending, the file attachment should render as a download link
-    await expect(
-      page.locator("a").filter({ hasText: fileName }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("a").filter({ hasText: fileName })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("upload an image file and see inline preview", async ({ page }) => {
@@ -140,9 +140,9 @@ test.describe("File Upload", () => {
     await messageInput.press("Enter");
 
     // Image attachments render as <img> with alt={filename}
-    await expect(
-      page.locator(`img[alt="${fileName}"]`),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(`img[alt="${fileName}"]`)).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("can remove a pending file before sending", async ({ page }) => {
@@ -183,9 +183,9 @@ test.describe("File Upload", () => {
 
     // Both the text and the file attachment should be visible
     await expect(page.getByText(testText)).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.locator("a").filter({ hasText: fileName }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("a").filter({ hasText: fileName })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("rejects files that are too large (validation check)", async ({

@@ -13,7 +13,9 @@ export function TopBar() {
           <span className="text-brand">TAVOK</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className="border-b-2 border-brand pb-[8px] pt-[10px] text-brand">Workspace</div>
+          <div className="border-b-2 border-brand pb-[8px] pt-[10px] text-brand">
+            Workspace
+          </div>
           <div className="pb-[8px] pt-[10px] text-text-dim">DMs</div>
           <div className="pb-[8px] pt-[10px] text-text-dim">Costs</div>
           <div className="pb-[8px] pt-[10px] text-text-dim">Tasks</div>

@@ -79,7 +79,7 @@ describe("authenticateAgentKey", () => {
     const result = await authenticateAgentKey(
       `Bearer ${TEST_API_KEY}`,
       "agent-1",
-      mockPrisma
+      mockPrisma,
     );
     expect(result.authorized).toBe(false);
     expect(result.error).toBe("Invalid API key");
@@ -89,7 +89,10 @@ describe("authenticateAgentKey", () => {
     const mockPrisma = {
       agentRegistration: {
         findFirst: async ({ where }: any) => {
-          if (where.apiKeyHash === TEST_API_KEY_HASH && where.botId === "agent-1") {
+          if (
+            where.apiKeyHash === TEST_API_KEY_HASH &&
+            where.botId === "agent-1"
+          ) {
             return { id: "reg-1", botId: "agent-1" };
           }
           return null;
@@ -99,7 +102,7 @@ describe("authenticateAgentKey", () => {
     const result = await authenticateAgentKey(
       `Bearer ${TEST_API_KEY}`,
       "agent-1",
-      mockPrisma
+      mockPrisma,
     );
     expect(result.authorized).toBe(true);
   });
@@ -117,7 +120,7 @@ describe("authenticateAgentKey", () => {
     const result = await authenticateAgentKey(
       `Bearer ${TEST_API_KEY}`,
       "agent-1",
-      mockPrisma
+      mockPrisma,
     );
     expect(result.authorized).toBe(false);
   });
@@ -167,7 +170,7 @@ describe("createAgentRegisterHandler", () => {
     const res = await handler(
       makeAgentRequest({
         body: { displayName: "Test Agent", serverId: "s1" },
-      })
+      }),
     );
     expect(res.status).toBe(201);
     const data = await res.json();
@@ -192,7 +195,7 @@ describe("createAgentRegisterHandler", () => {
           systemPrompt: "You are helpful",
           avatarUrl: "https://example.com/avatar.png",
         },
-      })
+      }),
     );
     expect(res.status).toBe(201);
     const data = await res.json();
@@ -215,9 +218,7 @@ describe("createAgentRegisterHandler", () => {
 
   it("returns 400 for missing displayName", async () => {
     const handler = makeRegisterHandler();
-    const res = await handler(
-      makeAgentRequest({ body: { serverId: "s1" } })
-    );
+    const res = await handler(makeAgentRequest({ body: { serverId: "s1" } }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("displayName is required");
   });
@@ -225,7 +226,7 @@ describe("createAgentRegisterHandler", () => {
   it("returns 400 for empty displayName", async () => {
     const handler = makeRegisterHandler();
     const res = await handler(
-      makeAgentRequest({ body: { displayName: "", serverId: "s1" } })
+      makeAgentRequest({ body: { displayName: "", serverId: "s1" } }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("displayName is required");
@@ -234,7 +235,7 @@ describe("createAgentRegisterHandler", () => {
   it("returns 400 for whitespace-only displayName", async () => {
     const handler = makeRegisterHandler();
     const res = await handler(
-      makeAgentRequest({ body: { displayName: "   ", serverId: "s1" } })
+      makeAgentRequest({ body: { displayName: "   ", serverId: "s1" } }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("displayName is required");
@@ -243,7 +244,7 @@ describe("createAgentRegisterHandler", () => {
   it("returns 400 for non-string displayName", async () => {
     const handler = makeRegisterHandler();
     const res = await handler(
-      makeAgentRequest({ body: { displayName: 123, serverId: "s1" } })
+      makeAgentRequest({ body: { displayName: 123, serverId: "s1" } }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("displayName is required");
@@ -252,7 +253,7 @@ describe("createAgentRegisterHandler", () => {
   it("returns 400 for missing serverId", async () => {
     const handler = makeRegisterHandler();
     const res = await handler(
-      makeAgentRequest({ body: { displayName: "Agent" } })
+      makeAgentRequest({ body: { displayName: "Agent" } }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("serverId is required");
@@ -261,7 +262,7 @@ describe("createAgentRegisterHandler", () => {
   it("returns 400 for non-string serverId", async () => {
     const handler = makeRegisterHandler();
     const res = await handler(
-      makeAgentRequest({ body: { displayName: "Agent", serverId: 123 } })
+      makeAgentRequest({ body: { displayName: "Agent", serverId: 123 } }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("serverId is required");
@@ -276,7 +277,7 @@ describe("createAgentRegisterHandler", () => {
     const res = await handler(
       makeAgentRequest({
         body: { displayName: "Agent", serverId: "nonexistent" },
-      })
+      }),
     );
     expect(res.status).toBe(404);
     expect((await res.json()).error).toBe("Server not found");
@@ -294,7 +295,7 @@ describe("createAgentRegisterHandler", () => {
     const res = await handler(
       makeAgentRequest({
         body: { displayName: "Agent", serverId: "s1" },
-      })
+      }),
     );
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Registration failed");
@@ -327,7 +328,7 @@ describe("createAgentRegisterHandler", () => {
     await handler(
       makeAgentRequest({
         body: { displayName: "  Padded Name  ", serverId: "s1" },
-      })
+      }),
     );
     expect(capturedBotData.name).toBe("Padded Name");
   });
@@ -359,7 +360,7 @@ describe("createAgentRegisterHandler", () => {
     await handler(
       makeAgentRequest({
         body: { displayName: "Agent", serverId: "s1" },
-      })
+      }),
     );
     expect(capturedRegData.capabilities).toEqual([]);
   });
@@ -445,7 +446,10 @@ describe("createAgentPatchHandler", () => {
       prismaClient: {
         agentRegistration: {
           findFirst: async ({ where }: any) => {
-            if (where.apiKeyHash === TEST_API_KEY_HASH && where.botId === "agent-1") {
+            if (
+              where.apiKeyHash === TEST_API_KEY_HASH &&
+              where.botId === "agent-1"
+            ) {
               return { id: "reg-1", botId: "agent-1" };
             }
             return null;
@@ -469,7 +473,7 @@ describe("createAgentPatchHandler", () => {
         authHeader: `Bearer ${TEST_API_KEY}`,
         body: { displayName: "Updated Agent" },
       }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(200);
     expect((await res.json()).success).toBe(true);
@@ -499,7 +503,7 @@ describe("createAgentPatchHandler", () => {
         authHeader: `Bearer ${TEST_API_KEY}`,
         body: { displayName: "Just Name" },
       }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(200);
     expect(capturedBotUpdate.name).toBe("Just Name");
@@ -509,7 +513,7 @@ describe("createAgentPatchHandler", () => {
     const handler = makePatchHandler();
     const res = await handler(
       makeAgentRequest({ body: { displayName: "X" } }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe("Missing Authorization header");
@@ -522,7 +526,7 @@ describe("createAgentPatchHandler", () => {
         authHeader: "Bearer sk-tvk-wrong-key",
         body: { displayName: "X" },
       }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe("Invalid API key");
@@ -535,7 +539,7 @@ describe("createAgentPatchHandler", () => {
         authHeader: `Bearer ${TEST_API_KEY}`,
         throwOnJson: true,
       }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Invalid JSON body");
@@ -557,7 +561,7 @@ describe("createAgentPatchHandler", () => {
         authHeader: `Bearer ${TEST_API_KEY}`,
         body: { displayName: "X" },
       }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Update failed");
@@ -591,7 +595,7 @@ describe("createAgentDeleteHandler", () => {
     });
     const res = await handler(
       makeAgentRequest({ authHeader: `Bearer ${TEST_API_KEY}` }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(200);
     expect((await res.json()).success).toBe(true);
@@ -614,7 +618,7 @@ describe("createAgentDeleteHandler", () => {
     });
     const res = await handler(
       makeAgentRequest({ authHeader: "Bearer sk-tvk-wrong" }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(401);
   });
@@ -634,7 +638,7 @@ describe("createAgentDeleteHandler", () => {
     });
     const res = await handler(
       makeAgentRequest({ authHeader: `Bearer ${TEST_API_KEY}` }),
-      "agent-1"
+      "agent-1",
     );
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Deregistration failed");
@@ -684,7 +688,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "test-secret",
         url: `http://localhost:3000/api/internal/agents/verify?api_key=${TEST_API_KEY}`,
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -701,7 +705,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "wrong-secret",
         url: `http://localhost:3000/api/internal/agents/verify?api_key=${TEST_API_KEY}`,
-      })
+      }),
     );
     expect(res.status).toBe(401);
   });
@@ -711,7 +715,7 @@ describe("createAgentVerifyHandler", () => {
     const res = await handler(
       makeAgentRequest({
         url: `http://localhost:3000/api/internal/agents/verify?api_key=${TEST_API_KEY}`,
-      })
+      }),
     );
     expect(res.status).toBe(401);
   });
@@ -722,7 +726,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "test-secret",
         url: "http://localhost:3000/api/internal/agents/verify",
-      })
+      }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Invalid API key format");
@@ -734,7 +738,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "test-secret",
         url: "http://localhost:3000/api/internal/agents/verify?api_key=invalid-key-format",
-      })
+      }),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Invalid API key format");
@@ -746,7 +750,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "test-secret",
         url: "http://localhost:3000/api/internal/agents/verify?api_key=sk-tvk-unknown-key-doesnt-exist",
-      })
+      }),
     );
     expect(res.status).toBe(404);
     const data = await res.json();
@@ -776,7 +780,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "test-secret",
         url: `http://localhost:3000/api/internal/agents/verify?api_key=${TEST_API_KEY}`,
-      })
+      }),
     );
     expect(res.status).toBe(403);
     const data = await res.json();
@@ -798,7 +802,7 @@ describe("createAgentVerifyHandler", () => {
       makeAgentRequest({
         secret: "test-secret",
         url: `http://localhost:3000/api/internal/agents/verify?api_key=${TEST_API_KEY}`,
-      })
+      }),
     );
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Verification failed");

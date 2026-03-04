@@ -139,6 +139,7 @@ defmodule TavokGateway.WebClient do
         Logger.error(
           "check_channel_membership failed: channel=#{channel_id} status=#{status} body=#{inspect(response_body)}"
         )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
@@ -303,7 +304,10 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error("dispatch_webhook failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}")
+        Logger.error(
+          "dispatch_webhook failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
@@ -331,11 +335,17 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error("enqueue_agent_message failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}")
+        Logger.error(
+          "enqueue_agent_message failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
-        Logger.error("enqueue_agent_message request failed: bot=#{bot_id} reason=#{inspect(reason)}")
+        Logger.error(
+          "enqueue_agent_message request failed: bot=#{bot_id} reason=#{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end
@@ -359,7 +369,10 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error("verify_dm_participant failed: status=#{status} body=#{inspect(response_body)}")
+        Logger.error(
+          "verify_dm_participant failed: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
@@ -439,7 +452,10 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.warning("edit_dm_message rejected: status=#{status} body=#{inspect(response_body)}")
+        Logger.warning(
+          "edit_dm_message rejected: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
@@ -463,7 +479,10 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.warning("delete_dm_message rejected: status=#{status} body=#{inspect(response_body)}")
+        Logger.warning(
+          "delete_dm_message rejected: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
@@ -488,7 +507,10 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.warning("verify_agent_api_key failed: status=#{status} body=#{inspect(response_body)}")
+        Logger.warning(
+          "verify_agent_api_key failed: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->

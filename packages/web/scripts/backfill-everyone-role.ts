@@ -62,7 +62,7 @@ async function main() {
     }
 
     console.log(
-      `Server ${server.id}: created @everyone, assigned to ${members.length} members`
+      `Server ${server.id}: created @everyone, assigned to ${members.length} members`,
     );
   }
 

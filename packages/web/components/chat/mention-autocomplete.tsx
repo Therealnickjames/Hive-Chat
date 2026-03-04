@@ -20,13 +20,13 @@ interface MentionAutocompleteProps {
 
 export function getFilteredOptions(
   options: MentionOption[],
-  query: string
+  query: string,
 ): MentionOption[] {
   const normalized = query.toLowerCase();
   return options.filter(
     (opt) =>
       opt.name.toLowerCase().includes(normalized) ||
-      (opt.secondary && opt.secondary.toLowerCase().includes(normalized))
+      (opt.secondary && opt.secondary.toLowerCase().includes(normalized)),
   );
 }
 
@@ -45,10 +45,7 @@ export function MentionAutocomplete({
     if (!visible) return;
 
     const onMouseDown = (event: MouseEvent) => {
-      if (
-        listRef.current &&
-        !listRef.current.contains(event.target as Node)
-      ) {
+      if (listRef.current && !listRef.current.contains(event.target as Node)) {
         onClose();
       }
     };

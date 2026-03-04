@@ -52,11 +52,15 @@ function PermissionToggles({
           <input
             type="checkbox"
             checked={checkPermissionBit(permissions, permission.bit)}
-            onChange={() => onChange(togglePermission(permissions, permission.bit))}
+            onChange={() =>
+              onChange(togglePermission(permissions, permission.bit))
+            }
             className="accent-brand"
           />
           <div>
-            <span className="text-sm text-text-primary">{permission.label}</span>
+            <span className="text-sm text-text-primary">
+              {permission.label}
+            </span>
             <span className="ml-2 text-xs text-text-muted">
               {permission.description}
             </span>
@@ -144,15 +148,18 @@ export function RoleManagementModal({
     setError("");
 
     try {
-      const res = await fetch(`/api/servers/${currentServerId}/roles/${role.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editingRole?.name,
-          color: editingRole?.color || null,
-          permissions: editingRole?.permissions,
-        }),
-      });
+      const res = await fetch(
+        `/api/servers/${currentServerId}/roles/${role.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editingRole?.name,
+            color: editingRole?.color || null,
+            permissions: editingRole?.permissions,
+          }),
+        },
+      );
 
       if (res.ok) {
         setEditingRole(null);
@@ -172,9 +179,12 @@ export function RoleManagementModal({
     if (!currentServerId) return;
 
     try {
-      const res = await fetch(`/api/servers/${currentServerId}/roles/${roleId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/servers/${currentServerId}/roles/${roleId}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         await fetchRoles();
       }
@@ -199,7 +209,9 @@ export function RoleManagementModal({
 
       {showCreate && (
         <div className="mb-4 rounded-lg bg-background-secondary p-4">
-          <p className="mb-3 text-sm font-semibold text-text-primary">New Role</p>
+          <p className="mb-3 text-sm font-semibold text-text-primary">
+            New Role
+          </p>
           <div className="mb-2 flex gap-2">
             <div className="flex-1">
               <Input
@@ -295,9 +307,13 @@ export function RoleManagementModal({
 
       {!showCreate && !editingRole && (
         <div>
-          <p className="mb-2 text-xs font-bold uppercase text-text-muted">Roles</p>
+          <p className="mb-2 text-xs font-bold uppercase text-text-muted">
+            Roles
+          </p>
           {loading ? (
-            <p className="py-4 text-center text-sm text-text-muted">Loading...</p>
+            <p className="py-4 text-center text-sm text-text-muted">
+              Loading...
+            </p>
           ) : (
             <div className="max-h-60 space-y-1 overflow-y-auto">
               {roles.map((role) => (

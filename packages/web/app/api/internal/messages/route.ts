@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseAfterSequence, parseLimit } from "@/lib/validation";
-import {
-  serializeSequence,
-} from "@/lib/api-safety";
+import { serializeSequence } from "@/lib/api-safety";
 import { createInternalMessagesPostHandler } from "@/lib/route-handlers";
 import { validateInternalSecret } from "@/lib/internal-auth";
 
@@ -30,7 +28,7 @@ export async function GET(request: NextRequest) {
   if (!channelId) {
     return NextResponse.json(
       { error: "channelId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -43,7 +41,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       return NextResponse.json(
         { error: (error as Error).message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -52,7 +50,10 @@ export async function GET(request: NextRequest) {
       try {
         parsedAfterSequence = parseAfterSequence(afterSequence);
       } catch (error) {
-        return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+        return NextResponse.json(
+          { error: (error as Error).message },
+          { status: 400 },
+        );
       }
     }
 
@@ -78,8 +79,8 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: afterSequence
-        ? { sequence: "asc" }  // sync: oldest first
-        : { id: "desc" },      // history: newest first (we'll reverse)
+        ? { sequence: "asc" } // sync: oldest first
+        : { id: "desc" }, // history: newest first (we'll reverse)
       take: limit + 1,
     });
 
@@ -97,29 +98,38 @@ export async function GET(request: NextRequest) {
     const userAuthorIds = [
       ...new Set(
         messages
-          .filter((m: typeof messages[number]) => m.authorType === "USER")
-          .map((m: typeof messages[number]) => m.authorId)
+          .filter((m: (typeof messages)[number]) => m.authorType === "USER")
+          .map((m: (typeof messages)[number]) => m.authorId),
       ),
     ];
-    const userMap = new Map<string, { displayName: string; avatarUrl: string | null }>();
+    const userMap = new Map<
+      string,
+      { displayName: string; avatarUrl: string | null }
+    >();
     if (userAuthorIds.length > 0) {
       const users = await prisma.user.findMany({
         where: { id: { in: userAuthorIds } },
         select: { id: true, displayName: true, avatarUrl: true },
       });
       for (const user of users) {
-        userMap.set(user.id, { displayName: user.displayName, avatarUrl: user.avatarUrl });
+        userMap.set(user.id, {
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+        });
       }
     }
 
     const botAuthorIds = [
       ...new Set(
         messages
-          .filter((m: typeof messages[number]) => m.authorType === "BOT")
-          .map((m: typeof messages[number]) => m.authorId)
+          .filter((m: (typeof messages)[number]) => m.authorType === "BOT")
+          .map((m: (typeof messages)[number]) => m.authorId),
       ),
     ];
-    const botMap = new Map<string, { name: string; avatarUrl: string | null }>();
+    const botMap = new Map<
+      string,
+      { name: string; avatarUrl: string | null }
+    >();
     if (botAuthorIds.length > 0) {
       const bots = await prisma.bot.findMany({
         where: { id: { in: botAuthorIds } },
@@ -131,7 +141,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map to MessagePayload shape
-    const payload = messages.map((m: typeof messages[number]) => {
+    const payload = messages.map((m: (typeof messages)[number]) => {
       let authorName = "Unknown";
       let authorAvatarUrl: string | null = null;
 
@@ -160,7 +170,7 @@ export async function GET(request: NextRequest) {
           emoji,
           count: userIds.length,
           userIds,
-        })
+        }),
       );
 
       return {
@@ -176,7 +186,9 @@ export async function GET(request: NextRequest) {
         sequence: serializeSequence(m.sequence),
         createdAt: m.createdAt.toISOString(),
         editedAt: m.editedAt?.toISOString() || null,
-        thinkingTimeline: m.thinkingTimeline ? JSON.parse(m.thinkingTimeline) : undefined, // TASK-0011
+        thinkingTimeline: m.thinkingTimeline
+          ? JSON.parse(m.thinkingTimeline)
+          : undefined, // TASK-0011
         tokenHistory: m.tokenHistory ? JSON.parse(m.tokenHistory) : undefined, // TASK-0021
         checkpoints: m.checkpoints ? JSON.parse(m.checkpoints) : undefined, // TASK-0021
         metadata: m.metadata || undefined, // TASK-0039
@@ -192,8 +204,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to fetch messages:", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

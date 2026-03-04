@@ -3,13 +3,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useChatContext } from "@/components/providers/chat-provider";
-import type { ModalView, AgentListItem, CreatedAgentCredentials } from "./agent/types";
+import type {
+  ModalView,
+  AgentListItem,
+  CreatedAgentCredentials,
+} from "./agent/types";
 import { AgentList } from "./agent/agent-list";
 import { MethodPicker } from "./agent/method-picker";
 import { BYOKForm } from "./agent/byok-form";
 import { SDKSetupForm } from "./agent/sdk-setup-form";
 import { InboundWebhookForm, OutboundWebhookForm } from "./agent/webhook-forms";
-import { RestPollingForm, SSEForm, OpenAICompatForm } from "./agent/simple-agent-forms";
+import {
+  RestPollingForm,
+  SSEForm,
+  OpenAICompatForm,
+} from "./agent/simple-agent-forms";
 import { CredentialsDisplay } from "./agent/credentials-display";
 import { AgentSettings } from "./agent/agent-settings";
 
@@ -37,7 +45,8 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
   const [view, setView] = useState<ModalView>("list");
   const [bots, setBots] = useState<AgentListItem[]>([]);
   const [editingBot, setEditingBot] = useState<AgentListItem | null>(null);
-  const [credentials, setCredentials] = useState<CreatedAgentCredentials | null>(null);
+  const [credentials, setCredentials] =
+    useState<CreatedAgentCredentials | null>(null);
 
   const fetchBots = useCallback(async () => {
     if (!currentServerId) return;
@@ -68,9 +77,7 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
 
   // Dynamic title — show "Edit Agent" when editing
   const title =
-    view === "byok-form" && editingBot
-      ? "Edit Agent"
-      : VIEW_TITLES[view];
+    view === "byok-form" && editingBot ? "Edit Agent" : VIEW_TITLES[view];
 
   function handleEditBot(bot: AgentListItem) {
     setEditingBot(bot);
@@ -114,10 +121,7 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
       )}
 
       {view === "method-picker" && (
-        <MethodPicker
-          onSelect={setView}
-          onBack={handleBackToList}
-        />
+        <MethodPicker onSelect={setView} onBack={handleBackToList} />
       )}
 
       {view === "byok-form" && (
@@ -185,10 +189,7 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
       )}
 
       {view === "settings" && (
-        <AgentSettings
-          serverId={currentServerId}
-          onBack={handleBackToList}
-        />
+        <AgentSettings serverId={currentServerId} onBack={handleBackToList} />
       )}
     </Modal>
   );

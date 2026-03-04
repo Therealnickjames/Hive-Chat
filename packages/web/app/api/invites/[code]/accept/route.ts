@@ -15,7 +15,7 @@ import { generateId } from "@/lib/ulid";
  */
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
+  { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
   const session = await getServerSession(authOptions);
@@ -40,7 +40,7 @@ export async function POST(
   if (invite.maxUses && invite.uses >= invite.maxUses) {
     return NextResponse.json(
       { error: "Invite has reached max uses" },
-      { status: 410 }
+      { status: 410 },
     );
   }
 
@@ -62,55 +62,54 @@ export async function POST(
   // 2. Create member
   // 3. Assign @everyone role
   // All succeed or all roll back. (ISSUE-011)
-  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // Conditional update: only increment if (maxUses IS NULL OR uses < maxUses)
-    const updated = await tx.invite.updateMany({
-      where: {
-        id: invite.id,
-        OR: [
-          { maxUses: null },
-          { uses: { lt: invite.maxUses ?? 0 } },
-        ],
-      },
-      data: { uses: { increment: 1 } },
-    });
+  const result = await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      // Conditional update: only increment if (maxUses IS NULL OR uses < maxUses)
+      const updated = await tx.invite.updateMany({
+        where: {
+          id: invite.id,
+          OR: [{ maxUses: null }, { uses: { lt: invite.maxUses ?? 0 } }],
+        },
+        data: { uses: { increment: 1 } },
+      });
 
-    if (updated.count === 0) {
-      // Invite was exhausted between our early check and now
-      return { exhausted: true } as const;
-    }
+      if (updated.count === 0) {
+        // Invite was exhausted between our early check and now
+        return { exhausted: true } as const;
+      }
 
-    const memberId = generateId();
-    await tx.member.create({
-      data: {
-        id: memberId,
-        userId: session.user.id,
-        serverId: invite.serverId,
-      },
-    });
-
-    // Assign @everyone role inside the same transaction (ISSUE-011)
-    const everyoneRole = await tx.role.findFirst({
-      where: { serverId: invite.serverId, name: "@everyone" },
-      select: { id: true },
-    });
-
-    if (everyoneRole) {
-      await tx.member.update({
-        where: { id: memberId },
+      const memberId = generateId();
+      await tx.member.create({
         data: {
-          roles: { connect: { id: everyoneRole.id } },
+          id: memberId,
+          userId: session.user.id,
+          serverId: invite.serverId,
         },
       });
-    }
 
-    return { exhausted: false, serverId: invite.serverId } as const;
-  });
+      // Assign @everyone role inside the same transaction (ISSUE-011)
+      const everyoneRole = await tx.role.findFirst({
+        where: { serverId: invite.serverId, name: "@everyone" },
+        select: { id: true },
+      });
+
+      if (everyoneRole) {
+        await tx.member.update({
+          where: { id: memberId },
+          data: {
+            roles: { connect: { id: everyoneRole.id } },
+          },
+        });
+      }
+
+      return { exhausted: false, serverId: invite.serverId } as const;
+    },
+  );
 
   if (result.exhausted) {
     return NextResponse.json(
       { error: "Invite has reached max uses" },
-      { status: 410 }
+      { status: 410 },
     );
   }
 

@@ -48,7 +48,9 @@ export function ReactionBar({
       if (!currentUserId || loading) return;
       setLoading(true);
 
-      const existingReaction = reactions.find((reaction) => reaction.emoji === emoji);
+      const existingReaction = reactions.find(
+        (reaction) => reaction.emoji === emoji,
+      );
       const hasReacted = existingReaction?.userIds.includes(currentUserId);
 
       let optimisticReactions: ReactionData[];
@@ -106,7 +108,14 @@ export function ReactionBar({
         setShowPicker(false);
       }
     },
-    [currentUserId, loading, messageId, onReactionsChange, reactions, apiBasePath]
+    [
+      currentUserId,
+      loading,
+      messageId,
+      onReactionsChange,
+      reactions,
+      apiBasePath,
+    ],
   );
 
   return (
@@ -155,7 +164,10 @@ export function ReactionBar({
 
         {showPicker && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowPicker(false)} />
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowPicker(false)}
+            />
             <div className="absolute bottom-full left-0 z-50 mb-1 rounded-lg border border-background-tertiary bg-background-floating p-2 shadow-xl">
               <div className="grid grid-cols-8 gap-1">
                 {EMOJI_PRESETS.map((emoji) => (

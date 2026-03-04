@@ -20,10 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const {
@@ -50,24 +47,34 @@ export async function POST(request: NextRequest) {
 
   // Validate connectionMethod if provided (DEC-0043)
   const validMethods = [
-    "WEBSOCKET", "WEBHOOK", "INBOUND_WEBHOOK", "REST_POLL", "SSE", "OPENAI_COMPAT",
+    "WEBSOCKET",
+    "WEBHOOK",
+    "INBOUND_WEBHOOK",
+    "REST_POLL",
+    "SSE",
+    "OPENAI_COMPAT",
   ];
-  const resolvedMethod = connectionMethod && validMethods.includes(connectionMethod)
-    ? connectionMethod
-    : "WEBSOCKET";
+  const resolvedMethod =
+    connectionMethod && validMethods.includes(connectionMethod)
+      ? connectionMethod
+      : "WEBSOCKET";
 
   // Validate required fields
-  if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
+  if (
+    !displayName ||
+    typeof displayName !== "string" ||
+    displayName.trim().length === 0
+  ) {
     return NextResponse.json(
       { error: "displayName is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!serverId || typeof serverId !== "string") {
     return NextResponse.json(
       { error: "serverId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -82,17 +89,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!server) {
-    return NextResponse.json(
-      { error: "Server not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Server not found" }, { status: 404 });
   }
 
   // Check if server allows external agent registration
   if (!server.allowAgentRegistration) {
     return NextResponse.json(
       { error: "This server does not accept agent registrations" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -105,10 +109,7 @@ export async function POST(request: NextRequest) {
   const apiKey = `sk-tvk-${randomBytes.toString("base64url")}`;
 
   // Hash with SHA-256 for fast indexed lookup (keys are high-entropy)
-  const apiKeyHash = crypto
-    .createHash("sha256")
-    .update(apiKey)
-    .digest("hex");
+  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
 
   const botId = ulid();
   const registrationId = ulid();
@@ -142,9 +143,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Generate webhook secret for WEBHOOK agents (DEC-0043)
-      const webhookSecret = resolvedMethod === "WEBHOOK"
-        ? crypto.randomBytes(32).toString("hex")
-        : undefined;
+      const webhookSecret =
+        resolvedMethod === "WEBHOOK"
+          ? crypto.randomBytes(32).toString("hex")
+          : undefined;
 
       const registration = await tx.agentRegistration.create({
         data: {
@@ -172,8 +174,7 @@ export async function POST(request: NextRequest) {
     // Build connection-method-specific URLs (DEC-0043)
     const gatewayUrl =
       process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:4001/socket";
-    const webUrl =
-      process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const webUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
     const response: Record<string, unknown> = {
       agentId: result.bot.id,
@@ -206,9 +207,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
     console.error("Agent registration failed:", error);
-    return NextResponse.json(
-      { error: "Registration failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
   }
 }

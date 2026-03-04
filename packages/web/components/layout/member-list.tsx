@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { useDmList } from "@/lib/hooks/use-dm-list";
@@ -13,7 +14,10 @@ interface MemberListProps {
   activeStreamCount?: number;
 }
 
-export function MemberList({ presenceMap, activeStreamCount = 0 }: MemberListProps) {
+export function MemberList({
+  presenceMap,
+  activeStreamCount = 0,
+}: MemberListProps) {
   const { members, bots } = useChatContext();
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
@@ -48,7 +52,9 @@ export function MemberList({ presenceMap, activeStreamCount = 0 }: MemberListPro
         {/* Online members */}
         {onlineMembers.length > 0 && (
           <>
-            <p className={`mb-2 px-2 text-xs font-bold uppercase text-text-muted ${activeBots.length > 0 ? "mt-4" : ""}`}>
+            <p
+              className={`mb-2 px-2 text-xs font-bold uppercase text-text-muted ${activeBots.length > 0 ? "mt-4" : ""}`}
+            >
               Online — {onlineMembers.length}
             </p>
             {onlineMembers.map((member) => (
@@ -150,9 +156,11 @@ function MemberItem({
     >
       <div className="relative flex-shrink-0">
         {avatarUrl ? (
-          <img
+          <Image
             src={avatarUrl}
             alt={name}
+            width={32}
+            height={32}
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : (
@@ -181,7 +189,16 @@ function MemberItem({
           className="hidden group-hover:flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-text-dim hover:text-text-primary hover:bg-background-secondary transition"
           title={`Message ${name}`}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </button>

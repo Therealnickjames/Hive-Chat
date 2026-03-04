@@ -36,7 +36,7 @@ export function AgentSettings({ serverId, onBack }: AgentSettingsProps) {
 
   async function handleToggle(
     field: "allowAgentRegistration" | "registrationApprovalRequired",
-    value: boolean
+    value: boolean,
   ) {
     setSaving(true);
     setError("");
@@ -55,7 +55,8 @@ export function AgentSettings({ serverId, onBack }: AgentSettingsProps) {
       if (!res.ok) {
         // Revert on failure
         if (field === "allowAgentRegistration") setAllowRegistration(!value);
-        if (field === "registrationApprovalRequired") setRequireApproval(!value);
+        if (field === "registrationApprovalRequired")
+          setRequireApproval(!value);
         setError("Failed to update setting");
       }
     } catch {
@@ -89,7 +90,8 @@ export function AgentSettings({ serverId, onBack }: AgentSettingsProps) {
               Allow External Agent Registration
             </p>
             <p className="mt-0.5 text-xs text-text-muted">
-              When enabled, agents can self-register via the API using your server ID
+              When enabled, agents can self-register via the API using your
+              server ID
             </p>
           </div>
           <Toggle
@@ -107,14 +109,13 @@ export function AgentSettings({ serverId, onBack }: AgentSettingsProps) {
                 Require Approval
               </p>
               <p className="mt-0.5 text-xs text-text-muted">
-                New self-registered agents must be approved before they can participate
+                New self-registered agents must be approved before they can
+                participate
               </p>
             </div>
             <Toggle
               enabled={requireApproval}
-              onChange={(v) =>
-                handleToggle("registrationApprovalRequired", v)
-              }
+              onChange={(v) => handleToggle("registrationApprovalRequired", v)}
               disabled={saving}
             />
           </div>

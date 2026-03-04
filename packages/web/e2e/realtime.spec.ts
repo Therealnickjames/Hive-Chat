@@ -19,9 +19,9 @@ async function openChannel(page: Page, channelName: string): Promise<void> {
   });
   await channelButton.first().click();
 
-  await expect(
-    page.getByPlaceholder(`Message #${channelName}`),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByPlaceholder(`Message #${channelName}`)).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 /**
@@ -147,9 +147,9 @@ test.describe("Real-time messaging", () => {
       // User B should see a typing indicator showing Alice is typing.
       // The typing indicator renders: "{displayName} is typing..."
       // Alice's display name from the seed is "Alice Chen"
-      await expect(
-        pageB.getByText(/Alice Chen is typing/),
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(pageB.getByText(/Alice Chen is typing/)).toBeVisible({
+        timeout: 10_000,
+      });
     } finally {
       await contextA.close();
       await contextB.close();

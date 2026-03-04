@@ -16,7 +16,7 @@ type CharterAction = (typeof VALID_ACTIONS)[number];
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ channelId: string }> }
+  { params }: { params: Promise<{ channelId: string }> },
 ) {
   if (!validateInternalSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,7 +38,7 @@ export async function POST(
   ) {
     return NextResponse.json(
       { error: `action must be one of: ${VALID_ACTIONS.join(", ")}` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -63,8 +63,10 @@ export async function POST(
 
     if (!transitions[action].includes(currentStatus)) {
       return NextResponse.json(
-        { error: `Cannot ${action} charter: current status is ${currentStatus}` },
-        { status: 409 }
+        {
+          error: `Cannot ${action} charter: current status is ${currentStatus}`,
+        },
+        { status: 409 },
       );
     }
 

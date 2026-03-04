@@ -27,7 +27,12 @@ export async function GET() {
               where: { userId: { not: userId } },
               include: {
                 user: {
-                  select: { id: true, username: true, displayName: true, avatarUrl: true },
+                  select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                  },
                 },
               },
             },
@@ -47,7 +52,7 @@ export async function GET() {
     });
 
     const dms = participations
-      .map((p: typeof participations[number]) => {
+      .map((p: (typeof participations)[number]) => {
         const otherParticipant = p.dm.participants[0];
         const lastMessage = p.dm.messages[0] || null;
 
@@ -56,9 +61,10 @@ export async function GET() {
           participant: otherParticipant?.user || null,
           lastMessage: lastMessage
             ? {
-                content: lastMessage.content.length > 100
-                  ? lastMessage.content.substring(0, 100) + "..."
-                  : lastMessage.content,
+                content:
+                  lastMessage.content.length > 100
+                    ? lastMessage.content.substring(0, 100) + "..."
+                    : lastMessage.content,
                 createdAt: lastMessage.createdAt.toISOString(),
                 isOwn: lastMessage.authorId === userId,
               }
@@ -67,14 +73,17 @@ export async function GET() {
         };
       })
       // Sort by most recent message/activity
-      .sort((a: { updatedAt: string }, b: { updatedAt: string }) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      .sort(
+        (a: { updatedAt: string }, b: { updatedAt: string }) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
 
     return NextResponse.json({ dms });
   } catch (error) {
     console.error("Failed to fetch DM channels:", error);
     return NextResponse.json(
       { error: "Failed to fetch conversations" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -102,16 +111,13 @@ export async function POST(request: NextRequest) {
   const { userId: targetUserId } = body;
 
   if (!targetUserId || typeof targetUserId !== "string") {
-    return NextResponse.json(
-      { error: "userId is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
 
   if (targetUserId === currentUserId) {
     return NextResponse.json(
       { error: "Cannot create a DM with yourself" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -123,10 +129,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!targetUser) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Check if they share a server (required for DM creation)
@@ -145,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (sharedServers.length === 0) {
       return NextResponse.json(
         { error: "You must share a server with this user to send a DM" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -194,7 +197,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to create DM channel:", error);
     return NextResponse.json(
       { error: "Failed to create conversation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

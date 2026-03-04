@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ serverId: string }> }
+  { params }: { params: Promise<{ serverId: string }> },
 ) {
   const { serverId } = await params;
   const session = await getServerSession(authOptions);
@@ -48,9 +48,7 @@ export async function GET(
   });
 
   // Build a lookup map
-  const readStateMap = new Map(
-    readStates.map((rs) => [rs.channelId, rs])
-  );
+  const readStateMap = new Map(readStates.map((rs) => [rs.channelId, rs]));
 
   // Compute unread state per channel
   const result = channels.map((channel) => {

@@ -78,9 +78,11 @@ export function InboundWebhookForm({
       </div>
 
       <div className="rounded bg-background-primary p-3">
-        <p className="mb-2 text-xs font-medium text-text-secondary">Example usage</p>
+        <p className="mb-2 text-xs font-medium text-text-secondary">
+          Example usage
+        </p>
         <pre className="text-xs font-mono text-text-secondary bg-background-tertiary rounded px-2 py-1.5 overflow-x-auto">
-{`curl -X POST /api/v1/webhooks/whk_TOKEN \\
+          {`curl -X POST /api/v1/webhooks/whk_TOKEN \\
   -H "Content-Type: application/json" \\
   -d '{"content": "Build passed!"}'`}
         </pre>

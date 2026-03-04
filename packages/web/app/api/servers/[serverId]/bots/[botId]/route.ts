@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encrypt } from "@/lib/encryption";
-import {
-  canMutateServerScopedResource,
-} from "@/lib/api-safety";
+import { canMutateServerScopedResource } from "@/lib/api-safety";
 import { checkMemberPermission } from "@/lib/check-member-permission";
 import { Permissions } from "@/lib/permissions";
 
@@ -17,7 +15,7 @@ import { Permissions } from "@/lib/permissions";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; botId: string }> }
+  { params }: { params: Promise<{ serverId: string; botId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -54,7 +52,10 @@ export async function GET(
   });
 
   if (!bot || !canMutateServerScopedResource(serverId, bot.serverId)) {
-    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Bot not found in this server" },
+      { status: 404 },
+    );
   }
 
   const { serverId: _serverId, ...safeBot } = bot;
@@ -63,7 +64,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; botId: string }> }
+  { params }: { params: Promise<{ serverId: string; botId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -75,12 +76,12 @@ export async function PATCH(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_BOTS
+    Permissions.MANAGE_BOTS,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Bots" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -88,14 +89,24 @@ export async function PATCH(
     where: { id: botId },
     select: { serverId: true },
   });
-  if (!existingBot || !canMutateServerScopedResource(serverId, existingBot.serverId)) {
-    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
+  if (
+    !existingBot ||
+    !canMutateServerScopedResource(serverId, existingBot.serverId)
+  ) {
+    return NextResponse.json(
+      { error: "Bot not found in this server" },
+      { status: 404 },
+    );
   }
 
   let body: Record<string, unknown>;
   try {
     const parsedBody = await request.json();
-    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    if (
+      !parsedBody ||
+      typeof parsedBody !== "object" ||
+      Array.isArray(parsedBody)
+    ) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     body = parsedBody as Record<string, unknown>;
@@ -147,7 +158,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ serverId: string; botId: string }> }
+  { params }: { params: Promise<{ serverId: string; botId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -159,12 +170,12 @@ export async function DELETE(
   const check = await checkMemberPermission(
     session.user.id,
     serverId,
-    Permissions.MANAGE_BOTS
+    Permissions.MANAGE_BOTS,
   );
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Missing permission: Manage Bots" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -172,8 +183,14 @@ export async function DELETE(
     where: { id: botId },
     select: { serverId: true },
   });
-  if (!existingBot || !canMutateServerScopedResource(serverId, existingBot.serverId)) {
-    return NextResponse.json({ error: "Bot not found in this server" }, { status: 404 });
+  if (
+    !existingBot ||
+    !canMutateServerScopedResource(serverId, existingBot.serverId)
+  ) {
+    return NextResponse.json(
+      { error: "Bot not found in this server" },
+      { status: 404 },
+    );
   }
 
   await prisma.bot.delete({ where: { id: botId } });

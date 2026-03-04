@@ -34,11 +34,11 @@ function getWorkspaceDimensions() {
   return {
     width: Math.max(
       MIN_PANEL_WIDTH,
-      window.innerWidth - LAYOUT_LEFT_PANEL_WIDTH - LAYOUT_RIGHT_PANEL_WIDTH
+      window.innerWidth - LAYOUT_LEFT_PANEL_WIDTH - LAYOUT_RIGHT_PANEL_WIDTH,
     ),
     height: Math.max(
       MIN_PANEL_HEIGHT,
-      window.innerHeight - LAYOUT_TOP_BAR_HEIGHT - LAYOUT_BOTTOM_BAR_HEIGHT
+      window.innerHeight - LAYOUT_TOP_BAR_HEIGHT - LAYOUT_BOTTOM_BAR_HEIGHT,
     ),
   };
 }
@@ -47,11 +47,11 @@ function normalizePanelGeometry(panel: PanelState): PanelState {
   const workspace = getWorkspaceDimensions();
   const width = Math.max(
     MIN_PANEL_WIDTH,
-    Math.min(panel.width, workspace.width)
+    Math.min(panel.width, workspace.width),
   );
   const height = Math.max(
     MIN_PANEL_HEIGHT,
-    Math.min(panel.height, workspace.height)
+    Math.min(panel.height, workspace.height),
   );
   const x = Math.max(0, Math.min(panel.x, workspace.width - width));
   const y = Math.max(0, Math.min(panel.y, workspace.height - height));
@@ -73,7 +73,7 @@ export function usePanelState() {
   // Keep stream status aligned to currently active panel channels.
   useEffect(() => {
     const activeChannelIds = new Set(
-      panels.filter((p) => !p.isClosed).map((p) => p.channelId)
+      panels.filter((p) => !p.isClosed).map((p) => p.channelId),
     );
     setActiveStreams((prev) => {
       let changed = false;
@@ -131,7 +131,7 @@ export function usePanelState() {
             // Keep latest value by channel id (one panel per channel).
             deduped.set(
               normalized.channelId,
-              normalizePanelGeometry(normalized)
+              normalizePanelGeometry(normalized),
             );
           }
           setPanels(Array.from(deduped.values()));
@@ -176,7 +176,7 @@ export function usePanelState() {
         | "restoreWidth"
         | "restoreHeight"
         | "zIndex"
-      >
+      >,
     ) => {
       setPanels((prev) => {
         // If already open, focus it
@@ -194,7 +194,7 @@ export function usePanelState() {
                   isMinimized: false,
                   zIndex: maxZ + 1,
                 })
-              : p
+              : p,
           );
         }
 
@@ -221,7 +221,7 @@ export function usePanelState() {
         return [...prev, normalizePanelGeometry(newPanel)];
       });
     },
-    []
+    [],
   );
 
   const closePanel = useCallback((id: string) => {
@@ -234,14 +234,14 @@ export function usePanelState() {
               isMinimized: false,
               isMaximized: false,
             }
-          : p
-      )
+          : p,
+      ),
     );
   }, []);
 
   const minimizePanel = useCallback((id: string) => {
     setPanels((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, isMinimized: true } : p))
+      prev.map((p) => (p.id === id ? { ...p, isMinimized: true } : p)),
     );
   }, []);
 
@@ -249,7 +249,9 @@ export function usePanelState() {
     setPanels((prev) => {
       const maxZ = Math.max(...prev.map((p) => p.zIndex), 0);
       return prev.map((p) =>
-        p.id === id ? { ...p, isClosed: false, isMinimized: false, zIndex: maxZ + 1 } : p
+        p.id === id
+          ? { ...p, isClosed: false, isMinimized: false, zIndex: maxZ + 1 }
+          : p,
       );
     });
   }, []);
@@ -257,31 +259,32 @@ export function usePanelState() {
   const focusPanel = useCallback((id: string) => {
     setPanels((prev) => {
       const maxZ = Math.max(...prev.map((p) => p.zIndex), 0);
-      const target = prev.find(p => p.id === id);
+      const target = prev.find((p) => p.id === id);
       if (target && target.zIndex === maxZ) return prev; // Already focused
-      return prev.map((p) =>
-        p.id === id ? { ...p, zIndex: maxZ + 1 } : p
-      );
+      return prev.map((p) => (p.id === id ? { ...p, zIndex: maxZ + 1 } : p));
     });
   }, []);
 
-  const updatePanelPosition = useCallback((id: string, x: number, y: number) => {
-    setPanels((prev) =>
-      prev.map((p) =>
-        p.id === id ? normalizePanelGeometry({ ...p, x, y }) : p
-      )
-    );
-  }, []);
+  const updatePanelPosition = useCallback(
+    (id: string, x: number, y: number) => {
+      setPanels((prev) =>
+        prev.map((p) =>
+          p.id === id ? normalizePanelGeometry({ ...p, x, y }) : p,
+        ),
+      );
+    },
+    [],
+  );
 
   const updatePanelSize = useCallback(
     (id: string, width: number, height: number) => {
       setPanels((prev) =>
         prev.map((p) =>
-          p.id === id ? normalizePanelGeometry({ ...p, width, height }) : p
-        )
+          p.id === id ? normalizePanelGeometry({ ...p, width, height }) : p,
+        ),
       );
     },
-    []
+    [],
   );
 
   const toggleMaximizePanel = useCallback(
@@ -315,10 +318,10 @@ export function usePanelState() {
             width: Math.max(300, workspaceWidth),
             height: Math.max(200, workspaceHeight),
           };
-        })
+        }),
       );
     },
-    []
+    [],
   );
 
   const removePanelsForServer = useCallback((serverId: string) => {
