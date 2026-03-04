@@ -37,6 +37,19 @@ export function MessageList({
   const containerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
+  const hasSeededSeenMessageIdsRef = useRef(false);
+  const prioritizedIncomingUserMessageIdRef = useRef<string | null>(null);
+  const latestOwnUserMessageId = useMemo(() => {
+    if (!currentUserId) return null;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const msg = messages[i];
+      if (msg.authorType === "USER" && msg.authorId === currentUserId) {
+        return msg.id;
+      }
+    }
+    return null;
+  }, [messages, currentUserId]);
 
   // Detect if user is near bottom
   const handleScroll = useCallback(() => {
@@ -58,6 +71,21 @@ export function MessageList({
     const el = containerRef.current;
     if (!el) return;
 
+    const newlyAddedMessages: MessagePayload[] = [];
+    if (!hasSeededSeenMessageIdsRef.current) {
+      if (messages.length > 0) {
+        messages.forEach((m) => seenMessageIdsRef.current.add(m.id));
+        hasSeededSeenMessageIdsRef.current = true;
+      }
+    } else {
+      for (const m of messages) {
+        if (!seenMessageIdsRef.current.has(m.id)) {
+          seenMessageIdsRef.current.add(m.id);
+          newlyAddedMessages.push(m);
+        }
+      }
+    }
+
     const isNewMessage = messages.length > prevMessageCountRef.current;
     prevMessageCountRef.current = messages.length;
 
@@ -66,49 +94,105 @@ export function MessageList({
       (m) => m.streamingStatus === "ACTIVE"
     );
     const latestMessage = messages[messages.length - 1];
+    const typedBotTypes = ["TOOL_CALL", "TOOL_RESULT", "CODE_BLOCK", "ARTIFACT", "STATUS"];
     const isLatestBotStream = Boolean(
       latestMessage &&
         latestMessage.authorType === "BOT" &&
         latestMessage.type === "STREAMING"
     );
+    const isLatestBotTyped = Boolean(
+      latestMessage &&
+        latestMessage.authorType === "BOT" &&
+        typedBotTypes.includes(latestMessage.type)
+    );
+    const isLatestUserMessage = Boolean(
+      latestMessage && latestMessage.authorType === "USER"
+    );
+    const isLatestOwnUserMessage = Boolean(
+      latestMessage &&
+        latestMessage.authorType === "USER" &&
+        currentUserId &&
+        latestMessage.authorId === currentUserId
+    );
+    const isLatestIncomingUserMessage = Boolean(
+      latestMessage &&
+        latestMessage.authorType === "USER" &&
+        currentUserId &&
+        latestMessage.authorId !== currentUserId
+    );
+    const incomingUserCandidate = newlyAddedMessages.findLast(
+      (m) =>
+        Boolean(currentUserId) &&
+        m.authorType === "USER" &&
+        m.authorId !== currentUserId
+    );
+    const incomingUserCandidateAgeMs = incomingUserCandidate
+      ? Date.now() - new Date(incomingUserCandidate.createdAt).getTime()
+      : null;
+    const newIncomingUserMessage =
+      incomingUserCandidate &&
+      incomingUserCandidateAgeMs !== null &&
+      incomingUserCandidateAgeMs >= 0 &&
+      incomingUserCandidateAgeMs < 30_000
+        ? incomingUserCandidate
+        : null;
+    const hasNewIncomingUserMessage = Boolean(newIncomingUserMessage);
+    if (newIncomingUserMessage) {
+      prioritizedIncomingUserMessageIdRef.current = newIncomingUserMessage.id;
+    }
+    const prevMessage = messages[messages.length - 2];
+    const latestUserGrouped = Boolean(
+      isLatestUserMessage &&
+        prevMessage &&
+        prevMessage.authorId === latestMessage?.authorId &&
+        prevMessage.authorType === latestMessage?.authorType &&
+        !prevMessage.isDeleted &&
+        !latestMessage?.isDeleted &&
+        new Date(latestMessage!.createdAt).getTime() -
+          new Date(prevMessage.createdAt).getTime() <
+          5 * 60 * 1000
+    );
     const shouldFollowNewBotStreamOutcome = isNewMessage && isLatestBotStream;
+    const shouldFollowOwnSentMessage = isNewMessage && isLatestOwnUserMessage;
+    const shouldFollowIncomingUserMessage =
+      hasNewIncomingUserMessage || (isNewMessage && isLatestIncomingUserMessage);
+    const shouldFollowTypedBotMessage = isNewMessage && isLatestBotTyped;
+    const prioritizedIncomingUserMessageId =
+      prioritizedIncomingUserMessageIdRef.current;
+    if (
+      prioritizedIncomingUserMessageId &&
+      !messages.some((m) => m.id === prioritizedIncomingUserMessageId)
+    ) {
+      prioritizedIncomingUserMessageIdRef.current = null;
+    }
+    if (isNewMessage && isLatestOwnUserMessage) {
+      prioritizedIncomingUserMessageIdRef.current = null;
+    }
+    const shouldPinIncomingUserMessage = Boolean(
+      prioritizedIncomingUserMessageIdRef.current
+    );
+    const shouldFollowActiveStream =
+      hasActiveStream && !shouldPinIncomingUserMessage;
     const willScroll =
       (isNewMessage && isAtBottomRef.current) ||
-      hasActiveStream ||
-      shouldFollowNewBotStreamOutcome;
-
-    if (isLatestBotStream) {
-      // #region agent log
-      fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "e9a21d",
-        },
-        body: JSON.stringify({
-          sessionId: "e9a21d",
-          runId: "post-fix",
-          hypothesisId: "H9",
-          location: "message-list.tsx:auto_scroll_decision",
-          message: "Auto-scroll decision for latest bot stream message",
-          data: {
-            latestMessageId: latestMessage?.id || null,
-            latestStatus: latestMessage?.streamingStatus || null,
-            isNewMessage,
-            isAtBottom: isAtBottomRef.current,
-            hasActiveStream,
-            shouldFollowNewBotStreamOutcome,
-            willScroll,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-    }
+      shouldFollowActiveStream ||
+      shouldFollowNewBotStreamOutcome ||
+      shouldFollowOwnSentMessage ||
+      shouldFollowIncomingUserMessage ||
+      shouldFollowTypedBotMessage;
 
     if (willScroll) {
-      el.scrollTop = el.scrollHeight;
+      const pinnedId = prioritizedIncomingUserMessageIdRef.current;
+      if (pinnedId) {
+        const pinnedRow = el.querySelector<HTMLElement>(
+          `[data-message-id="${pinnedId}"]`
+        );
+        pinnedRow?.scrollIntoView({ block: "nearest" });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
     }
+
   }, [messages]);
 
   // Scroll to bottom on initial load
@@ -192,7 +276,7 @@ export function MessageList({
         }
         return messages.map((message, index) => {
         const prevMessage = messages[index - 1];
-        const isGrouped =
+        let isGrouped =
           prevMessage?.authorId === message.authorId &&
           prevMessage?.authorType === message.authorType &&
           // Don't group if previous message was deleted
@@ -202,13 +286,25 @@ export function MessageList({
           new Date(message.createdAt).getTime() -
             new Date(prevMessage.createdAt).getTime() <
             5 * 60 * 1000;
+        const isMostRecentOwnUserMessage =
+          Boolean(currentUserId) &&
+          message.authorType === "USER" &&
+          message.id === latestOwnUserMessageId;
+        if (isMostRecentOwnUserMessage) {
+          isGrouped = false;
+        }
 
         const showDivider = index === dividerIndex;
 
         // Use StreamingMessage for active/recently-completed streaming messages
         if (message.type === "STREAMING") {
           return (
-            <div key={message.id}>
+            <div
+              key={message.id}
+              data-message-id={message.id}
+              data-message-author-type={message.authorType}
+              data-message-type={message.type}
+            >
               {showDivider && <UnreadDivider />}
               <StreamingMessage
                 message={message}
@@ -226,7 +322,12 @@ export function MessageList({
         const typedTypes = ["TOOL_CALL", "TOOL_RESULT", "CODE_BLOCK", "ARTIFACT", "STATUS"];
         if (typedTypes.includes(message.type)) {
           return (
-            <div key={message.id}>
+            <div
+              key={message.id}
+              data-message-id={message.id}
+              data-message-author-type={message.authorType}
+              data-message-type={message.type}
+            >
               {showDivider && <UnreadDivider />}
               <TypedMessageItem
                 message={message}
@@ -237,7 +338,12 @@ export function MessageList({
         }
 
         return (
-          <div key={message.id}>
+          <div
+            key={message.id}
+            data-message-id={message.id}
+            data-message-author-type={message.authorType}
+            data-message-type={message.type}
+          >
             {showDivider && <UnreadDivider />}
             <MessageItem
               message={message}

@@ -1,24 +1,9 @@
 import { chromium } from "@playwright/test";
 
 function logDebug(message, data = {}) {
-  // #region agent log
-  fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "e9a21d",
-    },
-    body: JSON.stringify({
-      sessionId: "e9a21d",
-      runId: "post-fix",
-      hypothesisId: "H18",
-      location: "automation-disconnect-send-check.mjs",
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  if (process.env.AUTOMATION_DEBUG === "true") {
+    console.debug("[automation-disconnect-send-check]", message, data);
+  }
 }
 
 async function run() {

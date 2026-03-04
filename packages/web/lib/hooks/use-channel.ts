@@ -132,8 +132,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const typingTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
   const loadingHistoryRef = useRef(false);
-  const lastStreamErrorIdRef = useRef<string | null>(null);
-  const loggedStateCheckIdsRef = useRef<Set<string>>(new Set());
   const botHintTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Streaming: accumulate tokens and flush via rAF for smooth 60fps rendering
@@ -201,24 +199,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     // Reset state for new channel
     setMessages([]);
     setBotTriggerHint(null);
-    // #region agent log
-    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "e9a21d",
-      },
-      body: JSON.stringify({
-        sessionId: "e9a21d",
-        runId: "post-fix",
-        hypothesisId: "H13",
-        location: "use-channel.ts:channel_init_hint_reset",
-        message: "Hint reset during channel initialization",
-        data: { channelId },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     setHasMoreHistory(true);
     setIsConnected(false);
     setHasJoinedOnce(false);
@@ -249,45 +229,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           lastSequenceRef.current !== "0" ? lastSequenceRef.current : undefined,
       });
 
-      // #region agent log
       channel.onError(() => {
-        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "e9a21d",
-          },
-          body: JSON.stringify({
-            sessionId: "e9a21d",
-            runId: "post-fix",
-            hypothesisId: "H4",
-            location: "use-channel.ts:channel.onError",
-            message: "Channel error callback fired",
-            data: { channelId },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
+        setIsConnected(false);
       });
 
       channel.onClose(() => {
-        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "e9a21d",
-          },
-          body: JSON.stringify({
-            sessionId: "e9a21d",
-            runId: "post-fix",
-            hypothesisId: "H4",
-            location: "use-channel.ts:channel.onClose",
-            message: "Channel close callback fired",
-            data: { channelId },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
+        setIsConnected(false);
       });
-      // #endregion
 
       // Set up presence
       const presence = new Presence(channel);
@@ -347,30 +295,9 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         };
 
         if (payload.reason === "mention_required" && payload.botName) {
-          setBotTriggerHint(`No bot triggered. Mention @${payload.botName} to trigger it.`);
-
-          // #region agent log
-          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Debug-Session-Id": "e9a21d",
-            },
-            body: JSON.stringify({
-              sessionId: "e9a21d",
-              runId: "post-fix",
-              hypothesisId: "H3",
-              location: "use-channel.ts:bot_trigger_skipped",
-              message: "Mention hint displayed",
-              data: {
-                channelId,
-                botId: payload.botId,
-                triggerMode: payload.triggerMode,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
+          setBotTriggerHint(
+            `Action needed: no bot triggered. Mention @${payload.botName} to trigger it.`
+          );
 
         }
       });
@@ -438,29 +365,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           reactions: [],
         };
 
-        // #region agent log
-        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "e9a21d",
-          },
-          body: JSON.stringify({
-            sessionId: "e9a21d",
-            runId: "post-fix",
-            hypothesisId: "H2",
-            location: "use-channel.ts:stream_start",
-            message: "Stream start placeholder received",
-            data: {
-              channelId,
-              messageId: payload.messageId,
-              botId: payload.botId,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-
         addMessages([placeholder]);
       });
 
@@ -519,66 +423,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           partialContent: string | null;
         };
 
-        // #region agent log
-        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "e9a21d",
-          },
-          body: JSON.stringify({
-            sessionId: "e9a21d",
-            runId: "post-fix",
-            hypothesisId: "H2",
-            location: "use-channel.ts:stream_error",
-            message: "Stream error received",
-            data: {
-              channelId,
-              messageId: payload.messageId,
-              hasPlaceholder: messageIdsRef.current.has(payload.messageId),
-              hasPartial: Boolean(payload.partialContent),
-              errorLen: (payload.error || "").length,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-
         setMessages((prev) =>
           {
             const hasMatch = prev.some((m) => m.id === payload.messageId);
             const streamMeta = pendingStreamMetaRef.current.get(payload.messageId);
-            const matchedBefore = prev.find((m) => m.id === payload.messageId);
-
-            // #region agent log
-            fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Debug-Session-Id": "e9a21d",
-              },
-              body: JSON.stringify({
-                sessionId: "e9a21d",
-                runId: "post-fix",
-                hypothesisId: "H6",
-                location: "use-channel.ts:stream_error_upsert",
-                message: "stream_error state update path",
-                data: {
-                  channelId,
-                  messageId: payload.messageId,
-                  hasMatch,
-                  hasStreamMeta: Boolean(streamMeta),
-                  matchedTypeBefore: matchedBefore?.type || null,
-                  matchedStatusBefore: matchedBefore?.streamingStatus || null,
-                },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion
 
             if (hasMatch) {
               pendingStreamMetaRef.current.delete(payload.messageId);
-              lastStreamErrorIdRef.current = payload.messageId;
               const updated = prev.map((m) =>
                 m.id === payload.messageId
                   ? {
@@ -591,33 +442,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
                     }
                   : m
               );
-
-              const matchedAfter = updated.find((m) => m.id === payload.messageId);
-
-              // #region agent log
-              fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Debug-Session-Id": "e9a21d",
-                },
-                body: JSON.stringify({
-                  sessionId: "e9a21d",
-                  runId: "post-fix",
-                  hypothesisId: "H8",
-                  location: "use-channel.ts:stream_error_post_update",
-                  message: "stream_error produced updated state entry",
-                  data: {
-                    channelId,
-                    messageId: payload.messageId,
-                    matchedTypeAfter: matchedAfter?.type || null,
-                    matchedStatusAfter: matchedAfter?.streamingStatus || null,
-                    matchedContentLenAfter: (matchedAfter?.content || "").length,
-                  },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion
 
               return updated;
             }
@@ -641,7 +465,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
             messageIdsRef.current.add(payload.messageId);
             pendingStreamMetaRef.current.delete(payload.messageId);
-            lastStreamErrorIdRef.current = payload.messageId;
             return [...prev, fallback].sort((a, b) =>
               compareSequences(a.sequence, b.sequence)
             );
@@ -655,29 +478,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         const errorText = (payload.error || "").trim();
         if (errorText) {
           setBotTriggerHint(`Bot response failed: ${errorText}`);
-
-          // #region agent log
-          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Debug-Session-Id": "e9a21d",
-            },
-            body: JSON.stringify({
-              sessionId: "e9a21d",
-              runId: "post-fix",
-              hypothesisId: "H11",
-              location: "use-channel.ts:stream_error_inline_hint",
-              message: "Inline bot error hint set from stream_error",
-              data: {
-                channelId,
-                messageId: payload.messageId,
-                errorLen: errorText.length,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
         }
       });
 
@@ -893,25 +693,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           setHasJoinedOnce(true);
           channelRef.current = channel;
 
-          // #region agent log
-          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Debug-Session-Id": "e9a21d",
-            },
-            body: JSON.stringify({
-              sessionId: "e9a21d",
-              runId: "post-fix",
-              hypothesisId: "H21",
-              location: "use-channel.ts:join_ok",
-              message: "Channel join completed",
-              data: { channelId },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
-
           // Load initial history if no sync was triggered
           if (lastSequenceRef.current === "0") {
             channel.push("history", { limit: 50 });
@@ -949,40 +730,6 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     };
   }, [channelId, addMessages, flushStreamBuffer]);
 
-  useEffect(() => {
-    const id = lastStreamErrorIdRef.current;
-    if (!id || loggedStateCheckIdsRef.current.has(id)) return;
-    const msg = messages.find((m) => m.id === id);
-    if (!msg) return;
-
-    loggedStateCheckIdsRef.current.add(id);
-
-    // #region agent log
-    fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "e9a21d",
-      },
-      body: JSON.stringify({
-        sessionId: "e9a21d",
-        runId: "post-fix",
-        hypothesisId: "H7",
-        location: "use-channel.ts:errored_message_in_state",
-        message: "Errored stream message materialized in local state",
-        data: {
-          channelId,
-          messageId: id,
-          type: msg.type,
-          status: msg.streamingStatus,
-          contentLen: (msg.content || "").length,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [messages, channelId]);
-
   // Send a message
   const sendMessage = useCallback(
     (content: string) => {
@@ -990,59 +737,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
       if (!trimmed) return;
 
       if (!channelRef.current) {
-        setBotTriggerHint("Disconnected from channel gateway. Reconnecting...");
-
-        // #region agent log
-        fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "e9a21d",
-          },
-          body: JSON.stringify({
-            sessionId: "e9a21d",
-            runId: "pre-fix",
-            hypothesisId: "H17",
-            location: "use-channel.ts:send_message_blocked_no_channel",
-            message: "sendMessage dropped because channelRef is null",
-            data: {
-              channelId,
-              isConnected,
-              contentLen: trimmed.length,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
+        setBotTriggerHint(
+          "Action needed: disconnected from channel gateway. Reconnecting..."
+        );
         return;
       }
 
-      setBotTriggerHint((prev) => {
-        if (prev) {
-          // #region agent log
-          fetch("http://127.0.0.1:7856/ingest/0c40b409-8f04-4dd8-a742-cb291a1de852", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Debug-Session-Id": "e9a21d",
-            },
-            body: JSON.stringify({
-              sessionId: "e9a21d",
-              runId: "post-fix",
-              hypothesisId: "H12",
-              location: "use-channel.ts:send_message_hint_clear",
-              message: "Hint cleared on sendMessage",
-              data: {
-                channelId,
-                prevHintLen: prev.length,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
-        }
-        return null;
-      });
+      setBotTriggerHint(null);
       channelRef.current.push("new_message", { content: trimmed });
     },
     [channelId, isConnected]

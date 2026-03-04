@@ -189,7 +189,6 @@ export function MessageInput({
     }
 
     if (!content) return;
-
     onSend(content);
     setValue("");
     setPendingFiles([]);
