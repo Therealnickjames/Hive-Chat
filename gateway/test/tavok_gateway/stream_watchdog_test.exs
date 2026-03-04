@@ -52,10 +52,7 @@ defmodule TavokGateway.StreamWatchdogTest do
     {:ok, _pid} =
       start_supervised(
         {StreamWatchdog,
-         name: server,
-         check_after_ms: 20,
-         web_client: WebClientStub,
-         broadcaster: broadcaster}
+         name: server, check_after_ms: 20, web_client: WebClientStub, broadcaster: broadcaster}
       )
 
     {:ok, server: server}

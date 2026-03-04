@@ -23,7 +23,8 @@ defmodule TavokGatewayWeb.UserSocket do
 
   # Channel routing — topic patterns mapped to channel modules
   channel "room:*", TavokGatewayWeb.RoomChannel
-  channel "dm:*", TavokGatewayWeb.DmChannel  # TASK-0019: Direct messages
+  # TASK-0019: Direct messages
+  channel "dm:*", TavokGatewayWeb.DmChannel
 
   # ---- Path 1: Human auth via JWT ----
 
@@ -49,7 +50,10 @@ defmodule TavokGatewayWeb.UserSocket do
           Logger.info("WebSocket connected: user=#{user_id}")
           {:ok, socket}
         else
-          Logger.warning("WebSocket auth failed: missing required claims (sub, username, displayName)")
+          Logger.warning(
+            "WebSocket auth failed: missing required claims (sub, username, displayName)"
+          )
+
           :error
         end
 
@@ -73,7 +77,10 @@ defmodule TavokGatewayWeb.UserSocket do
           |> assign(:server_id, agent_info["serverId"])
           |> assign(:bot_avatar_url, agent_info["botAvatarUrl"])
 
-        Logger.info("WebSocket connected: agent=#{agent_info["botId"]} server=#{agent_info["serverId"]}")
+        Logger.info(
+          "WebSocket connected: agent=#{agent_info["botId"]} server=#{agent_info["serverId"]}"
+        )
+
         {:ok, socket}
 
       {:error, reason} ->

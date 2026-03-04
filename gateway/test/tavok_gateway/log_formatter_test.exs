@@ -137,7 +137,7 @@ defmodule TavokGateway.LogFormatterTest do
     end
 
     test "handles erlang format tuple messages" do
-      decoded = format_and_decode(:info, {'~s connected: ~p', ["user", 42]})
+      decoded = format_and_decode(:info, {~c"~s connected: ~p", ["user", 42]})
       assert is_binary(decoded["msg"])
       assert String.contains?(decoded["msg"], "user")
     end

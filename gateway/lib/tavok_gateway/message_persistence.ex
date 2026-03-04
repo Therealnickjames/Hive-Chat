@@ -41,9 +41,7 @@ defmodule TavokGateway.MessagePersistence do
 
       {:error, {:http_error, 409, _body}} ->
         # Duplicate — already persisted (retry hit after previous success).
-        Logger.debug(
-          "Message already exists (409): message=#{message_id} channel=#{channel_id}"
-        )
+        Logger.debug("Message already exists (409): message=#{message_id} channel=#{channel_id}")
 
         :ok
 

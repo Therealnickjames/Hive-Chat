@@ -79,9 +79,7 @@ defmodule TavokGateway.RateLimiter do
 
     schedule_reset()
 
-    Logger.info(
-      "[RateLimiter] Started — max_messages_per_second=#{@max_messages_per_second}"
-    )
+    Logger.info("[RateLimiter] Started — max_messages_per_second=#{@max_messages_per_second}")
 
     {:ok, %{rejections: 0}}
   end

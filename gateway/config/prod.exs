@@ -4,7 +4,8 @@ config :tavok_gateway, TavokGatewayWeb.Endpoint,
   cache_static_manifest: false,
   server: true
 
-config :logger, level: :info,
+config :logger,
+  level: :info,
   backends: [:console]
 
 config :logger, :console,

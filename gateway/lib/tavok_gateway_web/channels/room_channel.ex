@@ -33,14 +33,19 @@ defmodule TavokGatewayWeb.RoomChannel do
 
   @impl true
   def join("room:" <> channel_id, params, socket) do
-    Logger.info("#{socket.assigns[:author_type] || "USER"} #{socket.assigns.user_id} joining room:#{channel_id}")
+    Logger.info(
+      "#{socket.assigns[:author_type] || "USER"} #{socket.assigns.user_id} joining room:#{channel_id}"
+    )
 
     case authorize_join(channel_id, socket) do
       {:ok} ->
         do_join_room(params, socket, channel_id)
 
       {:error, reason} ->
-        Logger.warning("Join rejected: user=#{socket.assigns.user_id} room=#{channel_id} reason=#{inspect(reason)}")
+        Logger.warning(
+          "Join rejected: user=#{socket.assigns.user_id} room=#{channel_id} reason=#{inspect(reason)}"
+        )
+
         {:error, %{reason: "unauthorized"}}
     end
   end
@@ -271,70 +276,70 @@ defmodule TavokGatewayWeb.RoomChannel do
         {:reply, {:error, %{reason: "content_too_long", max: @max_content_length}}, socket}
 
       true ->
-    channel_id = socket.assigns.channel_id
+        channel_id = socket.assigns.channel_id
 
-    # 0. Per-channel rate limit check (DEC-0035)
-    case RateLimiter.check_and_increment(channel_id) do
-      {:error, :rate_limited} ->
-        {:reply, {:error, %{reason: "rate_limited"}}, socket}
+        # 0. Per-channel rate limit check (DEC-0035)
+        case RateLimiter.check_and_increment(channel_id) do
+          {:error, :rate_limited} ->
+            {:reply, {:error, %{reason: "rate_limited"}}, socket}
 
-      :ok ->
-    user_id = socket.assigns.user_id
-    display_name = socket.assigns.display_name
+          :ok ->
+            user_id = socket.assigns.user_id
+            display_name = socket.assigns.display_name
 
-    # 1. Generate ULID for the message
-    message_id = Ulid.generate()
+            # 1. Generate ULID for the message
+            message_id = Ulid.generate()
 
-    # 2. Get next sequence number with Redis-backed monotonic recovery
-    case next_sequence(channel_id) do
-      {:ok, sequence} ->
-        seq_str = Integer.to_string(sequence)
+            # 2. Get next sequence number with Redis-backed monotonic recovery
+            case next_sequence(channel_id) do
+              {:ok, sequence} ->
+                seq_str = Integer.to_string(sequence)
 
-        # 3. Broadcast immediately — payload built from in-memory data only
-        message_payload = %{
-          id: message_id,
-          channelId: channel_id,
-          authorId: user_id,
-          authorType: "USER",
-          authorName: display_name,
-          authorAvatarUrl: nil,
-          content: content,
-          type: "STANDARD",
-          streamingStatus: nil,
-          sequence: seq_str,
-          createdAt: DateTime.utc_now() |> DateTime.to_iso8601()
-        }
+                # 3. Broadcast immediately — payload built from in-memory data only
+                message_payload = %{
+                  id: message_id,
+                  channelId: channel_id,
+                  authorId: user_id,
+                  authorType: "USER",
+                  authorName: display_name,
+                  authorAvatarUrl: nil,
+                  content: content,
+                  type: "STANDARD",
+                  streamingStatus: nil,
+                  sequence: seq_str,
+                  createdAt: DateTime.utc_now() |> DateTime.to_iso8601()
+                }
 
-        Broadcast.broadcast_pre_serialized!(socket, "message_new", message_payload)
+                Broadcast.broadcast_pre_serialized!(socket, "message_new", message_payload)
 
-        # 3b. Buffer for reconnection sync gap (DEC-0051)
-        MessageBuffer.buffer_message(channel_id, message_payload)
+                # 3b. Buffer for reconnection sync gap (DEC-0051)
+                MessageBuffer.buffer_message(channel_id, message_payload)
 
-        # 4. Check for bot trigger (async — don't delay the reply)
-        send(self(), {:check_bot_trigger, message_id, content})
+                # 4. Check for bot trigger (async — don't delay the reply)
+                send(self(), {:check_bot_trigger, message_id, content})
 
-        # 5. Persist in background — never blocks the channel process
-        persist_body = %{
-          id: message_id,
-          channelId: channel_id,
-          authorId: user_id,
-          authorType: "USER",
-          content: content,
-          type: "STANDARD",
-          streamingStatus: nil,
-          sequence: seq_str
-        }
+                # 5. Persist in background — never blocks the channel process
+                persist_body = %{
+                  id: message_id,
+                  channelId: channel_id,
+                  authorId: user_id,
+                  authorType: "USER",
+                  content: content,
+                  type: "STANDARD",
+                  streamingStatus: nil,
+                  sequence: seq_str
+                }
 
-        MessagePersistence.persist_async(persist_body, message_id, channel_id)
+                MessagePersistence.persist_async(persist_body, message_id, channel_id)
 
-        # 6. Reply to sender immediately
-        {:reply, {:ok, %{id: message_id, sequence: seq_str}}, socket}
+                # 6. Reply to sender immediately
+                {:reply, {:ok, %{id: message_id, sequence: seq_str}}, socket}
 
-      {:error, reason} ->
-        Logger.error("Redis INCR failed: #{inspect(reason)}")
-        {:reply, {:error, %{reason: "sequence_failed"}}, socket}
-    end
-    end
+              {:error, reason} ->
+                Logger.error("Redis INCR failed: #{inspect(reason)}")
+                {:reply, {:error, %{reason: "sequence_failed"}}, socket}
+            end
+        end
     end
   end
 
@@ -405,6 +410,7 @@ defmodule TavokGatewayWeb.RoomChannel do
   @impl true
   def handle_in("history", params, socket) when is_map(params) do
     before = Map.get(params, "before")
+
     case parse_limit(Map.get(params, "limit")) do
       {:error, _} ->
         push(socket, "history_response", %{
@@ -450,6 +456,7 @@ defmodule TavokGatewayWeb.RoomChannel do
           |> Map.values()
           |> Enum.sort_by(fn m ->
             seq = Map.get(m, "sequence") || Map.get(m, :sequence) || "0"
+
             case Integer.parse(to_string(seq)) do
               {n, ""} -> n
               _ -> 0
@@ -582,7 +589,9 @@ defmodule TavokGatewayWeb.RoomChannel do
               Logger.info("Charter #{action}: channel=#{channel_id}")
 
             {:error, reason} ->
-              Logger.error("Charter control failed: channel=#{channel_id} action=#{action} reason=#{inspect(reason)}")
+              Logger.error(
+                "Charter control failed: channel=#{channel_id} action=#{action} reason=#{inspect(reason)}"
+              )
           end
         end)
 
@@ -650,7 +659,11 @@ defmodule TavokGatewayWeb.RoomChannel do
 
   # Also handle stream_thinking from agents
   @impl true
-  def handle_in("stream_thinking", %{"messageId" => message_id, "phase" => phase} = payload, socket) do
+  def handle_in(
+        "stream_thinking",
+        %{"messageId" => message_id, "phase" => phase} = payload,
+        socket
+      ) do
     case socket.assigns[:author_type] do
       "BOT" ->
         Broadcast.broadcast_pre_serialized!(socket, "stream_thinking", %{
@@ -771,8 +784,13 @@ defmodule TavokGatewayWeb.RoomChannel do
       content: final_content,
       streamingStatus: "COMPLETE"
     }
+
     update_body = if metadata, do: Map.put(update_body, :metadata, metadata), else: update_body
-    update_body = if thinking_timeline != [], do: Map.put(update_body, :thinkingTimeline, Jason.encode!(thinking_timeline)), else: update_body
+
+    update_body =
+      if thinking_timeline != [],
+        do: Map.put(update_body, :thinkingTimeline, Jason.encode!(thinking_timeline)),
+        else: update_body
 
     Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
       case WebClient.update_message(message_id, update_body) do
@@ -948,6 +966,7 @@ defmodule TavokGatewayWeb.RoomChannel do
           Logger.info(
             "[TriggerDecision] channel=#{channel_id} bot=#{bot_id} skipping dispatch for connectionMethod=#{connection_method}"
           )
+
           false
       end
     else
@@ -1069,9 +1088,7 @@ defmodule TavokGatewayWeb.RoomChannel do
              contextMessages: context_messages
            }) do
         {:ok, _} ->
-          Logger.info(
-            "Webhook dispatched: channel=#{channel_id} bot=#{bot_id}"
-          )
+          Logger.info("Webhook dispatched: channel=#{channel_id} bot=#{bot_id}")
 
         {:error, reason} ->
           Logger.error(
@@ -1098,9 +1115,7 @@ defmodule TavokGatewayWeb.RoomChannel do
              authorType: socket.assigns[:author_type] || "USER"
            }) do
         {:ok, _} ->
-          Logger.info(
-            "Message enqueued for polling: channel=#{channel_id} bot=#{bot_id}"
-          )
+          Logger.info("Message enqueued for polling: channel=#{channel_id} bot=#{bot_id}")
 
         {:error, reason} ->
           Logger.error(
@@ -1255,6 +1270,7 @@ defmodule TavokGatewayWeb.RoomChannel do
   def parse_sequence(_), do: {:error, :invalid_sequence}
 
   def parse_limit(nil), do: {:ok, 50}
+
   def parse_limit(value) when is_integer(value) and value > 0 do
     {:ok, min(value, 100)}
   end

@@ -55,7 +55,10 @@ defmodule TavokGateway.StreamListener do
         {:ok, _ref_charter} =
           Redix.PubSub.psubscribe(pubsub, "hive:stream:charter_status:*", self())
 
-        Logger.info("[StreamListener] Started — listening for stream tokens, status, thinking, tool_call, tool_result, checkpoint, charter_status")
+        Logger.info(
+          "[StreamListener] Started — listening for stream tokens, status, thinking, tool_call, tool_result, checkpoint, charter_status"
+        )
+
         {:ok, %{pubsub: pubsub}}
 
       {:error, reason} ->
@@ -151,11 +154,17 @@ defmodule TavokGateway.StreamListener do
         case Jason.decode(payload) do
           {:ok, %{"status" => "complete"} = data} ->
             Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_complete", payload)
-            Logger.info("[StreamListener] Broadcast stream_complete: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}")
+
+            Logger.info(
+              "[StreamListener] Broadcast stream_complete: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}"
+            )
 
           {:ok, %{"status" => "error"} = data} ->
             Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_error", payload)
-            Logger.info("[StreamListener] Broadcast stream_error: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}")
+
+            Logger.info(
+              "[StreamListener] Broadcast stream_error: channel=#{channel_id} messageId=#{Map.get(data, "messageId")}"
+            )
 
           {:ok, data} ->
             Logger.warning(
@@ -179,7 +188,9 @@ defmodule TavokGateway.StreamListener do
         Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_thinking", payload)
 
       _ ->
-        Logger.error("[StreamListener] Invalid thinking channel format: hive:stream:thinking:#{rest}")
+        Logger.error(
+          "[StreamListener] Invalid thinking channel format: hive:stream:thinking:#{rest}"
+        )
     end
   end
 
@@ -190,7 +201,9 @@ defmodule TavokGateway.StreamListener do
         Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_tool_call", payload)
 
       _ ->
-        Logger.error("[StreamListener] Invalid tool_call channel format: hive:stream:tool_call:#{rest}")
+        Logger.error(
+          "[StreamListener] Invalid tool_call channel format: hive:stream:tool_call:#{rest}"
+        )
     end
   end
 
@@ -201,7 +214,9 @@ defmodule TavokGateway.StreamListener do
         Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_tool_result", payload)
 
       _ ->
-        Logger.error("[StreamListener] Invalid tool_result channel format: hive:stream:tool_result:#{rest}")
+        Logger.error(
+          "[StreamListener] Invalid tool_result channel format: hive:stream:tool_result:#{rest}"
+        )
     end
   end
 
@@ -212,7 +227,9 @@ defmodule TavokGateway.StreamListener do
         Broadcast.endpoint_broadcast_raw!("room:#{channel_id}", "stream_checkpoint", payload)
 
       _ ->
-        Logger.error("[StreamListener] Invalid checkpoint channel format: hive:stream:checkpoint:#{rest}")
+        Logger.error(
+          "[StreamListener] Invalid checkpoint channel format: hive:stream:checkpoint:#{rest}"
+        )
     end
   end
 
