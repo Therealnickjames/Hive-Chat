@@ -134,6 +134,18 @@ export async function POST(
       const messageId = ulid();
       const sequence = String(Date.now()); // fallback sequence
 
+      // Persist streaming placeholder before broadcasting
+      await persistMessage({
+        id: messageId,
+        channelId,
+        authorId: botId,
+        authorType: "BOT",
+        content: "",
+        type: "STREAMING",
+        streamingStatus: "ACTIVE",
+        sequence,
+      });
+
       // Broadcast stream_start
       await broadcastStreamStart(channelId, {
         messageId,
@@ -149,6 +161,7 @@ export async function POST(
       let buffer = "";
       let tokenIndex = 0;
       let fullContent = "";
+      let streamCompleted = false;
 
       try {
         while (true) {
@@ -175,11 +188,21 @@ export async function POST(
                   });
                 }
                 if (parsed.done) {
+                  const resolvedFinalContent =
+                    parsed.finalContent || fullContent;
                   await broadcastStreamComplete(channelId, {
                     messageId,
-                    finalContent: parsed.finalContent || fullContent,
+                    finalContent: resolvedFinalContent,
                     metadata: parsed.metadata || null,
                   });
+                  await updateMessage(messageId, {
+                    content: resolvedFinalContent,
+                    streamingStatus: "COMPLETE",
+                    metadata: parsed.metadata
+                      ? JSON.stringify(parsed.metadata)
+                      : undefined,
+                  });
+                  streamCompleted = true;
                 }
               } catch {
                 // Skip malformed SSE data
@@ -189,11 +212,27 @@ export async function POST(
         }
 
         // If stream ended without explicit done, complete it
-        if (fullContent && tokenIndex > 0) {
+        if (!streamCompleted && fullContent && tokenIndex > 0) {
           await broadcastStreamComplete(channelId, {
             messageId,
             finalContent: fullContent,
           });
+          await updateMessage(messageId, {
+            content: fullContent,
+            streamingStatus: "COMPLETE",
+          });
+          streamCompleted = true;
+        }
+      } catch (streamErr) {
+        // Stream read error — persist error state
+        console.error("SSE stream read error:", streamErr);
+        if (!streamCompleted) {
+          await updateMessage(messageId, {
+            streamingStatus: "ERROR",
+            content: fullContent || "*[Error: Stream read failed]*",
+          }).catch((e) =>
+            console.error("Failed to persist stream error:", e),
+          );
         }
       } finally {
         reader.releaseLock();
@@ -224,23 +263,15 @@ export async function POST(
       });
 
       // Persist via internal API
-      const internalUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-      await fetch(`${internalUrl}/api/internal/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
-        },
-        body: JSON.stringify({
-          id: messageId,
-          channelId,
-          authorId: botId,
-          authorType: "BOT",
-          content: responseBody.content,
-          type: "STANDARD",
-          sequence,
-        }),
-      }).catch((err) => console.error("Persist failed:", err));
+      await persistMessage({
+        id: messageId,
+        channelId,
+        authorId: botId,
+        authorType: "BOT",
+        content: responseBody.content,
+        type: "STANDARD",
+        sequence,
+      });
 
       return NextResponse.json({ ok: true, mode: "sync", messageId });
     }
@@ -255,5 +286,55 @@ export async function POST(
       { error: "Webhook dispatch failed" },
       { status: 502 },
     );
+  }
+}
+
+async function persistMessage(data: {
+  id: string;
+  channelId: string;
+  authorId: string;
+  authorType: string;
+  content: string;
+  type: string;
+  streamingStatus?: string;
+  sequence: string;
+}) {
+  const internalUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  const response = await fetch(`${internalUrl}/api/internal/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok && response.status !== 409) {
+    const errorBody = await response.text().catch(() => "unknown");
+    console.error(
+      `Message persistence failed: ${response.status} ${errorBody}`,
+    );
+  }
+}
+
+async function updateMessage(messageId: string, data: Record<string, unknown>) {
+  const internalUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  const response = await fetch(
+    `${internalUrl}/api/internal/messages/${messageId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "unknown");
+    console.error(`Message update failed: ${response.status} ${errorBody}`);
   }
 }

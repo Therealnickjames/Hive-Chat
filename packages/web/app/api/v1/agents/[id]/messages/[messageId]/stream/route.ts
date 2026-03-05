@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import {
   broadcastStreamToken,
@@ -38,26 +39,25 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { tokens, done, finalContent, metadata, thinking, error, channelId } =
-    body as {
-      tokens?: string[];
-      done?: boolean;
-      finalContent?: string;
-      metadata?: Record<string, unknown>;
-      thinking?: { phase: string; detail?: string };
-      error?: string;
-      channelId?: string;
-    };
+  const { tokens, done, finalContent, metadata, thinking, error } = body as {
+    tokens?: string[];
+    done?: boolean;
+    finalContent?: string;
+    metadata?: Record<string, unknown>;
+    thinking?: { phase: string; detail?: string };
+    error?: string;
+  };
 
-  // We need channelId to broadcast. Try to get it from the request or message lookup.
-  const resolvedChannelId = channelId || "";
-
-  if (!resolvedChannelId) {
+  // Verify message ownership and resolve channelId from DB (not from request body)
+  const ownership = await verifyMessageOwnership(messageId, agent.botId);
+  if (!ownership.valid) {
     return NextResponse.json(
-      { error: "channelId is required" },
-      { status: 400 },
+      { error: ownership.error },
+      { status: ownership.status },
     );
   }
+
+  const resolvedChannelId = ownership.channelId;
 
   try {
     // Handle error
@@ -78,12 +78,16 @@ export async function POST(
 
     // Handle thinking
     if (thinking) {
-      await broadcastToChannel(`room:${resolvedChannelId}`, "stream_thinking", {
-        messageId,
-        phase: thinking.phase,
-        detail: thinking.detail || null,
-        timestamp: new Date().toISOString(),
-      });
+      await broadcastToChannel(
+        `room:${resolvedChannelId}`,
+        "stream_thinking",
+        {
+          messageId,
+          phase: thinking.phase,
+          detail: thinking.detail || null,
+          timestamp: new Date().toISOString(),
+        },
+      );
       return NextResponse.json({ ok: true });
     }
 
@@ -133,6 +137,57 @@ export async function POST(
       { status: 500 },
     );
   }
+}
+
+async function verifyMessageOwnership(
+  messageId: string,
+  botId: string,
+): Promise<
+  | { valid: true; channelId: string }
+  | { valid: false; error: string; status: number }
+> {
+  let message;
+  try {
+    message = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: {
+        id: true,
+        channelId: true,
+        authorId: true,
+        streamingStatus: true,
+        isDeleted: true,
+      },
+    });
+  } catch (err) {
+    console.error("Ownership check DB query failed:", err);
+    return {
+      valid: false,
+      error: "Internal error during ownership verification",
+      status: 500,
+    };
+  }
+
+  if (!message || message.isDeleted) {
+    return { valid: false, error: "Message not found", status: 404 };
+  }
+
+  if (message.authorId !== botId) {
+    return {
+      valid: false,
+      error: "Message does not belong to this agent",
+      status: 403,
+    };
+  }
+
+  if (message.streamingStatus !== "ACTIVE") {
+    return {
+      valid: false,
+      error: "Message is not in active streaming state",
+      status: 409,
+    };
+  }
+
+  return { valid: true, channelId: message.channelId };
 }
 
 async function updateMessage(messageId: string, data: Record<string, unknown>) {

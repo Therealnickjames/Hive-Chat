@@ -34,7 +34,7 @@ export async function POST(
   // Verify webhook token
   const webhook = await prisma.inboundWebhook.findUnique({
     where: { token },
-    select: { channelId: true, isActive: true },
+    select: { channelId: true, botId: true, isActive: true },
   });
 
   if (!webhook || !webhook.isActive) {
@@ -69,6 +69,19 @@ export async function POST(
     );
   }
 
+  // Verify the message belongs to this webhook's bot and channel
+  const ownership = await verifyWebhookMessageOwnership(
+    messageId,
+    webhook.botId,
+    webhook.channelId,
+  );
+  if (!ownership.valid) {
+    return NextResponse.json(
+      { error: ownership.error },
+      { status: ownership.status },
+    );
+  }
+
   try {
     // Handle error
     if (error) {
@@ -89,12 +102,16 @@ export async function POST(
 
     // Handle thinking/status updates
     if (thinking) {
-      await broadcastToChannel(`room:${webhook.channelId}`, "stream_thinking", {
-        messageId,
-        phase: thinking.phase,
-        detail: thinking.detail || null,
-        timestamp: new Date().toISOString(),
-      });
+      await broadcastToChannel(
+        `room:${webhook.channelId}`,
+        "stream_thinking",
+        {
+          messageId,
+          phase: thinking.phase,
+          detail: thinking.detail || null,
+          timestamp: new Date().toISOString(),
+        },
+      );
       return NextResponse.json({ ok: true });
     }
 
@@ -146,6 +163,66 @@ export async function POST(
       { status: 500 },
     );
   }
+}
+
+async function verifyWebhookMessageOwnership(
+  messageId: string,
+  botId: string,
+  channelId: string,
+): Promise<
+  | { valid: true }
+  | { valid: false; error: string; status: number }
+> {
+  let message;
+  try {
+    message = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: {
+        id: true,
+        channelId: true,
+        authorId: true,
+        streamingStatus: true,
+        isDeleted: true,
+      },
+    });
+  } catch (err) {
+    console.error("Ownership check DB query failed:", err);
+    return {
+      valid: false,
+      error: "Internal error during ownership verification",
+      status: 500,
+    };
+  }
+
+  if (!message || message.isDeleted) {
+    return { valid: false, error: "Message not found", status: 404 };
+  }
+
+  if (message.authorId !== botId) {
+    return {
+      valid: false,
+      error: "Message does not belong to this webhook's bot",
+      status: 403,
+    };
+  }
+
+  if (message.channelId !== channelId) {
+    return {
+      valid: false,
+      error: "Message does not belong to this webhook's channel",
+      status: 403,
+    };
+  }
+
+  if (message.streamingStatus !== "ACTIVE") {
+    return {
+      valid: false,
+      error: "Message is not in active streaming state",
+      status: 409,
+    };
+  }
+
+  return { valid: true };
 }
 
 /**
