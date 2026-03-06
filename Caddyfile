@@ -1,0 +1,44 @@
+# Tavok — Production Reverse Proxy Configuration
+#
+# Usage: docker compose --profile production up
+# Set DOMAIN env var to your domain (e.g., DOMAIN=tavok.example.com)
+#
+# Caddy automatically provisions TLS via Let's Encrypt.
+# For localhost/dev, use DOMAIN=localhost (self-signed cert).
+
+{$DOMAIN:localhost} {
+	# ── Next.js Web App ──
+	handle /api/* {
+		reverse_proxy web:3000
+	}
+
+	# ── Phoenix Gateway (WebSocket) ──
+	handle /socket/* {
+		reverse_proxy gateway:4001
+	}
+
+	# Gateway health endpoint
+	handle /gateway/* {
+		uri strip_prefix /gateway
+		reverse_proxy gateway:4001
+	}
+
+	# Default: Next.js frontend
+	handle {
+		reverse_proxy web:3000
+	}
+
+	# ── Security Headers ──
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# ── Logging ──
+	log {
+		output stdout
+		format json
+	}
+}

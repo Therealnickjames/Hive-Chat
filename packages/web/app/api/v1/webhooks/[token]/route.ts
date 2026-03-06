@@ -6,6 +6,7 @@ import {
   broadcastStreamStart,
   broadcastTypedMessage,
 } from "@/lib/gateway-client";
+import { webhookLimiter } from "@/lib/rate-limit";
 
 /**
  * POST /api/v1/webhooks/{token} — Send a message via inbound webhook (DEC-0045)
@@ -31,6 +32,20 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
+
+  // Rate limit: 60 requests per 60s per webhook token
+  const rl = webhookLimiter.check(token);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+        },
+      },
+    );
+  }
 
   // Look up webhook by token (indexed query)
   const webhook = await prisma.inboundWebhook.findUnique({

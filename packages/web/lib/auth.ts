@@ -33,9 +33,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          console.log(
-            `[AUTH] authorize: no user found for ${credentials.email}`,
-          );
+          console.log("[AUTH] authorize: no user found");
           return null;
         }
 
@@ -44,13 +42,11 @@ export const authOptions: NextAuthOptions = {
           user.password,
         );
         if (!isValid) {
-          console.log(
-            `[AUTH] authorize: invalid password for ${credentials.email} (hash length: ${user.password.length})`,
-          );
+          console.log("[AUTH] authorize: invalid password");
           return null;
         }
 
-        console.log(`[AUTH] authorize: success for ${credentials.email}`);
+        console.log(`[AUTH] authorize: success for user ${user.id}`);
         return {
           id: user.id,
           email: user.email,

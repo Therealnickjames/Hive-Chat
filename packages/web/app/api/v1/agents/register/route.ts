@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { ulid } from "ulid";
 import crypto from "crypto";
+import { agentRegistrationLimiter, getClientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/v1/agents/register — Agent self-registration (DEC-0040)
@@ -16,6 +17,21 @@ import crypto from "crypto";
  * Rate limiting should be applied at the infrastructure level.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 requests per 60s per IP
+  const ip = getClientIp(request);
+  const rl = agentRegistrationLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many registration attempts. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+        },
+      },
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();

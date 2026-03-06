@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-tavok}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tavok}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - see .env.example}
       POSTGRES_DB: ${POSTGRES_DB:-tavok}
     ports:
       # Bound to localhost only — not accessible from external network.
@@ -38,7 +38,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-tavok-redis-dev}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required - see .env.example}
     ports:
       # Bound to localhost only — not accessible from external network.
       # Remove this port mapping entirely in production.
@@ -46,7 +46,7 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-tavok-redis-dev}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required - see .env.example}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -65,8 +65,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://tavok:tavok@db:5432/tavok}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-tavok-redis-dev}@redis:6379
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required - see .env.example}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required - see .env.example}@redis:6379
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required - see .env.example}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - see .env.example}
@@ -100,7 +100,7 @@ services:
     environment:
       GATEWAY_PORT: "4001"
       GATEWAY_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - see .env.example}
-      GATEWAY_REDIS_URL: redis://:${REDIS_PASSWORD:-tavok-redis-dev}@redis:6379
+      GATEWAY_REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required - see .env.example}@redis:6379
       GATEWAY_WEB_URL: ${GATEWAY_WEB_URL:-http://web:3000}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required - see .env.example}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required - see .env.example}
@@ -129,7 +129,7 @@ services:
       - "${STREAMING_PORT:-4002}:4002"
     environment:
       STREAMING_PORT: "4002"
-      STREAMING_REDIS_URL: redis://:${REDIS_PASSWORD:-tavok-redis-dev}@redis:6379
+      STREAMING_REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required - see .env.example}@redis:6379
       STREAMING_WEB_URL: ${STREAMING_WEB_URL:-http://web:3000}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required - see .env.example}
     depends_on:

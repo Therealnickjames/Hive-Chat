@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { generateId } from "@/lib/ulid";
+import { authLimiter, getClientIp } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,6 +24,21 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Rate limit: 10 requests per 60s per IP
+  const ip = getClientIp(request);
+  const rl = authLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+        },
+      },
+    );
+  }
+
   try {
     const body = await request.json();
     const data = registerSchema.parse(body);

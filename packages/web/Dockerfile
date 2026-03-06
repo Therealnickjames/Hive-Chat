@@ -14,7 +14,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY prisma/ ./prisma/
 
 # Install dependencies (bust cache with timestamp if needed)
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --frozen-lockfile
 
 # Ensure all build scripts run (ignoredBuiltDependencies may skip these)
 RUN pnpm rebuild 2>/dev/null || true
@@ -27,7 +27,7 @@ COPY packages/shared/ ./packages/shared/
 RUN npx prisma generate --schema=prisma/schema.prisma
 
 # Rebuild pnpm symlinks after COPY overwrites packages/web/
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --frozen-lockfile
 
 # Build Next.js (pnpm exec resolves through pnpm's module store correctly)
 RUN cd packages/web && pnpm exec next build
