@@ -63,4 +63,4 @@ services:
 networks:
   tavok-net:
     external: true
-    name: hive-chat_tavok-net
+    name: tavok_tavok-net
