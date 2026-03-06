@@ -14,8 +14,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div
           className="grid h-screen overflow-hidden bg-background-tertiary"
           style={{
-            gridTemplateColumns: "200px 1fr 240px",
-            gridTemplateRows: "38px 1fr 44px",
+            gridTemplateColumns: "240px 1fr 280px",
+            gridTemplateRows: "48px 1fr 40px",
           }}
         >
           <TopBar />

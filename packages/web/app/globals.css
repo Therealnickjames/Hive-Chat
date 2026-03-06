@@ -4,54 +4,29 @@
 
 @layer base {
   :root {
-    --background-primary: #0c0c0c;
-    --background-secondary: #141414;
-    --background-tertiary: #050505;
-    --background-floating: #1c1c1c;
-
-    --border-default: #222222;
-    --border-bright: #333333;
-
-    --text-primary: #f5f5f5;
-    --text-secondary: #a3a3a3;
-    --text-muted: #666666;
-    --text-dim: #444444;
+    --background-primary: #0b0f19;
+    --background-secondary: #151b2b;
+    --background-tertiary: #050810;
+    --background-floating: #1e293b;
+    --border-default: #222b3f;
+    --border-bright: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-dim: #475569;
   }
 }
 
 body {
-  @apply bg-background-tertiary text-text-primary;
-  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  background-color: var(--background-tertiary);
+  color: var(--text-primary);
+  font-family: var(--font-inter), sans-serif;
 }
 
-/* Scanline overlay */
-body::after {
-  content: " ";
-  display: block;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background:
-    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-    linear-gradient(
-      90deg,
-      rgba(255, 0, 0, 0.06),
-      rgba(0, 255, 0, 0.02),
-      rgba(0, 0, 255, 0.06)
-    );
-  z-index: 999;
-  background-size:
-    100% 2px,
-    3px 100%;
-  pointer-events: none;
-}
-
-/* Scrollbar styling — Terminal aesthetic */
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -60,6 +35,7 @@ body::after {
 
 ::-webkit-scrollbar-thumb {
   background-color: var(--border-bright);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

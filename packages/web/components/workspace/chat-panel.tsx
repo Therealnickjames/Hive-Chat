@@ -15,6 +15,7 @@ import { ChannelSettingsModal } from "@/components/modals/channel-settings-modal
 import { DeleteMessageModal } from "@/components/modals/delete-message-modal";
 import { Permissions } from "@/lib/permissions";
 import { PanelState } from "@/lib/hooks/use-panel-state";
+import { X, Minus, Maximize2, Minimize2, Settings2, Hash } from "lucide-react";
 
 interface ChatPanelProps {
   panel: PanelState;
@@ -320,7 +321,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
   return (
     <div
       onMouseDown={focusAndSyncRoute}
-      className="absolute flex flex-col rounded-lg border border-border bg-background-primary shadow-2xl overflow-hidden"
+      className="absolute flex flex-col rounded-xl border border-border/80 bg-background-primary shadow-[0_8px_30px_rgb(0,0,0,0.4)] ring-1 ring-white/5 overflow-hidden"
       style={{
         left: panel.x,
         top: panel.y,
@@ -332,7 +333,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
       {/* Titlebar */}
       <div
         onMouseDown={handleMouseDownDrag}
-        className={`flex h-[38px] shrink-0 items-center justify-between border-b border-border bg-background-secondary px-3 ${
+        className={`flex h-[40px] shrink-0 items-center justify-between border-b border-border bg-background-secondary/90 backdrop-blur-md px-3 ${
           panel.isMaximized
             ? "cursor-default"
             : "cursor-grab active:cursor-grabbing"
@@ -363,8 +364,9 @@ export function ChatPanel({ panel }: ChatPanelProps) {
               />
             </div>
           )}
-          <span className="font-mono text-xs font-bold text-text-secondary select-none">
-            # {panel.channelName}
+          <span className="flex items-center gap-1.5 font-mono text-xs font-bold text-text-secondary select-none">
+            <Hash className="h-3.5 w-3.5" />
+            {panel.channelName}
           </span>
           {panelServerName && (
             <span className="font-mono text-[10px] text-text-dim uppercase tracking-wider select-none">
@@ -378,20 +380,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
               className="ml-1 text-text-dim hover:text-text-primary transition-colors"
               title="Channel Settings"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
+              <Settings2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
@@ -414,26 +403,30 @@ export function ChatPanel({ panel }: ChatPanelProps) {
             >
               <button
                 onClick={handleMinimizePanel}
-                className="h-5 w-6 text-[10px] text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
+                className="flex h-5 w-6 items-center justify-center text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
                 aria-label="Minimize panel"
               >
-                _
+                <Minus className="h-3 w-3" />
               </button>
               <button
                 onClick={handleToggleMaximize}
-                className="h-5 w-6 text-[10px] text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
+                className="flex h-5 w-6 items-center justify-center text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
                 aria-label={
                   panel.isMaximized ? "Restore panel" : "Maximize panel"
                 }
               >
-                {panel.isMaximized ? "❐" : "□"}
+                {panel.isMaximized ? (
+                  <Minimize2 className="h-3 w-3" />
+                ) : (
+                  <Maximize2 className="h-3 w-3" />
+                )}
               </button>
               <button
                 onClick={handleClosePanel}
-                className="h-5 w-6 text-[10px] text-text-secondary transition hover:bg-status-dnd hover:text-white"
+                className="flex h-5 w-6 items-center justify-center text-text-secondary transition hover:bg-status-dnd hover:text-white"
                 aria-label="Close panel"
               >
-                ×
+                <X className="h-3 w-3" />
               </button>
             </div>
           )}

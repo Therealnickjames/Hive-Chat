@@ -5,6 +5,7 @@ import { useChatContext } from "@/components/providers/chat-provider";
 import { useWorkspaceContext } from "@/components/providers/workspace-provider";
 import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
 import { Permissions } from "@/lib/permissions";
+import { Bot, Cpu, Users, Zap, Settings2 } from "lucide-react";
 
 interface AgentInfo {
   id: string;
@@ -37,7 +38,6 @@ export function RightPanel() {
     });
   }, [openServerIds, ensureServerScopedData]);
 
-  // Fix 1: Use channel.botIds (ChannelBot table) with fallback to defaultBotId
   const agentList = useMemo(() => {
     const agentById = new Map<string, AgentInfo>();
 
@@ -48,7 +48,6 @@ export function RightPanel() {
       const channel = scoped.channels.find((c) => c.id === panel.channelId);
       if (!channel) continue;
 
-      // Use botIds from ChannelBot table, fall back to single defaultBotId
       const botIds = channel.botIds?.length
         ? channel.botIds
         : channel.defaultBotId
@@ -88,7 +87,6 @@ export function RightPanel() {
     return Array.from(agentById.values());
   }, [openPanels, serverDataById, activeStreams]);
 
-  // Build task list from agent thinking steps
   const taskList = useMemo(() => {
     const tasks: { label: string; agentName: string; isActive: boolean }[] = [];
     for (const agent of agentList) {
@@ -104,7 +102,6 @@ export function RightPanel() {
     return tasks;
   }, [agentList]);
 
-  // Build model list from all bots across open servers
   const modelList = useMemo(() => {
     const models = new Map<string, string>(); // model -> botName
     for (const panel of openPanels) {
@@ -125,58 +122,61 @@ export function RightPanel() {
   return (
     <div className="flex flex-col border-l border-border bg-background-primary h-full">
       <div className="flex-1 overflow-y-auto p-4 space-y-8">
-        {/* Agents — Fix 3: "+" button moved here from left panel */}
+        {/* Agents */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs font-bold text-text-dim uppercase tracking-wider">
-              Agents
+          <div className="flex items-center justify-between mb-3 border-b border-border pb-2">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-text-muted">
+              <Bot className="h-4 w-4" />
+              AGENTS
             </div>
             {hasPermission(Permissions.MANAGE_BOTS) && (
               <button
                 onClick={() => setShowManageAgents(true)}
-                className="text-[10px] font-bold text-accent-cyan hover:text-text-primary"
+                className="text-text-muted hover:text-brand transition-colors p-1 rounded hover:bg-background-floating"
                 title="Manage Agents"
               >
-                +
+                <Settings2 className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             {agentList.length === 0 ? (
-              <div className="text-xs text-text-muted">No agents active</div>
+              <div className="text-sm text-text-muted py-2">
+                No agents active
+              </div>
             ) : (
               agentList.map((agent) => (
                 <div
                   key={agent.id}
-                  className="flex items-center justify-between text-sm"
+                  className="flex items-center justify-between text-sm rounded-md px-2 py-1.5 bg-background-floating border border-border/50"
                 >
-                  <div className="flex items-center gap-2 truncate">
+                  <div className="flex items-center gap-2.5 truncate">
                     <div
-                      className={`h-2 w-2 rounded-full shrink-0 ${agent.isStreaming ? "bg-accent-cyan animate-pulse" : "bg-status-offline"}`}
+                      className={`h-2 w-2 rounded-full shrink-0 shadow-sm ${agent.isStreaming ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.6)]" : "bg-status-offline"}`}
                     />
-                    <span className="text-text-primary truncate">
+                    <span className="text-text-primary font-medium truncate">
                       {agent.name}
                     </span>
                   </div>
                   {agent.isStreaming ? (
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="flex gap-0.5">
+                      <span className="flex gap-1">
                         <span
-                          className="h-1 w-1 rounded-full bg-accent-cyan animate-bounce"
+                          className="h-1.5 w-1.5 rounded-full bg-brand animate-bounce"
                           style={{ animationDelay: "0ms" }}
                         />
                         <span
-                          className="h-1 w-1 rounded-full bg-accent-cyan animate-bounce"
+                          className="h-1.5 w-1.5 rounded-full bg-brand animate-bounce"
                           style={{ animationDelay: "150ms" }}
                         />
                         <span
-                          className="h-1 w-1 rounded-full bg-accent-cyan animate-bounce"
+                          className="h-1.5 w-1.5 rounded-full bg-brand animate-bounce"
                           style={{ animationDelay: "300ms" }}
                         />
                       </span>
                     </div>
                   ) : (
-                    <span className="text-[10px] text-text-dim font-mono tracking-wide shrink-0">
+                    <span className="text-[10px] text-text-dim font-bold tracking-wide shrink-0">
                       IDLE
                     </span>
                   )}
@@ -186,40 +186,41 @@ export function RightPanel() {
           </div>
         </div>
 
-        {/* Tasks — Fix 4: "Coming Soon" label */}
+        {/* Tasks */}
         <div>
-          <div className="text-xs font-bold text-text-dim mb-3 uppercase tracking-wider">
-            Tasks{" "}
-            <span className="text-text-muted font-normal normal-case tracking-normal">
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-text-muted mb-3 border-b border-border pb-2">
+            <Zap className="h-4 w-4" />
+            TASKS{" "}
+            <span className="font-normal normal-case text-text-dim ml-1">
               (Coming Soon)
             </span>
           </div>
           <div className="space-y-3">
             {taskList.length === 0 ? (
-              <div className="text-xs text-text-muted">
+              <div className="text-sm text-text-muted">
                 No thinking steps configured
               </div>
             ) : (
               taskList.map((task, i) => (
                 <div
                   key={`${task.agentName}-${task.label}-${i}`}
-                  className={`border-l-2 pl-2 ${
-                    task.isActive ? "border-accent-cyan" : "border-border"
+                  className={`border-l-2 pl-3 py-0.5 ${
+                    task.isActive ? "border-brand" : "border-border"
                   }`}
                 >
                   <div
-                    className={`text-xs ${task.isActive ? "text-text-primary" : "text-text-muted"}`}
+                    className={`text-sm font-medium ${task.isActive ? "text-text-primary" : "text-text-muted"}`}
                   >
                     {task.label}
                   </div>
-                  <div className="text-[10px] text-text-muted mt-1">
+                  <div className="text-[11px] text-text-muted mt-0.5">
                     @{task.agentName.toLowerCase()}{" "}
                     {task.isActive ? "• active" : "• ready"}
                   </div>
                   {task.isActive && (
-                    <div className="mt-1.5 h-0.5 w-full bg-background-tertiary rounded-full overflow-hidden">
+                    <div className="mt-2 h-1 w-full bg-background-tertiary rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-accent-cyan animate-pulse"
+                        className="h-full bg-brand animate-pulse"
                         style={{ width: "60%" }}
                       />
                     </div>
@@ -232,26 +233,27 @@ export function RightPanel() {
 
         {/* Members */}
         <div>
-          <div className="text-xs font-bold text-text-dim mb-3 uppercase tracking-wider">
-            Members
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-text-muted mb-3 border-b border-border pb-2">
+            <Users className="h-4 w-4" />
+            MEMBERS
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {members.length === 0 ? (
-              <div className="text-xs text-text-muted">No members</div>
+              <div className="text-sm text-text-muted">No members</div>
             ) : (
               members.map((member) => {
                 const isOwner = member.userId === currentServerOwnerId;
                 return (
                   <div
                     key={member.userId}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex items-center gap-2.5 text-sm px-2 py-1"
                   >
-                    <div className="h-2 w-2 rounded-full bg-status-online shrink-0" />
-                    <span className="text-text-primary truncate">
+                    <div className="h-2 w-2 rounded-full bg-status-online shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                    <span className="text-text-primary font-medium truncate">
                       {member.displayName}
                     </span>
                     {isOwner && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand/10 text-brand uppercase font-bold shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-brand/10 text-brand font-semibold shrink-0">
                         Owner
                       </span>
                     )}
@@ -262,24 +264,29 @@ export function RightPanel() {
           </div>
         </div>
 
-        {/* Models — derived from server bots */}
+        {/* Models */}
         <div>
-          <div className="text-xs font-bold text-text-dim mb-3 uppercase tracking-wider">
-            Models
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-text-muted mb-3 border-b border-border pb-2">
+            <Cpu className="h-4 w-4" />
+            MODELS
           </div>
-          <div className="space-y-2 text-xs font-mono">
+          <div className="space-y-2 text-sm">
             {modelList.length === 0 ? (
-              <div className="text-xs text-text-muted font-sans">
+              <div className="text-sm text-text-muted">
                 No models configured
               </div>
             ) : (
               modelList.map(({ model, botName }) => (
                 <div
                   key={model}
-                  className="flex justify-between text-text-secondary"
+                  className="flex justify-between items-center px-2 py-1.5 rounded-md bg-background-floating border border-border/50"
                 >
-                  <span className="truncate">{model}</span>
-                  <span className="text-text-dim shrink-0 ml-2">{botName}</span>
+                  <span className="font-mono text-xs text-text-secondary truncate">
+                    {model}
+                  </span>
+                  <span className="text-[11px] text-text-muted shrink-0 ml-2 font-medium">
+                    {botName}
+                  </span>
                 </div>
               ))
             )}
@@ -287,7 +294,6 @@ export function RightPanel() {
         </div>
       </div>
 
-      {/* Manage Agents Modal */}
       <ManageBotsModal
         isOpen={showManageAgents}
         onClose={() => setShowManageAgents(false)}

@@ -85,7 +85,7 @@ function RegisterForm() {
   }
 
   return (
-    <div className="rounded-lg bg-background-floating p-8 shadow-xl">
+    <div className="rounded-xl border border-border/80 bg-background-floating p-8 shadow-xl">
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold text-text-primary">
           Create an account
@@ -102,7 +102,7 @@ function RegisterForm() {
         <div>
           <label
             htmlFor="email"
-            className="mb-2 block text-xs font-bold uppercase text-text-secondary"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted"
           >
             Email
           </label>
@@ -119,7 +119,7 @@ function RegisterForm() {
         <div>
           <label
             htmlFor="displayName"
-            className="mb-2 block text-xs font-bold uppercase text-text-secondary"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted"
           >
             Display Name
           </label>
@@ -137,7 +137,7 @@ function RegisterForm() {
         <div>
           <label
             htmlFor="username"
-            className="mb-2 block text-xs font-bold uppercase text-text-secondary"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted"
           >
             Username
           </label>
@@ -156,7 +156,7 @@ function RegisterForm() {
         <div>
           <label
             htmlFor="password"
-            className="mb-2 block text-xs font-bold uppercase text-text-secondary"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted"
           >
             Password
           </label>
@@ -174,7 +174,7 @@ function RegisterForm() {
         <div>
           <label
             htmlFor="confirmPassword"
-            className="mb-2 block text-xs font-bold uppercase text-text-secondary"
+            className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted"
           >
             Confirm Password
           </label>

@@ -24,16 +24,16 @@ export function Workspace() {
       {/* Empty State */}
       {visiblePanels.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center font-mono text-text-dim">
-            <div className="mb-4 text-brand/20">
+          <div className="flex flex-col items-center text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-border/80 bg-background-primary shadow-sm">
               <svg
-                width="64"
-                height="64"
+                width="32"
+                height="32"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1"
-                className="mx-auto"
+                strokeWidth="1.5"
+                className="text-text-muted"
               >
                 <path d="M4 19V5a2 2 0 0 1 2-2h13.4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
                 <path d="M4 15h18" />
@@ -42,9 +42,11 @@ export function Workspace() {
                 <path d="M16 15v6" />
               </svg>
             </div>
-            <p>TAVOK // COMMAND CENTER</p>
-            <p className="text-xs mt-2 opacity-50">
-              OPEN A CHANNEL FROM THE SIDEBAR TO BEGIN
+            <h2 className="text-lg font-semibold text-text-primary">
+              Welcome to the Workspace
+            </h2>
+            <p className="mt-1.5 text-sm text-text-muted">
+              Select a channel from the sidebar to begin
             </p>
           </div>
         </div>
