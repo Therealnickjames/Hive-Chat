@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+  /* Dark theme (default) */
   :root {
     --background-primary: #0b0f19;
     --background-secondary: #151b2b;
@@ -14,6 +15,28 @@
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     --text-dim: #475569;
+    --text-link: #0ea5e9;
+    --brand: #0ea5e9;
+    --brand-hover: #0284c7;
+    --brand-glow: rgba(14, 165, 233, 0.15);
+  }
+
+  /* Light theme */
+  .light {
+    --background-primary: #f1f5f9;
+    --background-secondary: #e2e8f0;
+    --background-tertiary: #ffffff;
+    --background-floating: #ffffff;
+    --border-default: #cbd5e1;
+    --border-bright: #94a3b8;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --text-link: #0284c7;
+    --brand: #0284c7;
+    --brand-hover: #0369a1;
+    --brand-glow: rgba(2, 132, 199, 0.12);
   }
 }
 

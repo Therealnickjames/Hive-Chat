@@ -254,3 +254,61 @@ export async function PATCH(
     charterAgentOrder: parsedAgentOrder,
   });
 }
+
+/**
+ * DELETE /api/servers/{serverId}/channels/{channelId}
+ * Requires MANAGE_CHANNELS permission. Cannot delete the last channel.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ serverId: string; channelId: string }> },
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { serverId, channelId } = await params;
+
+  const permCheck = await checkMemberPermission(
+    session.user.id,
+    serverId,
+    Permissions.MANAGE_CHANNELS,
+  );
+  if (!permCheck.allowed) {
+    return NextResponse.json(
+      { error: "Missing permission: Manage Channels" },
+      { status: 403 },
+    );
+  }
+
+  try {
+    // Cannot delete last channel
+    const channelCount = await prisma.channel.count({
+      where: { serverId },
+    });
+    if (channelCount <= 1) {
+      return NextResponse.json(
+        { error: "Cannot delete the last channel in a server" },
+        { status: 400 },
+      );
+    }
+
+    // Verify channel belongs to this server
+    const channel = await prisma.channel.findFirst({
+      where: { id: channelId, serverId },
+    });
+    if (!channel) {
+      return NextResponse.json(
+        { error: "Channel not found" },
+        { status: 404 },
+      );
+    }
+
+    await prisma.channel.delete({ where: { id: channelId } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to delete channel:", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}

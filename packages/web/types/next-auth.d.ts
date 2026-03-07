@@ -7,6 +7,9 @@ declare module "next-auth" {
     username: string;
     displayName: string;
     email: string;
+    avatarUrl?: string | null;
+    status?: string;
+    theme?: string;
   }
 
   interface Session {
@@ -15,6 +18,9 @@ declare module "next-auth" {
       username: string;
       displayName: string;
       email: string;
+      avatarUrl?: string | null;
+      status?: string;
+      theme?: string;
     };
   }
 }
@@ -25,5 +31,8 @@ declare module "next-auth/jwt" {
     username: string;
     displayName: string;
     email: string;
+    avatarUrl?: string | null;
+    status?: string;
+    theme?: string;
   }
 }

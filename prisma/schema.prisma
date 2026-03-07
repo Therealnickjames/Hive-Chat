@@ -68,6 +68,8 @@ model User {
   displayName String
   avatarUrl   String?
   password    String // bcrypt hashed
+  status      String   @default("online") // online, away, busy, invisible
+  theme       String   @default("dark")   // dark, light
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkMemberPermission } from "@/lib/check-member-permission";
+import { Permissions } from "@/lib/permissions";
 
 /**
  * GET /api/servers/[serverId] — Server detail with channels and member count
@@ -69,6 +71,108 @@ export async function GET(
     });
   } catch (error) {
     console.error("Failed to get server:", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/servers/[serverId] — Update server settings
+ * Requires MANAGE_SERVER permission or owner.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ serverId: string }> },
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { serverId } = await params;
+
+  const check = await checkMemberPermission(
+    session.user.id,
+    serverId,
+    Permissions.MANAGE_SERVER,
+  );
+  if (!check.allowed) {
+    return NextResponse.json(
+      { error: "Missing permission: Manage Server" },
+      { status: 403 },
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const updateData: Record<string, unknown> = {};
+
+  if ("name" in body) {
+    if (typeof body.name !== "string" || body.name.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Server name is required" },
+        { status: 400 },
+      );
+    }
+    if (body.name.trim().length > 50) {
+      return NextResponse.json(
+        { error: "Server name must be 50 characters or fewer" },
+        { status: 400 },
+      );
+    }
+    updateData.name = body.name.trim();
+  }
+
+  if ("iconUrl" in body) {
+    if (body.iconUrl === null) {
+      updateData.iconUrl = null;
+    } else if (typeof body.iconUrl === "string") {
+      if (
+        !body.iconUrl.startsWith("/api/uploads/") &&
+        !body.iconUrl.startsWith("https://")
+      ) {
+        return NextResponse.json(
+          { error: "iconUrl must be a valid URL or null" },
+          { status: 400 },
+        );
+      }
+      updateData.iconUrl = body.iconUrl;
+    } else {
+      return NextResponse.json(
+        { error: "iconUrl must be a string or null" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json(
+      { error: "No valid fields to update" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const server = await prisma.server.update({
+      where: { id: serverId },
+      data: updateData,
+    });
+    return NextResponse.json({
+      id: server.id,
+      name: server.name,
+      iconUrl: server.iconUrl,
+      ownerId: server.ownerId,
+    });
+  } catch (error) {
+    console.error("Failed to update server:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

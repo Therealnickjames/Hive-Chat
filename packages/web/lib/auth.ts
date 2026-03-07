@@ -52,18 +52,33 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           username: user.username,
           displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          status: user.status,
+          theme: user.theme,
         };
       },
     }),
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: updateData }) {
       if (user) {
         token.sub = user.id;
         token.username = user.username;
         token.displayName = user.displayName;
         token.email = user.email;
+        token.avatarUrl = user.avatarUrl;
+        token.status = user.status;
+        token.theme = user.theme;
+      }
+      // Support session.update() to refresh profile data without re-login
+      if (trigger === "update" && updateData) {
+        if (updateData.displayName) token.displayName = updateData.displayName;
+        if (updateData.email) token.email = updateData.email;
+        if (updateData.avatarUrl !== undefined)
+          token.avatarUrl = updateData.avatarUrl;
+        if (updateData.status) token.status = updateData.status;
+        if (updateData.theme) token.theme = updateData.theme;
       }
       return token;
     },
@@ -74,6 +89,9 @@ export const authOptions: NextAuthOptions = {
         username: token.username,
         displayName: token.displayName,
         email: token.email,
+        avatarUrl: token.avatarUrl,
+        status: token.status,
+        theme: token.theme,
       };
       return session;
     },
