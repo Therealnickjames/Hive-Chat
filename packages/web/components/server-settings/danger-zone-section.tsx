@@ -37,7 +37,9 @@ export function DangerZoneSection({
       if (res.ok) {
         const data = await res.json();
         setMembers(
-          (data.members || []).filter((m: MemberOption & { isOwner: boolean }) => !m.isOwner),
+          (data.members || []).filter(
+            (m: MemberOption & { isOwner: boolean }) => !m.isOwner,
+          ),
         );
       }
     } catch {
@@ -81,7 +83,11 @@ export function DangerZoneSection({
 
   async function handleDelete() {
     if (deleteConfirm !== "DELETE") return;
-    if (!window.confirm("This is your final confirmation. Delete this server permanently?"))
+    if (
+      !window.confirm(
+        "This is your final confirmation. Delete this server permanently?",
+      )
+    )
       return;
 
     setDeleting(true);

@@ -93,10 +93,9 @@ export function MembersSection({ serverId }: MembersSectionProps) {
     if (!window.confirm(`Kick ${displayName} from the server?`)) return;
     setError("");
     try {
-      const res = await fetch(
-        `/api/servers/${serverId}/members/${memberId}`,
-        { method: "DELETE" },
-      );
+      const res = await fetch(`/api/servers/${serverId}/members/${memberId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to kick member");

@@ -73,10 +73,9 @@ export function InvitesSection({ serverId }: InvitesSectionProps) {
 
   async function handleRevoke(inviteId: string) {
     try {
-      const res = await fetch(
-        `/api/servers/${serverId}/invites/${inviteId}`,
-        { method: "DELETE" },
-      );
+      const res = await fetch(`/api/servers/${serverId}/invites/${inviteId}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         setInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
       }
@@ -164,9 +163,7 @@ export function InvitesSection({ serverId }: InvitesSectionProps) {
           Active Invites
         </p>
         {loading ? (
-          <p className="py-4 text-center text-sm text-text-muted">
-            Loading...
-          </p>
+          <p className="py-4 text-center text-sm text-text-muted">Loading...</p>
         ) : invites.length === 0 ? (
           <p className="py-4 text-center text-sm text-text-muted">
             No active invites. Create one above.

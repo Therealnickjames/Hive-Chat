@@ -53,7 +53,13 @@ export function BotsSection({ serverId }: BotsSectionProps) {
       const res = await fetch(`/api/servers/${serverId}/bots`);
       if (res.ok) {
         const data = await res.json();
-        setBots(Array.isArray(data?.bots) ? data.bots : Array.isArray(data) ? data : []);
+        setBots(
+          Array.isArray(data?.bots)
+            ? data.bots
+            : Array.isArray(data)
+              ? data
+              : [],
+        );
       }
     } catch {
       setError("Failed to load bots");
@@ -86,10 +92,9 @@ export function BotsSection({ serverId }: BotsSectionProps) {
   async function handleReject(botId: string) {
     setError("");
     try {
-      const res = await fetch(
-        `/api/servers/${serverId}/bots/${botId}/reject`,
-        { method: "POST" },
-      );
+      const res = await fetch(`/api/servers/${serverId}/bots/${botId}/reject`, {
+        method: "POST",
+      });
       if (res.ok) await fetchBots();
       else {
         const data = await res.json().catch(() => ({}));
@@ -132,8 +137,8 @@ export function BotsSection({ serverId }: BotsSectionProps) {
       )}
 
       <p className="text-xs text-text-muted">
-        Manage agents and bots in this server. To add new agents, use the
-        Agents panel in the channel view.
+        Manage agents and bots in this server. To add new agents, use the Agents
+        panel in the channel view.
       </p>
 
       {bots.length === 0 ? (

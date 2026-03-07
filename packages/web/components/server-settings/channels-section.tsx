@@ -124,9 +124,7 @@ export function ChannelsSection({ serverId }: ChannelsSectionProps) {
       setEditingId(null);
       await fetchChannels();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to update channel",
-      );
+      setError(err instanceof Error ? err.message : "Failed to update channel");
     }
   }
 

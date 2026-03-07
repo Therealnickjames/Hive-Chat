@@ -230,7 +230,12 @@ export function ProfileSettingsModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Profile Settings" size="wide">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Profile Settings"
+      size="wide"
+    >
       <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
         {/* Avatar Section */}
         <div>
@@ -363,7 +368,9 @@ export function ProfileSettingsModal({
             >
               <Moon className="h-5 w-5 text-text-secondary" />
               <div className="text-left">
-                <div className="text-sm font-medium text-text-primary">Dark</div>
+                <div className="text-sm font-medium text-text-primary">
+                  Dark
+                </div>
                 <div className="text-xs text-text-muted">Default theme</div>
               </div>
             </button>
@@ -379,7 +386,9 @@ export function ProfileSettingsModal({
             >
               <Sun className="h-5 w-5 text-text-secondary" />
               <div className="text-left">
-                <div className="text-sm font-medium text-text-primary">Light</div>
+                <div className="text-sm font-medium text-text-primary">
+                  Light
+                </div>
                 <div className="text-xs text-text-muted">Light theme</div>
               </div>
             </button>

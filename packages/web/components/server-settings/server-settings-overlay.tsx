@@ -123,12 +123,8 @@ export function ServerSettingsOverlay({
               <ChannelsSection serverId={serverId} />
             )}
             {activeTab === "roles" && <RolesSection serverId={serverId} />}
-            {activeTab === "members" && (
-              <MembersSection serverId={serverId} />
-            )}
-            {activeTab === "invites" && (
-              <InvitesSection serverId={serverId} />
-            )}
+            {activeTab === "members" && <MembersSection serverId={serverId} />}
+            {activeTab === "invites" && <InvitesSection serverId={serverId} />}
             {activeTab === "bots" && <BotsSection serverId={serverId} />}
             {activeTab === "danger" && (
               <DangerZoneSection

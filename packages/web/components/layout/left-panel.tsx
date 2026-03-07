@@ -222,7 +222,8 @@ export function LeftPanel() {
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      {(isOwner || hasPermission(Permissions.MANAGE_SERVER)) && (
+                      {(isOwner ||
+                        hasPermission(Permissions.MANAGE_SERVER)) && (
                         <button
                           onClick={() => setShowServerSettings(true)}
                           className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-background-floating transition-colors"

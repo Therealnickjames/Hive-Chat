@@ -164,9 +164,7 @@ export function UserProfileButton() {
                       : "text-text-secondary hover:bg-background-secondary hover:text-text-primary"
                   }`}
                 >
-                  <div
-                    className={`h-2.5 w-2.5 rounded-full ${opt.color}`}
-                  />
+                  <div className={`h-2.5 w-2.5 rounded-full ${opt.color}`} />
                   {opt.label}
                 </button>
               ))}

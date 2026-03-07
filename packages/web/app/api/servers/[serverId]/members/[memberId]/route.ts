@@ -13,9 +13,7 @@ import { Permissions } from "@/lib/permissions";
  */
 export async function DELETE(
   _request: NextRequest,
-  {
-    params,
-  }: { params: Promise<{ serverId: string; memberId: string }> },
+  { params }: { params: Promise<{ serverId: string; memberId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -46,10 +44,7 @@ export async function DELETE(
   });
 
   if (!targetMember || targetMember.serverId !== serverId) {
-    return NextResponse.json(
-      { error: "Member not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
 
   // Cannot kick the server owner

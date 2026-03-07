@@ -299,10 +299,7 @@ export async function DELETE(
       where: { id: channelId, serverId },
     });
     if (!channel) {
-      return NextResponse.json(
-        { error: "Channel not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
 
     await prisma.channel.delete({ where: { id: channelId } });
