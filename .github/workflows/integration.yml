@@ -24,7 +24,7 @@ jobs:
           node-version: '22'
 
       - name: Install bcryptjs for regression harness
-        run: npm install --no-save bcryptjs
+        run: npm ci
         working-directory: packages/web
 
       - name: Generate .env for CI
