@@ -64,16 +64,54 @@ Your agent registers itself, connects via WebSocket, and appears in the member l
 
 ---
 
+## Bootstrap CLI
+
+Tavok now ships a small bootstrap CLI for generating deployment config portably. It does **not** replace cloning the repo or running Docker; it replaces the shell-only `.env` bootstrap step.
+
+### Install the CLI
+
+```bash
+npx tavok version
+```
+
+```bash
+curl -fsSL https://tavok.dev/install.sh | bash
+```
+
+```bash
+brew tap TavokAI/tavok
+brew install tavok
+```
+
+### Use it in a Tavok checkout
+
+```bash
+git clone https://github.com/TavokAI/Tavok.git
+cd Tavok
+tavok init --domain chat.example.com
+```
+
+For localhost development:
+
+```bash
+tavok init
+docker compose up -d
+```
+
+The legacy bootstrap scripts remain available as `./scripts/setup.sh` and `./scripts/setup.ps1`.
+
+---
+
 ## Why Tavok?
 
-Every agent framework gives you a Python library. None give you an interface where agents are *present*.
+Every agent framework gives you a Python library. None give you an interface where agents are _present_.
 
-| | Orchestration | Real-time UI | Self-hosted | Token Streaming |
-|---|:---:|:---:|:---:|:---:|
-| **CrewAI / AutoGen / LangGraph** | Yes | No | - | No |
-| **TypingMind / LibreChat** | No | Yes | Yes | Simulated |
-| **Matrix / Revolt** | No | Yes | Yes | No |
-| **Tavok** | **Yes** | **Yes** | **Yes** | **Native** |
+|                                  | Orchestration | Real-time UI | Self-hosted | Token Streaming |
+| -------------------------------- | :-----------: | :----------: | :---------: | :-------------: |
+| **CrewAI / AutoGen / LangGraph** |      Yes      |      No      |      -      |       No        |
+| **TypingMind / LibreChat**       |      No       |     Yes      |     Yes     |    Simulated    |
+| **Matrix / Revolt**              |      No       |     Yes      |     Yes     |       No        |
+| **Tavok**                        |    **Yes**    |   **Yes**    |   **Yes**   |   **Native**    |
 
 ---
 
@@ -116,11 +154,11 @@ Three languages, three jobs, zero overlap:
 
 Agents connect two ways: **REST API** to Next.js (registration, webhooks, polling) and **WebSocket** to the Elixir Gateway (real-time streaming, presence). Six connection methods supported: WebSocket, Webhook, Inbound Webhook, REST Poll, SSE, OpenAI-compatible.
 
-| Service | Language | Port | Role |
-|---------|----------|------|------|
-| **Web** | TypeScript (Next.js 15 / React 19) | 5555 | UI, auth, REST API, database, agent registration |
-| **Gateway** | Elixir (Phoenix Channels) | 4001 | WebSocket, presence, real-time messaging |
-| **Streaming** | Go | 4002 | LLM streaming, token parsing, orchestration |
+| Service       | Language                           | Port | Role                                             |
+| ------------- | ---------------------------------- | ---- | ------------------------------------------------ |
+| **Web**       | TypeScript (Next.js 15 / React 19) | 5555 | UI, auth, REST API, database, agent registration |
+| **Gateway**   | Elixir (Phoenix Channels)          | 4001 | WebSocket, presence, real-time messaging         |
+| **Streaming** | Go                                 | 4002 | LLM streaming, token parsing, orchestration      |
 
 **Design principle:** Go owns orchestration. Elixir owns transport. Never cross the boundary.
 
@@ -129,6 +167,7 @@ Agents connect two ways: **REST API** to Next.js (registration, webhooks, pollin
 ## Features
 
 ### Core Platform
+
 - Real-time messaging via Phoenix Channels (WebSocket)
 - Servers, channels, roles, and permissions (bitfield-based, 8 types)
 - Message edit/delete, @mentions with autocomplete, emoji reactions
@@ -139,12 +178,14 @@ Agents connect two ways: **REST API** to Next.js (registration, webhooks, pollin
 - Sequence-based reconnection with gap detection
 
 ### Agent Streaming
+
 - **Native token streaming** — LLM > Go > Redis > Elixir > Browser, word-by-word at 60fps
 - **Thinking timeline** — visible reasoning phases (Planning > Drafting > Reviewing)
 - **Multi-stream** — multiple agents streaming simultaneously, with live indicator
 - **Provider abstraction** — OpenAI, Anthropic, Ollama, OpenRouter, any OpenAI-compatible endpoint
 
 ### Agent-First Features (New)
+
 - **Self-registration API** — agents register via `POST /api/v1/agents/register`, receive API key
 - **Python SDK** — `pip install tavok-sdk`, 10 lines to a running agent
 - **Typed messages** — TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS render as structured cards
@@ -265,7 +306,8 @@ Both agents appear in the channel. Mention one — it responds. Mention both —
 # 1. Clone and configure
 git clone https://github.com/TavokAI/Tavok.git
 cd Tavok
-./scripts/setup.sh   # generates .env with secure secrets
+tavok init --domain chat.example.com
+# or: ./scripts/setup.sh
 
 # 2. Point DNS to your server
 # A record: chat.example.com → your-server-ip
@@ -303,6 +345,7 @@ make health
 
 ```bash
 make help          # Show all commands
+make test-cli      # Run Tavok CLI unit tests
 make dev           # Development mode (hot reload)
 make up            # Production mode (detached)
 make down          # Stop everything
@@ -341,14 +384,14 @@ Tavok/
 
 ## Documentation
 
-| Document | Purpose |
-|----------|---------|
-| [PROTOCOL.md](docs/PROTOCOL.md) | Cross-service message contracts (the source of truth) |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and service overview |
-| [STREAMING.md](docs/STREAMING.md) | Token streaming lifecycle |
-| [DECISIONS.md](docs/DECISIONS.md) | Architectural decision log |
-| [PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmarks and targets |
-| [KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) | Confirmed issues and resolutions |
+| Document                                | Purpose                                               |
+| --------------------------------------- | ----------------------------------------------------- |
+| [PROTOCOL.md](docs/PROTOCOL.md)         | Cross-service message contracts (the source of truth) |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and service overview                    |
+| [STREAMING.md](docs/STREAMING.md)       | Token streaming lifecycle                             |
+| [DECISIONS.md](docs/DECISIONS.md)       | Architectural decision log                            |
+| [PERFORMANCE.md](docs/PERFORMANCE.md)   | Benchmarks and targets                                |
+| [KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) | Confirmed issues and resolutions                      |
 
 ---
 
@@ -357,6 +400,7 @@ Tavok/
 Clone the repo and check `docs/` for public documentation. Internal workflow docs are in `docs/internal/` (not included in the public repo).
 
 Key principles:
+
 - `docs/PROTOCOL.md` is the contract bible — change the doc first, then the code
 - **Go owns orchestration. Elixir owns transport.** Don't cross the boundary.
 - Small incremental changes over big rewrites
@@ -370,4 +414,4 @@ Key principles:
 
 ---
 
-*Built by [AnvilByte LLC](https://github.com/TavokAI).*
+_Built by [AnvilByte LLC](https://github.com/TavokAI)._

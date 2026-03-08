@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Generate webhook token: whk_ prefix + 48 random bytes base64url
-  const token = `whk_${crypto.randomBytes(48).toString("base64url")}`;
+  // Keep the token under the 64-char DB limit: 4-char prefix + 43-char base64url
+  const token = `whk_${crypto.randomBytes(32).toString("base64url")}`;
   const webhookId = ulid();
 
   try {

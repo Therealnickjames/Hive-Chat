@@ -1,0 +1,245 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check npm package version matches tag
+        shell: bash
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          actual="$(node -p "require('./packages/cli/package.json').version")"
+          test "$expected" = "$actual" || {
+            echo "packages/cli/package.json version ($actual) does not match tag ($expected)"
+            exit 1
+          }
+
+      - name: Test npm wrapper
+        run: pnpm --dir packages/cli test
+
+      - name: Build npm wrapper
+        run: pnpm --dir packages/cli build
+
+      - name: Test Go CLI
+        run: go test ./...
+        working-directory: cli
+
+  build-binaries:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            binary_name: tavok-darwin-arm64
+            archive_name: tavok-darwin-arm64.tar.gz
+            archive_format: tar.gz
+          - goos: darwin
+            goarch: amd64
+            binary_name: tavok-darwin-amd64
+            archive_name: tavok-darwin-amd64.tar.gz
+            archive_format: tar.gz
+          - goos: linux
+            goarch: amd64
+            binary_name: tavok-linux-amd64
+            archive_name: tavok-linux-amd64.tar.gz
+            archive_format: tar.gz
+          - goos: linux
+            goarch: arm64
+            binary_name: tavok-linux-arm64
+            archive_name: tavok-linux-arm64.tar.gz
+            archive_format: tar.gz
+          - goos: windows
+            goarch: amd64
+            binary_name: tavok-windows-amd64.exe
+            archive_name: tavok-windows-amd64.zip
+            archive_format: zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Build binary
+        shell: bash
+        working-directory: cli
+        run: |
+          mkdir -p dist
+          version="${GITHUB_REF_NAME#v}"
+          GOOS="${{ matrix.goos }}" GOARCH="${{ matrix.goarch }}" \
+            go build -trimpath -ldflags="-s -w -X main.version=${version}" \
+            -o "dist/${{ matrix.binary_name }}" ./cmd/tavok
+
+      - name: Package archive
+        shell: bash
+        working-directory: cli
+        run: |
+          if [ "${{ matrix.archive_format }}" = "zip" ]; then
+            (cd dist && zip -q "${{ matrix.archive_name }}" "${{ matrix.binary_name }}")
+          else
+            tar -C dist -czf "dist/${{ matrix.archive_name }}" "${{ matrix.binary_name }}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: |
+            cli/dist/${{ matrix.binary_name }}
+            cli/dist/${{ matrix.archive_name }}
+
+  github-release:
+    name: Publish GitHub Release Assets
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd release-assets
+          sha256sum tavok-* > checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+
+  update-homebrew:
+    name: Update Homebrew Tap
+    needs: github-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release archives
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          base="https://github.com/TavokAI/Tavok/releases/download/v${version}"
+          mkdir -p archives
+          for asset in \
+            tavok-darwin-arm64.tar.gz \
+            tavok-darwin-amd64.tar.gz \
+            tavok-linux-arm64.tar.gz \
+            tavok-linux-amd64.tar.gz; do
+            curl -fsSL "${base}/${asset}" -o "archives/${asset}"
+          done
+
+      - name: Generate formula with real SHA256s
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          darwin_arm64=$(sha256sum archives/tavok-darwin-arm64.tar.gz | awk '{print $1}')
+          darwin_amd64=$(sha256sum archives/tavok-darwin-amd64.tar.gz | awk '{print $1}')
+          linux_arm64=$(sha256sum archives/tavok-linux-arm64.tar.gz | awk '{print $1}')
+          linux_amd64=$(sha256sum archives/tavok-linux-amd64.tar.gz | awk '{print $1}')
+
+          sed \
+            -e "s/version \"0.1.0\"/version \"${version}\"/" \
+            -e "s|releases/download/v0.1.0/|releases/download/v${version}/|g" \
+            -e "s/REPLACE_DARWIN_ARM64_SHA256/${darwin_arm64}/" \
+            -e "s/REPLACE_DARWIN_AMD64_SHA256/${darwin_amd64}/" \
+            -e "s/REPLACE_LINUX_ARM64_SHA256/${linux_arm64}/" \
+            -e "s/REPLACE_LINUX_AMD64_SHA256/${linux_amd64}/" \
+            packaging/homebrew/Formula/tavok.rb > tavok.rb
+
+          echo "--- Generated formula ---"
+          cat tavok.rb
+
+      - name: Push to homebrew-tavok tap
+        shell: bash
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN not configured; skipping tap update."
+            exit 0
+          fi
+
+          version="${GITHUB_REF_NAME#v}"
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/TavokAI/homebrew-tavok.git" tap
+          mkdir -p tap/Formula
+          cp tavok.rb tap/Formula/tavok.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/tavok.rb
+          git commit -m "tavok ${version}"
+          git push
+
+  npm-publish:
+    name: Publish npm Package
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build npm wrapper
+        run: pnpm --dir packages/cli build
+
+      - name: Skip npm publish when token is absent
+        if: ${{ env.NODE_AUTH_TOKEN == '' }}
+        run: echo "NPM_TOKEN not configured; skipping npm publish."
+
+      - name: Publish package
+        if: ${{ env.NODE_AUTH_TOKEN != '' }}
+        run: npm publish --access public
+        working-directory: packages/cli

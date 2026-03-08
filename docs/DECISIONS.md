@@ -11,6 +11,7 @@
 **Status**: Accepted
 **Context**: Tavok needs a product layer (UI, auth, DB), a real-time layer (WebSocket, presence, fan-out), and an AI streaming layer (LLM API calls, token parsing). These are fundamentally different workloads with different performance characteristics.
 **Decision**: Split into three services:
+
 - **Web** (TypeScript/Next.js): Product UI, auth, REST API, DB via Prisma
 - **Gateway** (Elixir/Phoenix): WebSocket connections, presence, typing, message fan-out
 - **Streaming Proxy** (Go): LLM API calls, SSE streaming, token parsing, bot config
@@ -27,6 +28,7 @@
 **Context**: The original spec called for Erlang/OTP. Both run on the same BEAM VM with identical runtime characteristics.
 **Decision**: Use Elixir instead of raw Erlang.
 **Rationale**:
+
 - Phoenix Channels provides production-grade WebSocket handling with presence tracking built-in
 - Phoenix.Presence gives us distributed presence with conflict-free replicated data types (CRDTs)
 - 10x larger community, better tooling (Mix, Hex), better documentation
@@ -56,6 +58,7 @@
 **Context**: Need globally unique IDs. Options: UUID v4 (random), ULID (time-sortable), CUID, auto-increment.
 **Decision**: ULID (Universally Unique Lexicographically Sortable Identifier) for all primary keys.
 **Rationale**:
+
 - Time-sortable: natural ordering without a separate `createdAt` sort
 - 26-character string: compact, URL-safe
 - Globally unique: safe for distributed ID generation
@@ -84,6 +87,7 @@
 **Context**: Need a WebSocket protocol for client-gateway communication. Options: custom JSON protocol, Socket.IO, Phoenix Channels.
 **Decision**: Use Phoenix Channels native wire protocol with the `phoenix` npm package on the client.
 **Rationale**:
+
 - Battle-tested: millions of production connections
 - Built-in reconnection with exponential backoff
 - Channel multiplexing over a single socket
@@ -259,6 +263,7 @@ forever on ACTIVE.
 **Context**: As V1 introduces multi-agent swarms, channel charters, and tool execution, orchestration logic needs a clear home. Both Go and Elixir are candidates. Ambiguity between "Go streaming service + lightweight orchestrator" and "Elixir OTP strengths for supervision" risked split-brain — state scattered across two services with no clear owner.
 **Decision**: Go Proxy is the orchestrator. All agent decision-making lives in Go: which agent runs next, charter rule evaluation, step sequencing, tool execution, retry logic, checkpoint/resume. Elixir Gateway is pure transport: WebSocket connections, presence, typing indicators, message fan-out. Elixir never makes an orchestration decision.
 **Rationale**:
+
 - Orchestration is algorithmic control flow — Go is built for this (deterministic, easy to test, easy to reason about)
 - Elixir/Phoenix Channels want to be a broadcast layer, not a workflow engine
 - OTP supervision trees are great for keeping connections alive, not for deciding what agents should do
@@ -276,6 +281,7 @@ forever on ACTIVE.
 **Context**: V1 will need vector storage for agent long-term memory. Options: pgvector (extension in existing Postgres), Qdrant (separate container), Pinecone (managed SaaS).
 **Decision**: pgvector in existing PostgreSQL as the default and only V1 implementation. Design an abstract memory interface so alternative backends can be swapped in later.
 **Rationale**:
+
 - One database, one backup strategy, one fewer container for self-hosters
 - `docker-compose up` stays simple — no additional infrastructure
 - pgvector performance is sufficient for V1 workloads
@@ -292,6 +298,7 @@ forever on ACTIVE.
 **Context**: PROTOCOL.md defines contracts as documentation. The three services (TypeScript, Go, Elixir) can't share types directly across languages. Need a machine-enforceable contract format that works in all three.
 **Decision**: Define cross-service payload contracts as JSON Schema files stored in `packages/shared/schemas/`. Validate in each language: TypeScript (ajv), Go (gojsonschema), Elixir (ex_json_schema). Plan upgrade path to Protobuf for the hot path (Go ↔ Elixir token streaming).
 **Rationale**:
+
 - JSON Schema is language-agnostic and validatable in all three languages
 - Low adoption cost — contracts are already defined in PROTOCOL.md, just need formalization
 - Protobuf upgrade can happen incrementally on the hot path without rewriting everything
@@ -308,6 +315,7 @@ forever on ACTIVE.
 **Context**: V1 tools (web search, file ops, git, code execution) need an abstraction layer. The Model Context Protocol (MCP) is becoming an industry standard for tool integration. Options: custom tool interface, or design to match MCP patterns from day one.
 **Decision**: Design the Go proxy's tool interface to match MCP's `tools/list` and `tools/call` JSON-RPC patterns. Not a full MCP implementation, but structurally compatible.
 **Rationale**:
+
 - MCP hosting is a planned V1 post-launch feature (any MCP-compatible tool plugs into Tavok)
 - Designing tool interfaces to match MCP patterns now makes MCP hosting a natural extension, not a retrofit
 - The JSON-RPC format is simple and well-specified
@@ -325,6 +333,7 @@ forever on ACTIVE.
 **Context**: Multiple external analyses suggested language changes (rewrite to Rust, add Python for AI libraries, consolidate to one language). Full architecture audit conducted.
 **Decision**: Keep the three-language split exactly as-is. TypeScript (Next.js) for web, Elixir (Phoenix) for gateway, Go for streaming/orchestration. No rewrites. No additional languages.
 **Rationale**:
+
 - Each language excels at its specific job — this is a strength, not a liability
 - Elixir/BEAM is genuinely the best technology for the WebSocket/presence workload (built for telecom, 99.9999% uptime)
 - Go is ideal for concurrent I/O and algorithmic orchestration
@@ -343,6 +352,7 @@ forever on ACTIVE.
 **Context**: LLM providers use different transports: OpenAI uses HTTP SSE (and is adding WebSocket via Responses API), Anthropic uses HTTP SSE, local models may use gRPC, and Bedrock has its own HTTP patterns. Phase 3 provider abstraction must account for this.
 **Decision**: The Go proxy's provider interface abstracts both the API format AND the transport. Each provider gets a transport strategy that implements a common `Stream(config, messages) → channel of TokenEvent` interface.
 **Rationale**:
+
 - Abstracting only the API format (payload shape normalization) is insufficient — transport differences affect performance, reconnection behavior, and error handling
 - When a provider offers a faster transport (e.g., OpenAI WebSocket), we write a new strategy without rewiring the system
 - The rest of the architecture (Elixir, clients) sees only `TokenEvent` and never knows which transport delivered it
@@ -359,6 +369,7 @@ forever on ACTIVE.
 **Context**: V1 planning synthesized inputs from five sources (architecture review, competitive analysis, GPT feature ideation, Grok phased roadmap, Google market analysis). A tension emerged: the agent features (thinking timeline, multi-stream, provider abstraction) are the viral launch wedge, but chat features (edit/delete, mentions, unreads) keep users after the demo wears off. Building only the wedge leaves the chat feeling like a prototype. Building only the chat leaves us as "just another Discord clone."
 **Decision**: V1 runs two parallel tracks. Track A (Agent) ships the differentiators: thinking timeline, multi-stream, provider abstraction. Track B (Chat) ships completeness: edit/delete, mentions, unreads. Both tracks run simultaneously, with launch gated on all launch tasks from both tracks.
 **Rationale**:
+
 - The agent features are what make someone clone the repo and post about it
 - The chat features are what make someone keep using it the next day
 - Parallel execution is feasible because the tracks touch different parts of the codebase (Go proxy + protocol for agent, Next.js + Gateway for chat)
@@ -375,6 +386,7 @@ forever on ACTIVE.
 **Context**: Nick created a comprehensive V1-ROADMAP.md with detailed implementation specs (data models, API endpoints, protocol changes, file lists) for 16 chat-completeness tasks. After strategic review, task numbering was reorganized to interleave agent and chat tasks, and the document's role shifted from "the roadmap" to "the implementation reference."
 **Decision**: Rename and remap V1-ROADMAP.md to V1-IMPLEMENTATION.md. Preserve all detailed specs. Add a task-number mapping table at the top. Master strategic direction lives in ROADMAP.md.
 **Rationale**:
+
 - The detailed specs (Prisma models, API endpoints, protocol events, file lists) are too valuable to lose or rewrite
 - The strategic roadmap needs to show both tracks (agent + chat) in priority order
 - Separation of concerns: ROADMAP.md = "what and when", V1-IMPLEMENTATION.md = "how exactly"
@@ -387,17 +399,18 @@ forever on ACTIVE.
 **Status**: Accepted
 **Context**: Four independent code reviews (Composer, Opus, Codex, Claude) of the V0 codebase produced overlapping findings. Consolidated into 33 unique issues (6 CRITICAL, 10 HIGH, 10 MEDIUM, 7 LOW). Executed all fixes in a single sweep.
 **Decision**: Fix all 33 issues before starting V1 feature work. Group by service for efficiency. Key decisions within the sweep:
+
 - ISSUE-015: Require invite-only server joins (disable direct POST to /members). Nick's call.
 - ISSUE-010: Create shared timing-safe auth utility (`lib/internal-auth.ts`) for all internal API routes.
 - ISSUE-011: Use interactive Prisma transaction with conditional `updateMany` for atomic invite acceptance.
 - ISSUE-028: Use rejection sampling for unbiased invite code generation.
 - ISSUE-001: All secrets crash-on-missing (no fallback defaults anywhere).
 - ISSUE-004: Redis requires password auth.
-**Rationale**:
+  **Rationale**:
 - Security hardening must happen before any public deployment
 - Race conditions and goroutine leaks compound under load
 - Fixing now prevents V1 features from inheriting V0 bugs
-**Consequences**: All 33 issues from CONSOLIDATED-FINDINGS.md are resolved. Codebase is hardened for security, correctness, and reliability. Some changes require a Prisma migration (removed redundant indexes).
+  **Consequences**: All 33 issues from CONSOLIDATED-FINDINGS.md are resolved. Codebase is hardened for security, correctness, and reliability. Some changes require a Prisma migration (removed redundant indexes).
 
 ---
 
@@ -408,6 +421,7 @@ forever on ACTIVE.
 **Context**: Speed testing showed 5-60ms per message blocked on the Web API database write before any client sees the message. At 1000 concurrent users in one channel, this synchronous persistence blocks the Elixir channel process — queuing all other messages behind each HTTP call. The broadcast payload is built entirely from in-memory data (socket assigns, ULID, Redis sequence, `DateTime.utc_now()`) with zero dependency on the database response.
 **Decision**: Broadcast messages to all clients immediately, then persist to PostgreSQL in a background `Task.Supervisor.async_nolink` task with retry logic.
 **Rationale**:
+
 - Broadcast payload has no DB dependency — all data comes from socket assigns, ULID generator, and Redis INCR
 - Background persistence with retry (3 retries, exponential backoff 1s/2s/4s) provides eventual durability
 - Web API returns 409 on duplicate message IDs, making retries idempotent
@@ -417,6 +431,7 @@ forever on ACTIVE.
 - At 1000 users, unblocking the channel process prevents message queuing bottleneck
 
 **Consequences**:
+
 - Messages are visible in real-time before they exist in the database
 - If Web API is down for 7+ seconds, messages appear in real-time but are absent from history on refresh (logged CRITICAL)
 - New module `TavokGateway.MessagePersistence` encapsulates retry logic
@@ -431,6 +446,7 @@ forever on ACTIVE.
 **Context**: The Gateway makes HTTP calls to Next.js for bot config (per-message) and membership checks (per-join). At scale, the per-message bot config lookup is the largest source of unnecessary network I/O — 10-50ms per call, called for every message in every channel. No caching existed.
 **Decision**: Add a GenServer-owned ETS table (`TavokGateway.ConfigCache`) with TTL-based caching. Bot config cached per-channel (5 min TTL). Membership cached per-user+channel (15 min TTL). Negative results (no bot) cached to prevent repeated 404s. Errors NOT cached to allow retry. Raw ETS with `:public` read access — no external libraries.
 **Rationale**:
+
 - ETS is the BEAM's native in-memory store — zero external dependencies, O(1) lookups
 - `:public` table with `read_concurrency: true` allows channel processes to read without going through the GenServer mailbox — zero contention on the hot path
 - GenServer owns the table for lifecycle management and periodic sweep
@@ -454,11 +470,13 @@ forever on ACTIVE.
 **Decision**: Wrap broadcast payloads in `Jason.Fragment` before calling `broadcast!`. Jason.Fragment implements `Jason.Encoder` and returns pre-encoded bytes directly, so when Phoenix's V2 JSON serializer builds the wire format `[join_ref, ref, topic, event, payload]`, the payload portion is included as-is without re-encoding.
 
 Three broadcast patterns:
+
 1. **Channel broadcasts** (message_new, typing, stream_start): Pre-serialize Elixir map → Jason.Fragment → broadcast
 2. **Stream tokens from Redis**: Zero-copy — raw JSON string from Redis → Jason.Fragment → broadcast (skip both decode AND re-encode)
 3. **Stream status from Redis**: Decode for status field routing, but broadcast raw JSON bytes
 
 **Alternatives considered**:
+
 - Per-channel coordinator GenServer: Would require a new process per channel, DynamicSupervisor, ETS table for cached binaries, and coordinator bottleneck risk. Overkill when Jason.Fragment achieves the same result with zero infrastructure.
 - Custom Phoenix serializer: Would need to override the default serializer and maintain compatibility. Fragile across Phoenix upgrades.
 - Phoenix.Channel intercept + handle_out: Still serializes per-process, just adds a hook. Doesn't solve the core issue.
@@ -480,6 +498,7 @@ Three broadcast patterns:
 **Why concatenation**: The frontend (`use-channel.ts`) simply appends `payload.token` to a string buffer — it doesn't care if `token` is one character or fifty. The `index` field isn't used for ordering. Gateway StreamListener uses zero-copy raw broadcast (DEC-0030) — no parsing of token content. So batching by concatenation requires **zero changes** to Gateway or Frontend.
 
 **Alternatives considered**:
+
 - Batching in Elixir StreamListener: Would still receive individual Redis messages (no pub/sub load reduction), only consolidates broadcasts. Less impact than Go-side batching.
 - Array-based batch format (`{"tokens": [...]}`): Would require Gateway + Frontend changes to parse new format. Unnecessary complexity.
 
@@ -509,6 +528,7 @@ Three broadcast patterns:
 **Context**: When ETS cache is cold (restart, TTL expiry), simultaneous messages for the same channel each independently call `WebClient.get_channel_bot()` — thundering herd of HTTP requests to Next.js.
 
 **Decision**: Route cache misses through the GenServer for request collapsing. When a miss occurs:
+
 1. If no in-flight request exists for this key: spawn `Task.async`, store `{ref, [from]}` in `state.in_flight`
 2. If an in-flight request already exists: add caller to waiters list (no new HTTP call)
 3. When Task completes: populate ETS, reply to all waiters, remove from `in_flight`
@@ -527,6 +547,7 @@ Cache hits still read ETS directly (no GenServer hop — same fast path as befor
 **Context**: Go's default `http.Transport` uses `MaxIdleConnsPerHost=2`. Under high concurrency (many simultaneous LLM streams), this causes TCP churn — new connections created and torn down constantly because idle connections are recycled too aggressively.
 
 **Decision**: Configure custom `http.Transport` on both Anthropic and OpenAI provider HTTP clients:
+
 - `MaxConnsPerHost: 200` — hard cap on concurrent connections to one host
 - `MaxIdleConns: 200` — total idle connections across all hosts
 - `MaxIdleConnsPerHost: 20` — keep more warm connections per provider endpoint
@@ -562,6 +583,7 @@ Cache hits still read ETS directly (no GenServer hop — same fast path as befor
 **Decision**: Extract shared `NewStreamingHTTPClient()` helper in `streaming/internal/provider/http.go`. Keep the `Provider` interface unchanged (`Name()` + `Stream()`). Do NOT create a Transport interface for V1 — only one transport (HTTP SSE) exists, so an abstraction adds complexity with zero benefit. When a non-HTTP-SSE transport is needed (OpenAI WebSocket, gRPC), introduce the Transport interface then without changing the Provider interface.
 
 **Alternatives considered**:
+
 - Full Transport + Format adapter layering: Two separate registries, increased indirection. Premature for one transport.
 - Subpackage restructuring (`provider/anthropic/`, `provider/openai/`): Adds package overhead for 2 providers. Revisit when we have 5+.
 
@@ -578,6 +600,7 @@ Cache hits still read ETS directly (no GenServer hop — same fast path as befor
 **Context**: When a bot is streaming, users see a blinking cursor but no indication of what phase the agent is in. "Is it stuck?" anxiety kills trust. Competing products (Cursor, Windsurf, v0) show phase indicators like "Thinking → Searching → Writing" that make agents feel alive.
 
 **Decision**: For V1, thinking phases are **lifecycle-based events from Go manager.go**, not parsed from LLM output:
+
 - Stream starts → emit **"Thinking"** (bot config loaded, about to call LLM)
 - First token arrives → emit **"Writing"** (LLM is generating)
 - Stream completes/errors → frontend clears the phase
@@ -587,6 +610,7 @@ The pipeline: Go `publishThinking()` → Redis `hive:stream:thinking:{channelId}
 **Zero provider changes.** Two events through the full pipeline. Future versions can parse extended thinking blocks from Claude/o1 for richer phases like "Reasoning → Planning → Writing".
 
 **Alternatives considered**:
+
 - Parse `thinking` content blocks from Anthropic extended thinking: Requires provider-specific SSE parsing changes and `anthropic-beta` header. Deferred — V1 is provider-agnostic lifecycle phases.
 - WebSocket direct from Go to frontend: Bypasses the Gateway transport boundary (violates DEC-0019).
 - Frontend-only timer heuristic: Fragile, no real signal from the server.
@@ -606,6 +630,7 @@ The pipeline: Go `publishThinking()` → Redis `hive:stream:thinking:{channelId}
 **Decision**: Add a `ChannelBot` join table (M:N relationship between Channel and Bot). Keep `defaultBotId` on Channel for backward compatibility. Gateway trigger logic iterates all assigned bots and evaluates trigger conditions independently. Each triggered bot gets its own messageId, sequence number, placeholder, and stream request.
 
 **Schema**:
+
 ```prisma
 model ChannelBot {
   id        String   @id @db.VarChar(26)
@@ -622,11 +647,13 @@ model ChannelBot {
 **Migration**: Includes backfill SQL that populates ChannelBot from existing `defaultBotId` values, ensuring zero data loss on upgrade.
 
 **Backward compatibility**:
+
 - Gateway falls back to `get_channel_bot()` (single bot) if no ChannelBot entries exist
 - PATCH endpoint sets first bot in array as `defaultBotId` for services that still use it
 - Existing single-bot channels continue to work without any changes
 
 **What stayed untouched** (already multi-stream ready):
+
 - `streaming/internal/stream/manager.go` — per-messageId goroutines + 32-stream semaphore
 - `packages/web/lib/hooks/use-channel.ts` — `Map<messageId, string>` buffer + per-messageId events
 - Redis pub/sub channels — already per-messageId
@@ -644,11 +671,13 @@ model ChannelBot {
 **Decision**: Edit and delete operations call the Next.js internal API **synchronously before broadcasting**, unlike the broadcast-first pattern used for new messages (DEC-0028). Authorization logic (ownership check, MANAGE_MESSAGES permission) lives entirely in the Web API, not the Gateway.
 
 **Why sync-first for edit/delete**:
+
 - New messages are fire-and-forget — a broadcast without persistence is still useful (low probability of failure, user retypes if needed).
 - Edit/delete have correctness requirements: a user must not see an edit they don't own succeed, and a delete of someone else's message must check permissions.
 - These operations are rare (1/100 vs new messages) — the extra latency of a synchronous round-trip is acceptable.
 
 **Why authorization in Web only**:
+
 - Permission checks require Prisma queries (Member → Roles → computeMemberPermissions). The Gateway has no database access.
 - Keeping auth in one service avoids the "two places to update" problem when permissions evolve.
 - The Gateway is a transport layer (DEC-0019) — it shouldn't know about permission bits.
@@ -698,6 +727,7 @@ model ChannelBot {
    - Recognizable pattern for developer experience
 
 **Schema**:
+
 ```prisma
 model AgentRegistration {
   id              String   @id @db.VarChar(26)
@@ -715,6 +745,7 @@ model AgentRegistration {
 ```
 
 **API surface**:
+
 - `POST /api/v1/agents/register` — create agent, returns API key (shown once)
 - `GET /api/v1/agents/{id}` — public agent info
 - `PATCH /api/v1/agents/{id}` — update (auth via Bearer token)
@@ -734,6 +765,7 @@ model AgentRegistration {
 **Decision**: Add `stream_start`, `stream_token`, `stream_complete`, `stream_error`, and `stream_thinking` as client→server events in `room_channel.ex`, gated to `author_type == "BOT"` connections only. Human users cannot push these events.
 
 **How it works**:
+
 1. Agent pushes `stream_start` → Gateway generates message ULID + Redis sequence, broadcasts `stream_start` to all clients, persists placeholder, replies with `{messageId, sequence}`
 2. Agent pushes `stream_token` → Gateway broadcasts token to all clients (no persistence per-token)
 3. Agent pushes `stream_complete` → Gateway broadcasts completion, finalizes message via internal API in background
@@ -954,6 +986,7 @@ model AgentRegistration {
 **UI changes**: The "Manage Agents" modal is rebuilt as a multi-view state machine. The entry view shows agent list grouped by status (pending, active, inactive, rejected). An "Add Agent" flow presents a method picker with 7 options (BYOK, SDK, Inbound Webhook, Outbound Webhook, REST Polling, SSE, OpenAI-Compatible). Non-BYOK creation generates credentials shown once.
 
 **New endpoints**:
+
 - `GET/PATCH /api/servers/{serverId}/agent-settings` — read/update registration settings
 - `POST /api/servers/{serverId}/bots/{botId}/approve` — approve a pending agent
 - `POST /api/servers/{serverId}/bots/{botId}/reject` — reject a pending agent
@@ -971,6 +1004,7 @@ model AgentRegistration {
 **Decision**: Implement tool execution in the Go proxy with an MCP-compatible interface.
 
 **Architecture**:
+
 1. **Go proxy owns tool execution**: Tools run server-side in the Go proxy, not in the frontend or Gateway. This follows DEC-0019 (Go owns orchestration).
 2. **Tool execution loop**: When an LLM returns `stop_reason: "tool_use"`, the manager executes the requested tools, feeds results back into context, and starts a new provider iteration. Capped at 10 iterations.
 3. **Provider-agnostic interface**: `tools.Tool` interface with `Definition()` and `Execute()`. The `tools.Registry` handles discovery and dispatch. Format converters transform definitions to Anthropic/OpenAI API formats.
@@ -979,6 +1013,7 @@ model AgentRegistration {
 6. **Frontend events**: `stream_tool_call` and `stream_tool_result` broadcast via Redis → Gateway → WebSocket. Frontend displays tool usage in thinking phase.
 
 **Alternatives rejected**:
+
 - Frontend tool execution: Would require WebSocket round-trips and expose tool logic to clients
 - Gateway (Elixir) tool execution: Violates DEC-0019 boundary
 - Full MCP server protocol: Premature — we borrow the patterns without the full JSON-RPC transport
@@ -996,6 +1031,7 @@ model AgentRegistration {
 **Decision**: Implement DMs as separate Prisma models with a dedicated Phoenix Channel topic.
 
 **Architecture**:
+
 1. **Separate models**: `DirectMessageChannel`, `DmParticipant`, `DirectMessage` — fully decoupled from `Channel`/`Message`. DMs are not server-scoped; a user can DM anyone they share a server with.
 2. **Shared server requirement**: Users must share at least one server to start a DM. This prevents spam from random users while keeping DMs cross-server.
 3. **Gateway topic**: `dm:{dmChannelId}` — a new Phoenix Channel alongside `room:{channelId}`. Authorization checks participant membership via `WebClient.verify_dm_participant/2`.
@@ -1004,6 +1040,7 @@ model AgentRegistration {
 6. **Client routing**: `/dms/{dmId}` route with dedicated `DmChatArea` component. Left panel gains a "DMs" tab listing conversations.
 
 **Alternatives rejected**:
+
 - Using existing Channel/Message models with a `type: "DM"` flag: Pollutes server-scoped queries, complicates authorization, makes DM-specific features harder to add later.
 - Separate microservice for DMs: Premature optimization — the volume doesn't justify a fourth service.
 
@@ -1020,6 +1057,7 @@ model AgentRegistration {
 **Decision**: Inline charter fields on the Channel model, with Go proxy enforcement and WebSocket-based live status updates.
 
 **Architecture**:
+
 1. **Charter fields inline on Channel**: `swarmMode`, `charterGoal`, `charterRules`, `charterAgentOrder` (JSON), `charterMaxTurns`, `charterCurrentTurn`, `charterStatus`. Not a separate model — charter data is small and always needed when processing stream requests. Avoids JOIN overhead.
 2. **7 swarm modes**: HUMAN_IN_THE_LOOP (default, backward-compatible), LEAD_AGENT, ROUND_ROBIN, STRUCTURED_DEBATE, CODE_REVIEW_SPRINT, FREEFORM, CUSTOM.
 3. **Go enforces rules** (DEC-0019): After loading bot config, Go fetches charter config from internal API, validates turn order (ROUND_ROBIN/CODE_REVIEW_SPRINT), checks max turns, and injects charter context into the system prompt. Elixir just relays charter_status events.
@@ -1029,6 +1067,7 @@ model AgentRegistration {
 7. **Live UI updates**: `charter_status` Redis pub/sub → Gateway → `charter_status` WebSocket event → React state → header display with mode, turn counter, pause/end buttons.
 
 **Alternatives rejected**:
+
 - Separate CharterSession model: Adds JOIN overhead on every stream request. Charter data is tightly coupled to channel.
 - Frontend-enforced turn order: Violates DEC-0019 (Go owns orchestration). Clients could bypass rules.
 - Polling-based status: WebSocket events are already in place. Polling would be slower and more complex.
@@ -1044,6 +1083,7 @@ model AgentRegistration {
 **Decision**: Add an ETS-backed MessageBuffer GenServer that caches broadcast messages for 60 seconds. On sync_on_join, merge buffer entries with DB query results, deduplicating by message ID.
 
 **Architecture**:
+
 1. ETS table `:hive_message_buffer` — same pattern as RateLimiter and ConfigCache
 2. `buffer_message/2` called immediately after `broadcast_pre_serialized!` in room_channel
 3. `get_messages_after/2` called in sync_on_join before DB query
@@ -1051,6 +1091,7 @@ model AgentRegistration {
 5. Periodic sweep every 30s removes entries older than 60s
 
 **Alternatives rejected**:
+
 - Persist-first (revert DEC-0028): Would add ~50ms latency to every message send
 - Wait for persistence before sync: Would add variable delay (1-7s) to reconnection
 - Redis-backed buffer: Adds network hop; ETS is local, faster, and sufficient
@@ -1080,6 +1121,7 @@ model AgentRegistration {
 **Decision**: Persist token history and checkpoints on the Message model. Token history is a compact `[{o: contentOffset, t: relativeMs}]` array recorded during token batching. Checkpoints are emitted at semantically meaningful points (thinking phase transitions, tool call boundaries). Both are included in the finalization payload and stored as JSON text.
 
 **Rationale**:
+
 - Token history enables scrub-slider replay at original timing (1x) or accelerated (2x)
 - Compact format: `{o, t}` stores only offset + timing, not token text (which is already in content). A 5000-char response with ~200 batches ≈ 4KB — negligible storage overhead
 - Checkpoints at tool boundaries and phase transitions are semantically meaningful — users can jump to "after tool: web_search" rather than guessing
@@ -1087,9 +1129,34 @@ model AgentRegistration {
 - Redis pub/sub channel `hive:stream:checkpoint:*` follows existing patterns (thinking, tool_call, tool_result)
 
 **Alternatives rejected**:
+
 - Store individual tokens: Would multiply storage by 100x and complicate retrieval
 - Client-side recording: Tokens are ephemeral in the WebSocket stream — a reconnect loses all data
 - Time-bucketed sampling: Loses precision at interesting moments (tool calls, phase changes)
 - Mutate errored messages for resume: Would corrupt history and complicate undo
 
 **Consequences**: Two new optional fields on Message (tokenHistory, checkpoints). New Redis pub/sub channel and Gateway listener. Frontend gains RewindSlider and CheckpointResume components. Resume endpoint creates new messages with partial context.
+
+---
+
+## DEC-0054 - One Canonical CLI Binary, Multiple Install Surfaces
+
+**Date**: 2026-03-08
+**Status**: Accepted
+**Context**: Tavok needs three install paths for launch distribution: `npx tavok`, `curl -fsSL https://tavok.dev/install.sh | bash`, and a Homebrew tap. Maintaining separate implementations for each surface would drift quickly and create version skew between npm, GitHub Releases, and Homebrew.
+
+**Decision**: Make the Go bootstrap CLI binary the canonical release artifact, then layer the other install surfaces on top of it:
+
+- GitHub Releases publish raw binaries plus archive assets for each supported platform
+- `packages/cli` is a Node wrapper package that downloads and executes the matching release binary for `npx tavok`
+- `packages/web/public/install.sh` installs the matching released binary for Unix systems
+- `packaging/homebrew/Formula/tavok.rb` is the in-repo template mirrored into the external Homebrew tap
+
+**Rationale**:
+
+- One executable behavior across all install paths
+- Go cross-compiles cleanly to the target matrix with no runtime Node dependency
+- npm remains available for discovery and quickstarts without shipping a second implementation
+- Homebrew and curl install stay aligned with the same GitHub Release assets and checksums
+
+**Consequences**: Release automation now owns binary builds and checksum generation. The bootstrap CLI is intentionally narrow in scope: it generates Tavok deployment config and reports version information, but it does not replace cloning the repository or running Docker Compose.

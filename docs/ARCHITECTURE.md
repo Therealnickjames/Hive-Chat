@@ -65,19 +65,20 @@ This prevents split-brain as multi-agent flows grow in complexity.
 
 ## Services
 
-| Service | Language | Port | Role |
-|---------|----------|------|------|
-| **Web** | TypeScript (Next.js 15 / React 19) | 5555 | UI, auth, REST API, database, agent registration |
-| **Gateway** | Elixir (Phoenix Channels) | 4001 | WebSocket, presence, real-time messaging, stream relay |
-| **Streaming** | Go | 4002 (internal) | LLM streaming, provider routing, orchestration, tool execution |
-| **PostgreSQL** | - | 5432 | All persistent data |
-| **Redis** | - | 6379 | Pub/sub, sequence counters, caching |
+| Service        | Language                           | Port            | Role                                                           |
+| -------------- | ---------------------------------- | --------------- | -------------------------------------------------------------- |
+| **Web**        | TypeScript (Next.js 15 / React 19) | 5555            | UI, auth, REST API, database, agent registration               |
+| **Gateway**    | Elixir (Phoenix Channels)          | 4001            | WebSocket, presence, real-time messaging, stream relay         |
+| **Streaming**  | Go                                 | 4002 (internal) | LLM streaming, provider routing, orchestration, tool execution |
+| **PostgreSQL** | -                                  | 5432            | All persistent data                                            |
+| **Redis**      | -                                  | 6379            | Pub/sub, sequence counters, caching                            |
 
 ---
 
 ## What's Shipped (V1)
 
 **Core Platform**
+
 - Real-time messaging via Phoenix Channels (WebSocket)
 - Servers, channels, roles & permissions (bitfield-based, 8 types)
 - Message edit/delete, @mentions with autocomplete, emoji reactions
@@ -88,6 +89,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 - Direct messages
 
 **Agent Streaming**
+
 - Native token streaming: LLM → Go → Redis → Elixir → Browser, word-by-word at 60fps
 - Thinking timeline: visible reasoning phases
 - Multi-stream: multiple agents streaming simultaneously per channel
@@ -95,6 +97,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 - Stream watchdog with two-layer terminal convergence
 
 **Agent-First Features**
+
 - Self-registration API: `POST /api/v1/agents/register`, receive API key
 - Python SDK: `pip install tavok-sdk`, 10 lines to a running agent
 - Typed messages: TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS render as structured cards
@@ -104,11 +107,13 @@ This prevents split-brain as multi-agent flows grow in complexity.
 - Channel Charter / Swarm Modes
 
 **Infrastructure**
+
 - `docker-compose up` starts all 5 containers with health checks
 - Caddy reverse proxy with auto-HTTPS (production profile)
 - Structured JSON logging across all services
 - AES-256-GCM encryption for bot API keys at rest
 - Internal API authentication via shared secret
+- Go bootstrap CLI release assets for npm, `install.sh`, and Homebrew tap distribution
 
 ---
 
@@ -137,6 +142,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 ```
 
 Each provider has two concerns:
+
 1. **API format** — request payload structure (OpenAI vs Anthropic format)
 2. **Transport** — how tokens arrive (HTTP SSE, WebSocket)
 
@@ -145,6 +151,12 @@ The rest of the system sees only `TokenEvent` — it never knows which provider 
 ---
 
 ## Project Structure
+
+Additional distribution paths now live in:
+
+- `cli/`: Go bootstrap CLI source used for release binaries
+- `packages/cli/`: npm wrapper package for `npx tavok`
+- `packaging/homebrew/` â€” Homebrew formula template mirrored into the external tap
 
 ```
 Tavok/
@@ -175,15 +187,19 @@ Tavok/
 ## Future Direction
 
 ### gRPC/Protobuf Internal Comms (TASK-0027)
+
 Upgrade Go ↔ Elixir hot path from JSON to Protobuf:
+
 - Expected ~3-5x smaller payloads
 - HTTP/2 multiplexing reduces connection overhead
 - Migration path: JSON Schema now → Protobuf on hot path → full gRPC if load demands
 
 ### Agent Memory (TASK-0028)
+
 pgvector in existing PostgreSQL (default). Abstract interface allows swapping to Qdrant or Pinecone without changing application code.
 
 ### What NOT to Build
+
 - LangChain/CrewAI as a dependency (we ARE the runtime)
 - Python anywhere in the stack
 - LiteLLM proxy (our Go proxy IS the provider-agnostic layer)

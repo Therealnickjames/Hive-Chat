@@ -733,18 +733,23 @@ function Assert([string]$Name, [bool]$Condition, [string]$Details = "") {
 }
 
 function New-BcryptHash([string]$Password) {
-  # Use local node with bcryptjs from packages/web/node_modules (standalone Docker build strips it)
-  $bcryptPath = (Join-Path $RootDir "packages/web/node_modules/bcryptjs").Replace('\', '/')
-  $script = "const bcrypt=require('$bcryptPath');process.stdout.write(bcrypt.hashSync(process.env.HIVE_TEST_PW,12));"
+  # Resolve bcryptjs from packages/web so the host runner and local dev use the same module path.
+  $script = "const bcrypt=require('bcryptjs');process.stdout.write(bcrypt.hashSync(process.env.HIVE_TEST_PW,12));"
   $env:HIVE_TEST_PW = $Password
+  Push-Location (Join-Path $RootDir "packages/web")
   try {
     $hash = & node -e $script 2>&1
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($hash)) {
+      $details = ($hash | Out-String).Trim()
+      if ($details) {
+        throw "Failed to generate bcrypt hash: $details"
+      }
       throw "Failed to generate bcrypt hash"
     }
     return ($hash | Out-String).Trim()
   }
   finally {
+    Pop-Location
     Remove-Item Env:\HIVE_TEST_PW -ErrorAction SilentlyContinue
   }
 }

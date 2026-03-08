@@ -3,7 +3,7 @@
 
 .PHONY: help dev up down logs logs-web logs-gateway logs-stream \
         db-migrate db-studio db-seed clean health build regression-harness \
-        test-web test-gateway test-streaming test-hooks test-unit test-sdk test-e2e test-load test-all demo \
+        test-cli test-web test-gateway test-streaming test-hooks test-unit test-sdk test-e2e test-load test-all demo \
         lint format lint-fix
 
 # Default target
@@ -19,6 +19,7 @@ help: ## Show this help
 # ============================================================
 
 lint: ## Check formatting and lint across all services
+	cd packages/cli && npx tsc --noEmit -p tsconfig.json
 	cd packages/web && pnpm lint
 	cd gateway && mix format --check-formatted
 	cd gateway && mix credo --strict || true
@@ -58,6 +59,9 @@ build: ## Build all Docker images without starting
 test-web: ## Run web unit tests (Vitest)
 	cd packages/web && npx vitest run
 
+test-cli: ## Run Tavok CLI unit tests
+	cd packages/cli && npx vitest run
+
 test-gateway: ## Run Elixir gateway unit tests (ExUnit)
 	cd gateway && mix test --trace
 
@@ -70,6 +74,9 @@ test-hooks: ## Run Claude Code hook smoke tests (no Docker needed)
 test-unit: ## Run all unit tests (web + gateway + streaming + hooks)
 	@echo "=== Hooks (smoke) ==="
 	bash scripts/test-hooks.sh
+	@echo ""
+	@echo "=== Tavok CLI (Vitest) ==="
+	cd packages/cli && npx vitest run
 	@echo ""
 	@echo "=== Web (Vitest) ==="
 	cd packages/web && npx vitest run
