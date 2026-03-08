@@ -64,16 +64,22 @@ describe("encryption", () => {
   it("tampered ciphertext throws on decrypt", () => {
     const ciphertext = encrypt("sensitive-data");
     const parts = ciphertext.split(":");
-    // Flip a character in the encrypted data
-    const tampered = parts[0] + ":" + parts[1] + ":" + "ff" + parts[2].slice(2);
+    // XOR the first byte to guarantee the data actually changes
+    const firstByte = parseInt(parts[2].slice(0, 2), 16);
+    const flipped = (firstByte ^ 0x01).toString(16).padStart(2, "0");
+    const tampered = parts[0] + ":" + parts[1] + ":" + flipped + parts[2].slice(2);
+    expect(tampered).not.toBe(ciphertext);
     expect(() => decrypt(tampered)).toThrow();
   });
 
   it("tampered auth tag throws on decrypt", () => {
     const ciphertext = encrypt("auth-tag-test");
     const parts = ciphertext.split(":");
-    // Flip a character in the auth tag
-    const tampered = parts[0] + ":" + "00" + parts[1].slice(2) + ":" + parts[2];
+    // XOR the first byte to guarantee the tag actually changes
+    const firstByte = parseInt(parts[1].slice(0, 2), 16);
+    const flipped = (firstByte ^ 0x01).toString(16).padStart(2, "0");
+    const tampered = parts[0] + ":" + flipped + parts[1].slice(2) + ":" + parts[2];
+    expect(tampered).not.toBe(ciphertext);
     expect(() => decrypt(tampered)).toThrow();
   });
 
