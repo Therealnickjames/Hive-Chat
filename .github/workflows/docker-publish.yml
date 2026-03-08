@@ -72,3 +72,62 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Ensure all packages are publicly pullable (GHCR org defaults to private).
+  # Runs once after all images are pushed, not per-matrix job.
+  #
+  # GITHUB_TOKEN cannot change org package visibility. This job uses
+  # PACKAGES_TOKEN (a classic PAT with read:packages + write:packages
+  # scopes, or a fine-grained PAT with Packages read+write permission).
+  #
+  # First-time setup:
+  #   1. Create a PAT at https://github.com/settings/tokens
+  #      - Classic: scopes read:packages, write:packages, delete:packages
+  #      - Fine-grained: TavokAI org, Packages read+write
+  #   2. Add as org secret: Settings → Secrets → Actions → PACKAGES_TOKEN
+  #
+  # Until PACKAGES_TOKEN is configured, set visibility manually:
+  #   https://github.com/orgs/TavokAI/packages → each package → Settings → Change visibility → Public
+  #   (This only needs to be done once per package — visibility persists across pushes.)
+  make-public:
+    name: Make packages public
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Set package visibility to public
+        env:
+          PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          if [ -z "$PACKAGES_TOKEN" ]; then
+            echo "::warning::PACKAGES_TOKEN not configured. Package visibility unchanged."
+            echo "If packages are private, set them public manually or add PACKAGES_TOKEN secret."
+            echo "See: https://github.com/TavokAI/Tavok/blob/main/.github/workflows/docker-publish.yml"
+            exit 0
+          fi
+
+          failed=0
+          for pkg in tavok-web tavok-gateway tavok-streaming; do
+            echo "Setting $pkg to public..."
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X PATCH \
+              -H "Authorization: Bearer $PACKAGES_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/orgs/TavokAI/packages/container/${pkg}" \
+              -d '{"visibility":"public"}')
+
+            if [ "$status" = "200" ] || [ "$status" = "204" ]; then
+              echo "  ✓ $pkg is public"
+            elif [ "$status" = "404" ]; then
+              echo "  ⚠ $pkg: not found (first push? will be set on next run)"
+            else
+              echo "  ✗ $pkg: HTTP $status (check PACKAGES_TOKEN permissions)"
+              failed=1
+            fi
+          done
+
+          if [ "$failed" = "1" ]; then
+            echo ""
+            echo "::warning::Some packages could not be set to public. Check PACKAGES_TOKEN scopes."
+          fi
