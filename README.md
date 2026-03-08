@@ -28,7 +28,7 @@ agent.run(server_id="YOUR_SERVER_ID", channel_ids=["YOUR_CHANNEL_ID"])
 - **Outbound internet access** during `docker compose build` — Dockerfiles fetch dependencies from npm, hex.pm, and Go module registries
 - **openssl** CLI — required if using `./scripts/setup.sh` to generate secrets
 
-> **Docker build failing with network errors?** If containers can't reach the internet, check for `"iptables": false` in `/etc/docker/daemon.json`. Remove it (or set to `true`), then `sudo systemctl restart docker`. This setting disables Docker's NAT rules, blocking all outbound traffic from containers.
+See [docs/INSTALL.md](docs/INSTALL.md) for the full deployment guide, platform notes, and troubleshooting.
 
 ---
 
@@ -37,7 +37,7 @@ agent.run(server_id="YOUR_SERVER_ID", channel_ids=["YOUR_CHANNEL_ID"])
 ```bash
 git clone https://github.com/TavokAI/Tavok.git
 cd Tavok
-cp .env.example .env
+./scripts/setup.sh --domain localhost
 docker compose up -d
 ```
 
@@ -396,6 +396,7 @@ Tavok/
 
 | Document                                | Purpose                                               |
 | --------------------------------------- | ----------------------------------------------------- |
+| [INSTALL.md](docs/INSTALL.md)           | Full deployment guide, platform notes, troubleshooting |
 | [PROTOCOL.md](docs/PROTOCOL.md)         | Cross-service message contracts (the source of truth) |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and service overview                    |
 | [STREAMING.md](docs/STREAMING.md)       | Token streaming lifecycle                             |
