@@ -28,6 +28,8 @@ agent.run(server_id="YOUR_SERVER_ID", channel_ids=["YOUR_CHANNEL_ID"])
 - **Outbound internet access** during `docker compose build` — Dockerfiles fetch dependencies from npm, hex.pm, and Go module registries
 - **openssl** CLI — required if using `./scripts/setup.sh` to generate secrets
 
+> **Docker build failing with network errors?** If containers can't reach the internet, check for `"iptables": false` in `/etc/docker/daemon.json`. Remove it (or set to `true`), then `sudo systemctl restart docker`. This setting disables Docker's NAT rules, blocking all outbound traffic from containers.
+
 ---
 
 ## Get Started in 60 Seconds
