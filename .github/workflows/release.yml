@@ -42,11 +42,11 @@ jobs:
             exit 1
           }
 
-      - name: Test npm wrapper
-        run: pnpm --dir packages/cli test
-
       - name: Build npm wrapper
         run: pnpm --dir packages/cli build
+
+      - name: Test npm wrapper
+        run: pnpm --dir packages/cli test
 
       - name: Test Go CLI
         run: go test ./...
