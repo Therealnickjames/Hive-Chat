@@ -1,0 +1,176 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check npm package version matches tag
+        shell: bash
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          actual="$(node -p "require('./packages/cli/package.json').version")"
+          test "$expected" = "$actual" || {
+            echo "packages/cli/package.json version ($actual) does not match tag ($expected)"
+            exit 1
+          }
+
+      - name: Test npm wrapper
+        run: pnpm --dir packages/cli test
+
+      - name: Build npm wrapper
+        run: pnpm --dir packages/cli build
+
+      - name: Test Go CLI
+        run: go test ./...
+        working-directory: cli
+
+  build-binaries:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            binary_name: tavok-darwin-arm64
+            archive_name: tavok-darwin-arm64.tar.gz
+            archive_format: tar.gz
+          - goos: darwin
+            goarch: amd64
+            binary_name: tavok-darwin-amd64
+            archive_name: tavok-darwin-amd64.tar.gz
+            archive_format: tar.gz
+          - goos: linux
+            goarch: amd64
+            binary_name: tavok-linux-amd64
+            archive_name: tavok-linux-amd64.tar.gz
+            archive_format: tar.gz
+          - goos: linux
+            goarch: arm64
+            binary_name: tavok-linux-arm64
+            archive_name: tavok-linux-arm64.tar.gz
+            archive_format: tar.gz
+          - goos: windows
+            goarch: amd64
+            binary_name: tavok-windows-amd64.exe
+            archive_name: tavok-windows-amd64.zip
+            archive_format: zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Build binary
+        shell: bash
+        working-directory: cli
+        run: |
+          mkdir -p dist
+          version="${GITHUB_REF_NAME#v}"
+          GOOS="${{ matrix.goos }}" GOARCH="${{ matrix.goarch }}" \
+            go build -trimpath -ldflags="-s -w -X main.version=${version}" \
+            -o "dist/${{ matrix.binary_name }}" ./cmd/tavok
+
+      - name: Package archive
+        shell: bash
+        working-directory: cli
+        run: |
+          if [ "${{ matrix.archive_format }}" = "zip" ]; then
+            (cd dist && zip -q "${{ matrix.archive_name }}" "${{ matrix.binary_name }}")
+          else
+            tar -C dist -czf "dist/${{ matrix.archive_name }}" "${{ matrix.binary_name }}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary_name }}
+          path: |
+            cli/dist/${{ matrix.binary_name }}
+            cli/dist/${{ matrix.archive_name }}
+
+  github-release:
+    name: Publish GitHub Release Assets
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd release-assets
+          sha256sum tavok-* > checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+
+  npm-publish:
+    name: Publish npm Package
+    needs: verify
+    if: ${{ secrets.NPM_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build npm wrapper
+        run: pnpm --dir packages/cli build
+
+      - name: Publish package
+        run: npm publish --access public
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
