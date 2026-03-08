@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/TavokAI/Tavok/cli/internal/bootstrap"
@@ -54,6 +56,9 @@ func runInit(args []string) {
 		os.Exit(1)
 	}
 
+	// Pre-flight: warn if Docker is missing (non-blocking)
+	checkDocker()
+
 	secrets, err := bootstrap.NewSecrets()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "generate secrets: %v\n", err)
@@ -67,19 +72,56 @@ func runInit(args []string) {
 	}
 
 	fmt.Printf("Created %s for %s\n", filepath.Clean(*output), config.Domain)
+	fmt.Println()
 	if config.Domain == "localhost" {
 		fmt.Println("Next: docker compose up -d")
+		fmt.Println("      (pulls pre-built images from ghcr.io — no build needed)")
 		fmt.Println("Open: http://localhost:5555")
 		return
 	}
 
-	fmt.Printf("Next: point DNS for %s to your server and run docker compose --profile production up -d\n", config.Domain)
+	fmt.Printf("Next: point DNS for %s to your server, then:\n", config.Domain)
+	fmt.Println("      docker compose --profile production up -d")
+	fmt.Println("      (pulls pre-built images from ghcr.io — no build needed)")
 	fmt.Printf("Open: https://%s\n", config.Domain)
 }
 
 func isTavokCheckout() bool {
 	_, err := os.Stat("docker-compose.yml")
 	return err == nil
+}
+
+// checkDocker prints warnings if Docker or Docker Compose are not installed.
+// Non-blocking — .env is still generated so users can install Docker afterwards.
+func checkDocker() {
+	dockerOK := true
+
+	if _, err := exec.LookPath("docker"); err != nil {
+		dockerOK = false
+		fmt.Fprintln(os.Stderr, "⚠ Docker not found.")
+		switch runtime.GOOS {
+		case "linux":
+			fmt.Fprintln(os.Stderr, "  Install: https://docs.docker.com/engine/install/")
+		case "darwin":
+			fmt.Fprintln(os.Stderr, "  Install: brew install --cask docker")
+			fmt.Fprintln(os.Stderr, "      or: https://docs.docker.com/desktop/install/mac-install/")
+		case "windows":
+			fmt.Fprintln(os.Stderr, "  Install: https://docs.docker.com/desktop/install/windows-install/")
+		default:
+			fmt.Fprintln(os.Stderr, "  Install: https://docs.docker.com/engine/install/")
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	if dockerOK {
+		// Only check compose if docker exists (compose is a docker subcommand)
+		if err := exec.Command("docker", "compose", "version").Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "⚠ docker compose (v2) not found.")
+			fmt.Fprintln(os.Stderr, "  Docker Compose v2 ships with Docker Desktop and recent Docker Engine.")
+			fmt.Fprintln(os.Stderr, "  See: https://docs.docker.com/compose/install/")
+			fmt.Fprintln(os.Stderr, "")
+		}
+	}
 }
 
 func printUsage() {
