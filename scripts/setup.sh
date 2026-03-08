@@ -76,31 +76,37 @@ if ! docker compose version &>/dev/null; then
 fi
 
 # --- Network connectivity check ---
-# Docker build needs to reach package mirrors. Fail fast if network is down.
+# docker compose up -d pulls pre-built images (needs registry access).
+# docker compose up --build needs package mirrors too.
 echo "Checking network connectivity..."
 NETWORK_OK=true
-for host in dl-cdn.alpinelinux.org registry.npmjs.org hex.pm proxy.golang.org; do
+NETWORK_WARNINGS=""
+# GHCR is required (pre-built images). Package mirrors only needed for --build.
+for host in ghcr.io; do
   if ! curl -sf --connect-timeout 5 --max-time 10 "https://$host" -o /dev/null 2>/dev/null; then
-    if [ "$NETWORK_OK" = true ]; then
-      echo "" >&2
-      echo "ERROR: Cannot reach required package mirrors." >&2
-      echo "Docker build will fail without network access." >&2
-      echo "" >&2
-      echo "Unreachable hosts:" >&2
-      NETWORK_OK=false
-    fi
-    echo "  ✗ $host" >&2
+    NETWORK_OK=false
+    echo "" >&2
+    echo "ERROR: Cannot reach ghcr.io (GitHub Container Registry)." >&2
+    echo "'docker compose up -d' pulls pre-built images and needs registry access." >&2
+    echo "" >&2
+    echo "Check your internet connection and DNS settings." >&2
+    echo "If using Docker with iptables disabled, see:" >&2
+    echo "  https://github.com/TavokAI/Tavok/blob/main/docs/INSTALL.md#docker-containers-cant-reach-the-internet" >&2
+    exit 1
   fi
 done
+echo "  ✓ Container registry reachable (ghcr.io)"
 
-if [ "$NETWORK_OK" = false ]; then
-  echo "" >&2
-  echo "Check your internet connection and DNS settings." >&2
-  echo "If using Docker with iptables disabled, see:" >&2
-  echo "  https://github.com/TavokAI/Tavok/blob/main/docs/INSTALL.md#docker-containers-cant-reach-the-internet" >&2
-  exit 1
+# Optional: warn if package mirrors are unreachable (only matters for --build)
+for host in dl-cdn.alpinelinux.org registry.npmjs.org hex.pm proxy.golang.org; do
+  if ! curl -sf --connect-timeout 5 --max-time 10 "https://$host" -o /dev/null 2>/dev/null; then
+    NETWORK_WARNINGS="${NETWORK_WARNINGS}  ⚠ $host unreachable (only needed for docker compose up --build)\n"
+  fi
+done
+if [ -n "$NETWORK_WARNINGS" ]; then
+  echo -e "$NETWORK_WARNINGS"
+  echo "  Note: Pre-built images will be pulled from ghcr.io. Building from source may fail."
 fi
-echo "  ✓ All package mirrors reachable"
 
 # --- Check for existing .env ---
 if [ -f .env ]; then
@@ -224,18 +230,20 @@ MIX_ENV=prod
 EOF
 
 echo ""
-echo ".env file created with secure secrets."
+echo "✓ .env file created with secure secrets."
 echo ""
 if [ "$DOMAIN" != "localhost" ]; then
   echo "Next steps:"
   echo "  1. Point DNS for ${DOMAIN} to this server's IP"
   echo "  2. Run: docker compose --profile production up -d"
+  echo "     (pulls pre-built images from ghcr.io — no build needed)"
   echo "  3. Open https://${DOMAIN}"
   echo ""
   echo "Caddy will automatically obtain an HTTPS certificate."
 else
   echo "Next steps:"
   echo "  1. Run: docker compose up -d"
+  echo "     (pulls pre-built images from ghcr.io — no build needed)"
   echo "  2. Open http://localhost:5555"
 fi
 echo ""

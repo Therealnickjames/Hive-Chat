@@ -9,14 +9,14 @@ The single reference for installing and running Tavok. Covers local development,
 | Requirement | Why |
 |------------|-----|
 | **Docker Engine 24+** and **Docker Compose v2+** | All services run as containers |
-| **Outbound internet** during `docker compose build` | Dockerfiles fetch dependencies from npm, hex.pm, Go modules, and Alpine package mirrors |
+| **Outbound internet** | `docker compose up -d` pulls pre-built images from GHCR. Building from source (`--build`) also needs npm, hex.pm, Go modules, and Alpine mirrors |
 | **openssl** CLI | Required by `setup.sh` to generate secrets. Not needed if using `tavok init` or manual `.env` |
 | **4 GB RAM minimum** | PostgreSQL, Redis, Next.js, Elixir, and Go all run concurrently |
 
 ### Platform Notes
 
 **Linux (Ubuntu/Debian/RHEL):**
-Standard Docker install. If you use `ufw` or `firewalld`, Docker manages its own iptables rules — see [Troubleshooting](#docker-containers-cant-reach-the-internet) if builds fail.
+Standard Docker install. If you use `ufw`, `firewalld`, or Tailscale, Docker manages its own iptables rules — see [Troubleshooting](#docker-containers-cant-reach-the-internet) if container networking fails.
 
 **macOS:**
 Docker Desktop works out of the box. No firewall issues.
@@ -28,7 +28,7 @@ Docker Desktop with WSL 2 backend. Run all commands from a WSL 2 terminal (Ubunt
 Ensure the security group / firewall allows outbound HTTPS (port 443) during build. For production, open inbound ports 80 and 443 (Caddy) or 5555 + 4001 (no Caddy).
 
 **Agent platforms (OpenClaw, Codex, CI runners):**
-Use `setup.sh --domain localhost` for non-interactive setup. The script auto-detects non-interactive environments and defaults to localhost if no `--domain` flag is provided. Ensure the runner has Docker and outbound internet access.
+Use `setup.sh --domain localhost` for non-interactive setup. The script auto-detects non-interactive environments and defaults to localhost if no `--domain` flag is provided. `docker compose up -d` pulls pre-built images from GHCR — no build step needed, no access to npm/hex.pm/Go mirrors required. The runner only needs Docker and outbound HTTPS to `ghcr.io`.
 
 ---
 
@@ -233,27 +233,40 @@ docker compose up -d
 
 ### Docker containers can't reach the internet
 
-**Symptom:** `apk add`, `npm install`, `mix deps.get`, or `go mod tidy` fail with network errors during `docker compose build`.
+**Symptom:** `docker compose up -d` fails pulling images, or `docker compose up --build` fails with network errors (`apk add`, `npm install`, `mix deps.get`, `go mod tidy`). The host has internet, but containers don't.
 
 **Cause:** Docker's NAT rules are disabled. This is usually `"iptables": false` in `/etc/docker/daemon.json`.
+
+**Quick check:**
+
+```bash
+# Test container networking
+docker run --rm alpine ping -c1 ghcr.io
+
+# If this fails but your host has internet, it's an iptables issue
+cat /etc/docker/daemon.json
+```
 
 **Fix:**
 
 ```bash
-# Check the config
-cat /etc/docker/daemon.json
-
 # If you see "iptables": false, remove it or set to true
 sudo nano /etc/docker/daemon.json
 
 # Restart Docker
 sudo systemctl restart docker
 
-# Rebuild
-docker compose build --no-cache
+# Pull and start (no build needed)
+docker compose up -d
 ```
 
-**Why this happens:** Docker uses iptables to create NAT rules that allow containers to reach the internet through the host. When `iptables` is set to `false`, containers have no outbound route. This setting is sometimes added when using custom firewalls (`ufw`, `firewalld`) to prevent Docker from overriding firewall rules.
+**Why this happens:** Docker uses iptables to create NAT rules that allow containers to reach the internet through the host. When `iptables` is set to `false`, containers have no outbound route. This setting is commonly added for:
+
+- **Tailscale** — Tailscale's documentation sometimes recommends `"iptables": false` to prevent Docker from interfering with Tailscale networking
+- **UFW / firewalld** — Docker bypasses UFW rules by default, so some guides suggest disabling Docker's iptables to let the firewall work as expected
+- **Custom network setups** — VPN tunnels, bridge networks, or cloud provider networking
+
+**If you need `iptables: false` for Tailscale:** The safest workaround is to use pre-built images (the default). `docker compose up -d` uses the Docker daemon's host networking to pull images, which works even with `iptables: false`. Only `docker compose up --build` (building from source) requires container-to-internet access.
 
 ### `REDIS_PASSWORD is required` on startup
 

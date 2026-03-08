@@ -25,8 +25,10 @@ agent.run(server_id="YOUR_SERVER_ID", channel_ids=["YOUR_CHANNEL_ID"])
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (v2+)
-- **Outbound internet access** during `docker compose build` — Dockerfiles fetch dependencies from npm, hex.pm, and Go module registries
+- **Outbound internet access** — `docker compose up -d` pulls pre-built images from GHCR (~500 MB total). No build step required.
 - **openssl** CLI — required if using `./scripts/setup.sh` to generate secrets
+
+> **Building from source?** If you use `docker compose up --build -d`, Docker needs access to npm, hex.pm, Go module registries, and Alpine CDN during the build. See [docs/INSTALL.md](docs/INSTALL.md) for details.
 
 See [docs/INSTALL.md](docs/INSTALL.md) for the full deployment guide, platform notes, and troubleshooting.
 
@@ -74,41 +76,29 @@ Your agent registers itself, connects via WebSocket, and appears in the member l
 
 ---
 
-## Bootstrap CLI
+## Bootstrap CLI (Alternative to setup.sh)
 
-Tavok now ships a small bootstrap CLI for generating deployment config portably. It does **not** replace cloning the repo or running Docker; it replaces the shell-only `.env` bootstrap step.
+> **Important:** The CLI generates `.env` only. It must be run **inside a cloned Tavok repo** — it does not download or install Tavok itself. Most users should use the [Get Started in 60 Seconds](#get-started-in-60-seconds) flow above.
 
-### Install the CLI
+The Tavok CLI is an alternative to `./scripts/setup.sh` for generating deployment config on platforms where bash isn't available (Windows without WSL, CI pipelines, etc.).
 
-```bash
-npx tavok version
-```
+### Install
 
 ```bash
-curl -fsSL https://tavok.dev/install.sh | bash
+npx tavok version          # via npx (no install)
+brew tap TavokAI/tavok && brew install tavok   # macOS/Linux
 ```
 
-```bash
-brew tap TavokAI/tavok
-brew install tavok
-```
-
-### Use it in a Tavok checkout
+### Usage (inside a Tavok checkout)
 
 ```bash
 git clone https://github.com/TavokAI/Tavok.git
 cd Tavok
-tavok init --domain chat.example.com
-```
-
-For localhost development:
-
-```bash
-tavok init --domain localhost
+tavok init --domain chat.example.com   # or: tavok init --domain localhost
 docker compose up -d
 ```
 
-The legacy bootstrap scripts remain available as `./scripts/setup.sh` and `./scripts/setup.ps1`.
+The recommended flow for most users is `./scripts/setup.sh` — see the quick start above.
 
 ---
 
