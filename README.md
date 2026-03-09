@@ -382,6 +382,22 @@ Tavok/
 
 ---
 
+## Lines-of-Code Report
+
+A manual GitHub Actions workflow counts LOC across the repository and uploads a downloadable report artifact.
+
+**Run it:** go to _Actions → Lines of Code → Run workflow_ (no secrets required).
+
+Options:
+
+| Input | Default | Values |
+|-------|---------|--------|
+| `tool` | `tokei` | `tokei`, `cloc` |
+
+The report is uploaded as the **loc-report** artifact and the summary is also printed directly in the Actions log.
+
+---
+
 ## Documentation
 
 | Document                                | Purpose                                               |

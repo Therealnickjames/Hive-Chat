@@ -1,0 +1,68 @@
+name: Lines of Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: "LOC tool to use"
+        required: false
+        default: "tokei"
+        type: choice
+        options:
+          - tokei
+          - cloc
+
+jobs:
+  count:
+    name: Count Lines of Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── tokei ────────────────────────────────────────────────────────────
+      - name: Install tokei
+        if: ${{ github.event.inputs.tool != 'cloc' }}
+        run: |
+          curl -fsSL https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz \
+            | sudo tar -xz -C /usr/local/bin tokei
+          tokei --version
+
+      - name: Run tokei
+        if: ${{ github.event.inputs.tool != 'cloc' }}
+        env:
+          TOKEI_EXCLUDES: "--exclude node_modules --exclude dist --exclude build --exclude .git"
+        run: |
+          echo "## Lines of Code (tokei)" >> $GITHUB_STEP_SUMMARY
+
+          # Human-readable table — printed to log and saved as artifact
+          tokei $TOKEI_EXCLUDES . | tee loc-report.txt
+          cat loc-report.txt >> $GITHUB_STEP_SUMMARY
+
+      # ── cloc ─────────────────────────────────────────────────────────────
+      - name: Install cloc
+        if: ${{ github.event.inputs.tool == 'cloc' }}
+        run: sudo apt-get install -y cloc
+
+      - name: Run cloc
+        if: ${{ github.event.inputs.tool == 'cloc' }}
+        run: |
+          cloc \
+            --exclude-dir=node_modules,dist,build,.git \
+            --out=loc-report.txt \
+            .
+
+          echo "## Lines of Code (cloc)" >> $GITHUB_STEP_SUMMARY
+          cat loc-report.txt
+          cat loc-report.txt >> $GITHUB_STEP_SUMMARY
+
+      # ── artifact ─────────────────────────────────────────────────────────
+      - name: Upload LOC report
+        uses: actions/upload-artifact@v4
+        with:
+          name: loc-report
+          path: loc-report.txt
+          retention-days: 30
