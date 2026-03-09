@@ -507,9 +507,7 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} when status in [401, 404] ->
-        Logger.debug(
-          "verify_agent_api_key rejected: status=#{status}"
-        )
+        Logger.debug("verify_agent_api_key rejected: status=#{status}")
 
         {:error, {:http_error, status, response_body}}
 
