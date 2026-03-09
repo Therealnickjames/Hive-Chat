@@ -237,6 +237,7 @@ defmodule TavokGatewayWeb.RoomChannel do
               Logger.debug(
                 "[TriggerDecision] channel=#{channel_id} no defaultBot configured — no trigger"
               )
+
               :noop
 
             {:ok, bot_config} ->
