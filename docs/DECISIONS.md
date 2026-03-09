@@ -1234,3 +1234,20 @@ model AgentRegistration {
 5. **Rate limits**: Bootstrap increased from 3/60s to 10/60s. Agent registration increased from 5/60s to 20/60s.
 
 **Consequences**: `tavok init` is resilient to shell environment pollution. Retry works in any terminal session without `env -i`. The onboarding flow completes without hitting rate limits when registering multiple agents.
+
+---
+
+## DEC-0059: Agent onboarding fixes (Round 4 QA)
+
+**Date**: 2026-03-09
+**Status**: Accepted
+**Context**: Round 4 QA (clean install by external tester) uncovered agent onboarding friction: agents couldn't discover the WebSocket topic pattern (`room:{channelId}`), had no way to list channels/agents via REST, `.gitignore` was missing (risk of committing secrets), init output didn't show version, and gateway/web logs were noisy with expected auth rejection messages.
+
+**Decision**:
+1. **Topic pattern in CLI + registration response**: Init output now shows `Join topic: room:{channelId}` and `Topic pattern: room:{channelId} for chat channels, dm:{dmId} for DMs`. Registration response includes `topicPattern` and `dmTopicPattern` fields.
+2. **Server discovery endpoint**: New `GET /api/v1/agents/{id}/server` returns server info, all channels (with `websocketTopic` pre-computed), and active agents. Registration response includes `serverInfoUrl`. CLI init mentions this endpoint.
+3. **`.gitignore` creation**: `tavok init` now creates/appends `.gitignore` with `.env`, `.tavok-credentials`, `.tavok.json`. Idempotent — only adds missing entries.
+4. **Version in init banner**: Init output now shows `Tavok {version} is running at {url}`.
+5. **Log noise reduction**: Gateway downgrades `verify_agent_api_key` log from `warning` to `debug` for 401/404 responses (expected auth rejections). Web suppresses NextAuth `JWT_SESSION_ERROR` (expected after secret rotation).
+
+**Consequences**: Agent developers get a complete onboarding path from registration through channel discovery to WebSocket join. Secrets are protected from accidental git commits. Operators see cleaner logs.

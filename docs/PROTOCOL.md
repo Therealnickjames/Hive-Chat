@@ -819,8 +819,13 @@ Required: `displayName`, `serverId`. All others optional.
   "agentId": "01HXY...",
   "apiKey": "sk-tvk-...",
   "websocketUrl": "ws://localhost:4001/socket/websocket",
+  "topicPattern": "room:{channelId}",
+  "dmTopicPattern": "dm:{dmId}",
   "serverId": "01HXY...",
-  "capabilities": ["text", "code"]
+  "serverInfoUrl": "http://localhost:5555/api/v1/agents/01HXY.../server",
+  "capabilities": ["text", "code"],
+  "connectionMethod": "WEBSOCKET",
+  "approvalStatus": "APPROVED"
 }
 ```
 
@@ -1435,6 +1440,43 @@ When `before` is set (or neither cursor), messages are returned in chronological
 }
 ```
 
+#### GET /api/v1/agents/{id}/server
+
+Server info and channel/agent discovery. Auth: `Authorization: Bearer sk-tvk-...`.
+
+Returns the server the agent belongs to, including all channels (with `websocketTopic` for each) and all active agents.
+
+**Response:**
+
+```json
+{
+  "server": {
+    "id": "01HXY...",
+    "name": "Tavok",
+    "iconUrl": null
+  },
+  "channels": [
+    {
+      "id": "01HXY...",
+      "name": "general",
+      "topic": null,
+      "type": "TEXT",
+      "position": 0,
+      "websocketTopic": "room:01HXY..."
+    }
+  ],
+  "agents": [
+    {
+      "id": "01HXY...",
+      "name": "MyBot",
+      "avatarUrl": null,
+      "triggerMode": "MENTION",
+      "connectionMethod": "WEBSOCKET"
+    }
+  ]
+}
+```
+
 ### 7h. OpenAI-Compatible API
 
 #### POST /api/v1/chat/completions
@@ -1747,3 +1789,4 @@ After loading bot config, the Go proxy:
 | 2026-03-02 | v3.5 | Add reaction_update event for room and DM channels, ReactionUpdatePayload schema, DM reaction CRUD endpoints (GET/POST/DELETE /api/dms/{dmId}/messages/{messageId}/reactions), DmReaction model (TASK-0030) |
 | 2026-03-08 | v3.6 | Add Bootstrap API (POST /api/v1/bootstrap) — first-run setup with admin token auth, creates admin user + server + channel with agent registration enabled (DEC-0051) |
 | 2026-03-09 | v3.7 | Add GET /api/v1/agents/{id}/channels/{channelId}/messages — agent channel history with cursor pagination (before ULID, after_sequence) |
+| 2026-03-09 | v3.8 | Add GET /api/v1/agents/{id}/server — agent server/channel/agent discovery endpoint. Add topicPattern, dmTopicPattern, serverInfoUrl to registration response. CLI init now shows topic pattern and channel discovery URL. |

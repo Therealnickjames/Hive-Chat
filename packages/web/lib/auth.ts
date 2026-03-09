@@ -107,5 +107,23 @@ export const authOptions: NextAuthOptions = {
   // can cause ambiguity. This ensures session cookies work over plain HTTP.
   useSecureCookies: process.env.NEXTAUTH_URL?.startsWith("https://") ?? false,
 
+  // Suppress JWT_SESSION_ERROR noise caused by stale cookies after secret rotation.
+  // These are expected on fresh deploys and don't indicate a real problem —
+  // users are simply redirected to login.
+  logger: {
+    error(code, metadata) {
+      if (code === "JWT_SESSION_ERROR") return;
+      console.error(`[auth] ${code}`, metadata);
+    },
+    warn(code) {
+      console.warn(`[auth] ${code}`);
+    },
+    debug(code, metadata) {
+      if (process.env.AUTH_DEBUG === "true") {
+        console.debug(`[auth] ${code}`, metadata);
+      }
+    },
+  },
+
   secret: process.env.NEXTAUTH_SECRET,
 };

@@ -199,11 +199,14 @@ export async function POST(request: NextRequest) {
       connectionMethod: resolvedMethod,
       capabilities: result.registration.capabilities,
       approvalStatus, // DEC-0047: "PENDING" or "APPROVED"
+      serverInfoUrl: `${webUrl}/api/v1/agents/${result.bot.id}/server`,
     };
 
     // Add method-specific connection info
     if (resolvedMethod === "WEBSOCKET") {
       response.websocketUrl = `${gatewayUrl}/websocket`;
+      response.topicPattern = "room:{channelId}";
+      response.dmTopicPattern = "dm:{dmId}";
     }
     if (resolvedMethod === "WEBHOOK" && result.webhookSecret) {
       response.webhookUrl = webhookUrl;

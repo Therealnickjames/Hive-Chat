@@ -265,6 +265,65 @@ func WriteCredentials(dir, email, password string) error {
 	return os.WriteFile(filepath.Join(dir, ".tavok-credentials"), []byte(content), 0o600)
 }
 
+// WriteGitignore creates or appends to .gitignore to exclude Tavok secrets.
+// If .gitignore already exists, it appends only missing entries.
+func WriteGitignore(dir string) error {
+	path := filepath.Join(dir, ".gitignore")
+	entries := []string{".env", ".tavok-credentials", ".tavok.json"}
+
+	existing := ""
+	if data, err := os.ReadFile(path); err == nil {
+		existing = string(data)
+	}
+
+	var toAdd []string
+	for _, entry := range entries {
+		// Check if entry already present as a whole line
+		found := false
+		for _, line := range strings.Split(existing, "\n") {
+			if strings.TrimSpace(line) == entry {
+				found = true
+				break
+			}
+		}
+		if !found {
+			toAdd = append(toAdd, entry)
+		}
+	}
+
+	if len(toAdd) == 0 {
+		return nil // All entries already present
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("open .gitignore: %w", err)
+	}
+	defer f.Close()
+
+	// Add a newline separator if file exists and doesn't end with one
+	if existing != "" && !strings.HasSuffix(existing, "\n") {
+		if _, err := f.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+
+	// Add header comment if this is a new file or no Tavok entries existed
+	if existing == "" {
+		if _, err := f.WriteString("# Tavok — secrets and local config\n"); err != nil {
+			return err
+		}
+	}
+
+	for _, entry := range toAdd {
+		if _, err := f.WriteString(entry + "\n"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // PollHealth polls the health endpoint until it responds 200 or timeout.
 func PollHealth(baseURL string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)

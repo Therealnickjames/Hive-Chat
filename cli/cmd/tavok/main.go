@@ -225,10 +225,15 @@ func runInit(args []string) {
 		fmt.Fprintf(os.Stderr, "WARNING: could not write .tavok-credentials: %v\n", err)
 	}
 
+	// Write .gitignore to prevent accidental secret commits
+	if err := bootstrap.WriteGitignore(dir); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not write .gitignore: %v\n", err)
+	}
+
 	// ── Phase 7: Print summary ──
 
 	fmt.Println()
-	fmt.Printf("  Tavok is running at %s\n", result.URLs.Web)
+	fmt.Printf("  Tavok %s is running at %s\n", version, result.URLs.Web)
 	fmt.Println()
 	fmt.Println("  ── Human login (web UI) ──")
 	fmt.Printf("    Email:    %s\n", *email)
@@ -246,7 +251,10 @@ func runInit(args []string) {
 	fmt.Println()
 	fmt.Println("    Returns an API key (sk-tvk-...). Agents connect with:")
 	fmt.Println("      WebSocket: ws://localhost:4001/socket/websocket?api_key=sk-tvk-...")
+	fmt.Printf("      Join topic: room:%s\n", result.Channel.ID)
 	fmt.Println()
+	fmt.Println("    Topic pattern: room:{channelId} for chat channels, dm:{dmId} for DMs.")
+	fmt.Println("    List channels: GET /api/v1/agents/{agentId}/server (Bearer sk-tvk-...)")
 }
 
 // runBootstrapFromExisting handles the case where .env already exists (idempotent re-run).
