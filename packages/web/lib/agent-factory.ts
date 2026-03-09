@@ -91,9 +91,7 @@ export async function createAgent(
         id: registrationId,
         botId: bot.id,
         apiKeyHash,
-        capabilities: Array.isArray(opts.capabilities)
-          ? opts.capabilities
-          : [],
+        capabilities: Array.isArray(opts.capabilities) ? opts.capabilities : [],
         webhookUrl: opts.webhookUrl,
         connectionMethod: opts.connectionMethod,
         webhookSecret,

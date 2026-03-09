@@ -184,7 +184,6 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
           onDone={handleBackToList}
         />
       )}
-
     </Modal>
   );
 }

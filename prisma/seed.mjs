@@ -224,8 +224,6 @@ async function main() {
       id: IDS.server,
       name: "AI Research Lab",
       ownerId: demoUser.id,
-      allowAgentRegistration: true,
-      registrationApprovalRequired: false,
     },
   });
   console.log("  ✓ Server: AI Research Lab");

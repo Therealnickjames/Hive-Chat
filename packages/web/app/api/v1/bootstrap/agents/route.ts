@@ -49,10 +49,7 @@ export async function POST(request: NextRequest) {
 
   // Validate required fields
   if (!name || typeof name !== "string" || name.trim().length === 0) {
-    return NextResponse.json(
-      { error: "name is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
   if (!serverId || typeof serverId !== "string") {
@@ -75,9 +72,7 @@ export async function POST(request: NextRequest) {
   // Resolve connection method (default WEBSOCKET)
   const resolvedMethod: ConnectionMethodValue =
     connectionMethod &&
-    VALID_CONNECTION_METHODS.includes(
-      connectionMethod as ConnectionMethodValue,
-    )
+    VALID_CONNECTION_METHODS.includes(connectionMethod as ConnectionMethodValue)
       ? (connectionMethod as ConnectionMethodValue)
       : "WEBSOCKET";
 
