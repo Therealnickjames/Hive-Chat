@@ -1,6 +1,6 @@
 {
   "name": "tavok",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Tavok bootstrap CLI",
   "license": "AGPL-3.0-only",
   "bin": {
