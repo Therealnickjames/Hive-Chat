@@ -97,9 +97,9 @@ export function getClientIp(request: Request): string {
 /** Auth endpoints: 10 requests per 60s per IP (login, register) */
 export const authLimiter = new RateLimiter({ max: 10, windowSec: 60 });
 
-/** Agent registration: 5 requests per 60s per IP */
+/** Agent registration: 20 requests per 60s per IP (supports onboarding multiple agents) */
 export const agentRegistrationLimiter = new RateLimiter({
-  max: 5,
+  max: 20,
   windowSec: 60,
 });
 

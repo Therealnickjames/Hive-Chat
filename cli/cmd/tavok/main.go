@@ -40,7 +40,7 @@ func runInit(args []string) {
 	domain := flags.String("domain", "localhost", "Domain for the Tavok deployment")
 	output := flags.String("output", ".env", "Path to the generated env file")
 	force := flags.Bool("force", false, "Overwrite the output file if it already exists")
-	email := flags.String("email", "admin@localhost", "Admin email for bootstrap")
+	email := flags.String("email", "admin@tavok.local", "Admin email for bootstrap")
 	flags.Bool("yes", false, "Skip prompts, use defaults (kept for backwards compat)")
 	flags.Parse(args)
 
@@ -144,6 +144,17 @@ func runInit(args []string) {
 			os.Exit(1)
 		}
 		fmt.Println("ok")
+	} else {
+		// Containers are running — reconcile to pick up any .env changes.
+		// Docker Compose is idempotent: only recreates containers whose
+		// config actually changed. Uses cleaned env (DEC-0058).
+		fmt.Print("  Reconciling config...       ")
+		if err := runDockerCompose(dir, "up", "-d"); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: docker compose up failed: %v\n", err)
+			fmt.Fprintln(os.Stderr, "Check logs with: docker compose logs")
+			os.Exit(1)
+		}
+		fmt.Println("ok")
 	}
 
 	// ── Phase 5: Health polling ──
@@ -227,16 +238,12 @@ func runInit(args []string) {
 	fmt.Printf("  Server: %q (%s)\n", result.Server.Name, result.Server.ID)
 	fmt.Printf("  Channel: #%s (%s)\n", result.Channel.Name, result.Channel.ID)
 	fmt.Println()
-	fmt.Println("  Connect an agent:")
-	fmt.Println("    pip install tavok-sdk")
+	fmt.Println("  Register an agent:")
+	fmt.Printf("    curl -s -X POST %s/api/v1/agents/register \\\n", result.URLs.Web)
+	fmt.Println("      -H \"Content-Type: application/json\" \\")
+	fmt.Printf("      -d '{\"displayName\":\"MyBot\",\"serverId\":\"%s\"}'\n", result.Server.ID)
 	fmt.Println()
-	fmt.Println("    from tavok import Agent")
-	fmt.Println("    agent = Agent(name=\"MyBot\")")
-	fmt.Println("    @agent.on_mention")
-	fmt.Println("    async def handle(msg):")
-	fmt.Println("        async with agent.stream(msg.channel_id) as s:")
-	fmt.Println("            await s.token(\"Hello!\")")
-	fmt.Println("    agent.run()  # auto-discovers from .tavok.json")
+	fmt.Printf("  API docs: %s/api/v1\n", result.URLs.Web)
 	fmt.Println()
 }
 
@@ -263,9 +270,11 @@ func runBootstrapFromExisting(dir, domain, email string) {
 }
 
 // isTavokRunning checks if Tavok containers are already running in the given directory.
+// Uses cleaned environment to avoid stale shell vars affecting compose (DEC-0058).
 func isTavokRunning(dir string) bool {
 	cmd := exec.Command("docker", "compose", "ps", "--status=running", "-q")
 	cmd.Dir = dir
+	cmd.Env = cleanEnvForCompose()
 	output, err := cmd.Output()
 	if err != nil {
 		return false
@@ -305,13 +314,57 @@ func checkDockerBlocking() bool {
 }
 
 // runDockerCompose executes docker compose with the given args in the specified directory.
+// Uses a cleaned environment to ensure .env is always authoritative (DEC-0058).
 func runDockerCompose(dir string, args ...string) error {
 	cmdArgs := append([]string{"compose"}, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 	cmd.Dir = dir
+	cmd.Env = cleanEnvForCompose()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// cleanEnvForCompose returns the current process environment with all Tavok-related
+// variables stripped out. This prevents stale shell env vars from overriding the .env
+// file — Docker Compose gives shell env vars priority over .env (DEC-0058).
+func cleanEnvForCompose() []string {
+	// Every var referenced in docker-compose.yml via ${VAR} syntax.
+	// If shell has these, they override .env — which breaks retry after failure.
+	strip := map[string]bool{
+		"POSTGRES_USER":           true,
+		"POSTGRES_PASSWORD":       true,
+		"POSTGRES_DB":             true,
+		"POSTGRES_HOST_PORT":      true,
+		"DATABASE_URL":            true,
+		"REDIS_PASSWORD":          true,
+		"REDIS_URL":               true,
+		"NEXTAUTH_SECRET":         true,
+		"NEXTAUTH_URL":            true,
+		"JWT_SECRET":              true,
+		"INTERNAL_API_SECRET":     true,
+		"SECRET_KEY_BASE":         true,
+		"ENCRYPTION_KEY":          true,
+		"TAVOK_ADMIN_TOKEN":       true,
+		"BIND_ADDRESS":            true,
+		"NEXT_PUBLIC_GATEWAY_URL": true,
+		"NODE_ENV":                true,
+		"MIX_ENV":                 true,
+		"GATEWAY_PORT":            true,
+		"STREAMING_PORT":          true,
+		"DOMAIN":                  true,
+		"GATEWAY_WEB_URL":         true,
+		"STREAMING_WEB_URL":       true,
+	}
+	var clean []string
+	for _, kv := range os.Environ() {
+		if idx := strings.Index(kv, "="); idx > 0 {
+			if !strip[kv[:idx]] {
+				clean = append(clean, kv)
+			}
+		}
+	}
+	return clean
 }
 
 // splitEmail returns the local part of an email, sanitized for use as a username.
@@ -339,7 +392,7 @@ func printUsage() {
 	fmt.Println("Tavok CLI")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  tavok init [--domain localhost] [--email admin@localhost] [--yes] [--force]")
+	fmt.Println("  tavok init [--domain localhost] [--email admin@tavok.local] [--yes] [--force]")
 	fmt.Println("  tavok version")
 	fmt.Println()
 	fmt.Println("The init command sets up a complete Tavok instance:")

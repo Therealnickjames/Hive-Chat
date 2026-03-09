@@ -1217,3 +1217,20 @@ model AgentRegistration {
 3. **Tavok container detection**: Before port checks, `docker compose ps --status=running -q` detects Tavok's own containers. If running, port checks and image pulls are skipped.
 
 **Consequences**: `tavok init` can be safely re-run after any failure without `--force` or `docker compose down`. Passwords are always URL-safe. The `--force` flag now truly means "regenerate everything from scratch" (requires volume wipe).
+
+---
+
+## DEC-0058: Shell environment isolation for docker compose
+
+**Date**: 2026-03-08
+**Status**: Accepted
+**Context**: Round 2 QA found that `tavok init` retry failures were caused by stale shell environment variables overriding the `.env` file. Docker Compose gives shell env vars priority over `.env`: if a user (or their tooling) previously exported Tavok secrets, those stale values override the regenerated `.env` on retry. The user had to open a fresh terminal (`env -i`) to work around it. Additionally, `admin@localhost` was rejected by Zod's `.email()` validator (no TLD), the success message referenced `pip install tavok-sdk` which doesn't exist on PyPI, and rate limits (3/60s bootstrap, 5/60s agent registration) were too restrictive for onboarding.
+
+**Decision**:
+1. **Clean env for compose**: `runDockerCompose()` and `isTavokRunning()` now strip all Tavok-related env vars before invoking `docker compose`. This ensures `.env` is always the source of truth, regardless of parent shell state.
+2. **Reconcile on re-run**: When Tavok containers are already running, `tavok init` runs `docker compose up -d` (with clean env) to pick up any `.env` changes. Docker Compose only recreates containers whose config actually changed.
+3. **Email default**: Changed from `admin@localhost` to `admin@tavok.local` (`.local` TLD passes RFC 5322 validation).
+4. **Success message**: Replaced `pip install tavok-sdk` with a curl-based agent registration example using the actual server ID from bootstrap.
+5. **Rate limits**: Bootstrap increased from 3/60s to 10/60s. Agent registration increased from 5/60s to 20/60s.
+
+**Consequences**: `tavok init` is resilient to shell environment pollution. Retry works in any terminal session without `env -i`. The onboarding flow completes without hitting rate limits when registering multiple agents.

@@ -17,10 +17,10 @@ import { RateLimiter, getClientIp } from "@/lib/rate-limit";
  * Three independent guards (defense in depth):
  * 1. Admin token required (TAVOK_ADMIN_TOKEN from .env)
  * 2. First-run guard (user count must be 0)
- * 3. Rate limiting (3 per 60s per IP)
+ * 3. Rate limiting (10 per 60s per IP)
  */
 
-const bootstrapLimiter = new RateLimiter({ max: 3, windowSec: 60 });
+const bootstrapLimiter = new RateLimiter({ max: 10, windowSec: 60 });
 
 const bootstrapSchema = z.object({
   email: z.string().email("Invalid email address"),
