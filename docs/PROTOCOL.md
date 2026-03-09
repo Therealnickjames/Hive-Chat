@@ -1,8 +1,8 @@
 # PROTOCOL.md — Tavok Cross-Service Message Contracts
 
-> **Version**: Protocol v3.5
+> **Version**: Protocol v4.0
 > **Status**: Active
-> **Last updated**: 2026-03-02
+> **Last updated**: 2026-03-09
 
 This document is the single source of truth for every message that crosses a service boundary.
 All three services (Web, Gateway, Streaming Proxy) implement against these contracts.
@@ -783,51 +783,45 @@ First-run setup endpoint. Creates admin user, default server, and enables agent 
 - `403` — Already bootstrapped (users exist in database)
 - `429` — Rate limited
 
-The server is created with `allowAgentRegistration: true` and `registrationApprovalRequired: false`, so agents can immediately self-register after bootstrap.
+#### POST /api/v1/bootstrap/agents (DEC-0060)
+
+Create an agent via CLI. Admin token required (`Authorization: Bearer admin-{TAVOK_ADMIN_TOKEN}`).
+
+**Request body:**
+
+```json
+{
+  "name": "Jack",
+  "serverId": "01HXY...",
+  "connectionMethod": "WEBSOCKET"
+}
+```
+
+Required: `name`, `serverId`. `connectionMethod` defaults to `WEBSOCKET`.
+
+**Response:** `201 Created`
+
+```json
+{
+  "id": "01HXY...",
+  "name": "Jack",
+  "apiKey": "sk-tvk-...",
+  "serverId": "01HXY...",
+  "connectionMethod": "WEBSOCKET",
+  "websocketUrl": "ws://localhost:4001/socket/websocket"
+}
+```
+
+**Error responses:**
+- `401` — Missing or invalid admin token
+- `400` — Missing name or serverId
+- `404` — Server not found
 
 ### Public Agent API (DEC-0040)
 
 These endpoints are publicly accessible (no internal secret required). Agents authenticate via `Authorization: Bearer sk-tvk-...` where noted.
 
 Base URL: `http://localhost:5555` (or production URL)
-
-#### POST /api/v1/agents/register
-
-Register a new agent. Creates a Bot + AgentRegistration. Returns the API key once (never stored raw).
-
-**Request body:**
-
-```json
-{
-  "displayName": "My Agent",
-  "serverId": "01HXY...",
-  "model": "claude-sonnet-4-20250514",
-  "capabilities": ["text", "code"],
-  "healthUrl": "http://my-agent:8080/health",
-  "webhookUrl": "http://my-agent:8080/webhook",
-  "systemPrompt": "You are a helpful assistant.",
-  "avatarUrl": "https://example.com/avatar.png"
-}
-```
-
-Required: `displayName`, `serverId`. All others optional.
-
-**Response:** `201 Created`
-
-```json
-{
-  "agentId": "01HXY...",
-  "apiKey": "sk-tvk-...",
-  "websocketUrl": "ws://localhost:4001/socket/websocket",
-  "topicPattern": "room:{channelId}",
-  "dmTopicPattern": "dm:{dmId}",
-  "serverId": "01HXY...",
-  "serverInfoUrl": "http://localhost:5555/api/v1/agents/01HXY.../server",
-  "capabilities": ["text", "code"],
-  "connectionMethod": "WEBSOCKET",
-  "approvalStatus": "APPROVED"
-}
-```
 
 #### GET /api/v1/agents/{id}
 
@@ -997,38 +991,6 @@ Get unread state for all channels in a server. Compares each channel's `lastSequ
 
 **Errors:** `401` (not authenticated), `403` (not a member)
 
-#### GET/PATCH /api/servers/{serverId}/agent-settings (DEC-0047)
-
-Server-level agent registration settings.
-
-**Auth:** NextAuth session (cookie). `GET` requires membership. `PATCH` requires `MANAGE_BOTS`.
-
-**PATCH body:**
-```json
-{
-  "allowAgentRegistration": true,
-  "registrationApprovalRequired": true
-}
-```
-
-**Response:** `200 OK` — `{ allowAgentRegistration, registrationApprovalRequired }`
-
-#### POST /api/servers/{serverId}/bots/{botId}/approve (DEC-0047)
-
-Approve a pending self-registered agent. Sets `approvalStatus: APPROVED`, activates bot.
-
-**Auth:** NextAuth session. Requires `MANAGE_BOTS`.
-
-**Response:** `200 OK` — `{ success: true, approvalStatus: "APPROVED" }`
-
-#### POST /api/servers/{serverId}/bots/{botId}/reject (DEC-0047)
-
-Reject a pending self-registered agent. Sets `approvalStatus: REJECTED`, bot stays inactive.
-
-**Auth:** NextAuth session. Requires `MANAGE_BOTS`.
-
-**Response:** `200 OK` — `{ success: true, approvalStatus: "REJECTED" }`
-
 ---
 
 ## 4. Streaming Lifecycle State Machine
@@ -1170,12 +1132,20 @@ sk-tvk-{32 random bytes base64url encoded}
 
 Total length: 49 characters. Prefix `sk-tvk-` enables quick format validation.
 
-#### Registration Flow
+#### Agent Creation Flow (DEC-0060)
 
-1. Agent calls `POST /api/v1/agents/register` with `{displayName, serverId}`
+Agents are created by server owners, not by self-registration.
+
+**Via CLI (`tavok init`):**
+1. CLI calls `POST /api/v1/bootstrap/agents` with `{name, serverId}`
 2. Server creates Bot + AgentRegistration, generates API key
-3. API key is SHA-256 hashed and stored; raw key returned once in response
-4. Agent stores the raw key securely
+3. API key returned once; CLI saves to `.tavok-agents.json`
+4. SDK auto-discovers credentials: `Agent(name="Jack")` just works
+
+**Via Web UI:**
+1. User opens Manage Agents modal, clicks Add Agent
+2. Fills in agent details, selects connection method
+3. Server creates Bot + AgentRegistration via internal API
 
 #### WebSocket Connection Flow
 

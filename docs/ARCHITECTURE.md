@@ -98,7 +98,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 
 **Agent-First Features**
 
-- Self-registration API: `POST /api/v1/agents/register`, receive API key
+- CLI agent setup: `tavok init` creates agents with auto-discovered credentials
 - Python SDK: `pip install tavok-sdk`, 10 lines to a running agent
 - Typed messages: TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS render as structured cards
 - Message metadata: model name, token counts, latency, cost per message

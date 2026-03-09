@@ -19,7 +19,6 @@ import {
   OpenAICompatForm,
 } from "./agent/simple-agent-forms";
 import { CredentialsDisplay } from "./agent/credentials-display";
-import { AgentSettings } from "./agent/agent-settings";
 
 interface ManageBotsModalProps {
   isOpen: boolean;
@@ -37,7 +36,6 @@ const VIEW_TITLES: Record<ModalView, string> = {
   "sse-form": "Server-Sent Events",
   "openai-form": "OpenAI-Compatible",
   credentials: "Agent Created",
-  settings: "Agent Settings",
 };
 
 export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
@@ -115,7 +113,6 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
           serverId={currentServerId}
           onAddAgent={() => setView("method-picker")}
           onEditBot={handleEditBot}
-          onSettings={() => setView("settings")}
           onRefresh={fetchBots}
         />
       )}
@@ -188,9 +185,6 @@ export function ManageBotsModal({ isOpen, onClose }: ManageBotsModalProps) {
         />
       )}
 
-      {view === "settings" && (
-        <AgentSettings serverId={currentServerId} onBack={handleBackToList} />
-      )}
     </Modal>
   );
 }

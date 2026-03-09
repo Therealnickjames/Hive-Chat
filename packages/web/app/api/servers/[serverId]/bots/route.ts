@@ -4,29 +4,22 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encrypt } from "@/lib/encryption";
 import { ulid } from "ulid";
-import crypto from "crypto";
-import { Prisma } from "@prisma/client";
 import { checkMemberPermission } from "@/lib/check-member-permission";
 import { Permissions } from "@/lib/permissions";
+import {
+  createAgent,
+  buildConnectionInfo,
+  VALID_CONNECTION_METHODS,
+  type ConnectionMethodValue,
+} from "@/lib/agent-factory";
 
 /**
  * GET /api/servers/{serverId}/bots — List all bots for a server
  * POST /api/servers/{serverId}/bots — Create a new bot (MANAGE_BOTS)
  *
- * Extended (DEC-0047): GET includes connectionMethod + approvalStatus.
+ * Extended (DEC-0047): GET includes connectionMethod.
  * POST supports non-BYOK creation when `connectionMethod` is provided.
  */
-
-const VALID_CONNECTION_METHODS = [
-  "WEBSOCKET",
-  "WEBHOOK",
-  "INBOUND_WEBHOOK",
-  "REST_POLL",
-  "SSE",
-  "OPENAI_COMPAT",
-] as const;
-
-type ConnectionMethodValue = (typeof VALID_CONNECTION_METHODS)[number];
 
 export async function GET(
   request: NextRequest,
@@ -67,7 +60,6 @@ export async function GET(
       // Never expose apiKeyEncrypted
       agentRegistration: {
         select: {
-          approvalStatus: true,
           connectionMethod: true,
           capabilities: true,
         },
@@ -91,7 +83,6 @@ export async function GET(
     triggerMode: bot.triggerMode,
     thinkingSteps: bot.thinkingSteps,
     connectionMethod: bot.connectionMethod || null, // null = BYOK
-    approvalStatus: bot.agentRegistration?.approvalStatus || null, // null = BYOK (no registration)
     capabilities: bot.agentRegistration?.capabilities || null,
     createdAt: bot.createdAt,
   }));
@@ -208,7 +199,7 @@ export async function POST(
 
 /**
  * Create a non-BYOK agent (owner-initiated).
- * Generates an API key, creates Bot + AgentRegistration, returns credentials.
+ * Delegates to shared createAgent factory, wraps result in NextResponse.
  */
 async function createNonBYOKAgent(
   serverId: string,
@@ -221,96 +212,31 @@ async function createNonBYOKAgent(
     systemPrompt?: string;
   },
 ) {
-  const botId = ulid();
-  const registrationId = ulid();
-
-  // Generate API key (same as self-registration flow)
-  const randomBytes = crypto.randomBytes(32);
-  const apiKey = `sk-tvk-${randomBytes.toString("base64url")}`;
-  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
-
-  // Generate webhook secret for WEBHOOK method
-  const webhookSecret =
-    opts.connectionMethod === "WEBHOOK"
-      ? crypto.randomBytes(32).toString("hex")
-      : undefined;
-
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const bot = await tx.bot.create({
-        data: {
-          id: botId,
-          name: opts.name,
-          serverId,
-          llmProvider: "custom",
-          llmModel: "custom",
-          apiEndpoint: "",
-          apiKeyEncrypted: "",
-          systemPrompt: opts.systemPrompt || "",
-          temperature: 0.7,
-          maxTokens: 4096,
-          isActive: true,
-          triggerMode: (opts.triggerMode || "MENTION") as
-            | "ALWAYS"
-            | "MENTION"
-            | "KEYWORD",
-          connectionMethod: opts.connectionMethod,
-        },
-      });
-
-      const registration = await tx.agentRegistration.create({
-        data: {
-          id: registrationId,
-          botId: bot.id,
-          apiKeyHash,
-          capabilities: Array.isArray(opts.capabilities)
-            ? opts.capabilities
-            : [],
-          webhookUrl: opts.webhookUrl,
-          connectionMethod: opts.connectionMethod,
-          webhookSecret,
-          approvalStatus: "APPROVED", // Owner-created = auto-approved
-        },
-      });
-
-      return { bot, registration };
+    const result = await createAgent({
+      ...opts,
+      serverId,
     });
 
-    // Build response with method-specific URLs
-    const gatewayUrl =
-      process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:4001/socket";
-    const webUrl = process.env.NEXTAUTH_URL || "http://localhost:5555";
+    const connectionInfo = buildConnectionInfo(
+      result.bot.id,
+      result.connectionMethod,
+      {
+        webhookUrl: opts.webhookUrl,
+        webhookSecret: result.webhookSecret,
+      },
+    );
 
-    const response: Record<string, unknown> = {
-      id: result.bot.id,
-      name: result.bot.name,
-      connectionMethod: opts.connectionMethod,
-      apiKey, // Shown ONCE
-      approvalStatus: "APPROVED",
-    };
-
-    // Method-specific connection info
-    switch (opts.connectionMethod) {
-      case "WEBSOCKET":
-        response.websocketUrl = `${gatewayUrl}/websocket`;
-        break;
-      case "WEBHOOK":
-        response.webhookUrl = opts.webhookUrl;
-        response.webhookSecret = webhookSecret; // Shown ONCE
-        break;
-      case "REST_POLL":
-        response.pollUrl = `${webUrl}/api/v1/agents/${result.bot.id}/messages`;
-        break;
-      case "SSE":
-        response.eventsUrl = `${webUrl}/api/v1/agents/${result.bot.id}/events`;
-        break;
-      case "OPENAI_COMPAT":
-        response.chatCompletionsUrl = `${webUrl}/api/v1/chat/completions`;
-        response.modelsUrl = `${webUrl}/api/v1/models`;
-        break;
-    }
-
-    return NextResponse.json(response, { status: 201 });
+    return NextResponse.json(
+      {
+        id: result.bot.id,
+        name: result.bot.name,
+        connectionMethod: result.connectionMethod,
+        apiKey: result.apiKey,
+        ...connectionInfo,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Non-BYOK agent creation failed:", error);
     return NextResponse.json(

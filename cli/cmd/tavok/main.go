@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TavokAI/Tavok/cli/internal/agents"
 	"github.com/TavokAI/Tavok/cli/internal/bootstrap"
 )
 
@@ -41,7 +42,7 @@ func runInit(args []string) {
 	output := flags.String("output", ".env", "Path to the generated env file")
 	force := flags.Bool("force", false, "Overwrite the output file if it already exists")
 	email := flags.String("email", "admin@tavok.local", "Admin email for bootstrap")
-	flags.Bool("yes", false, "Skip prompts, use defaults (kept for backwards compat)")
+	yes := flags.Bool("yes", false, "Skip interactive prompts, use defaults")
 	flags.Parse(args)
 
 	// Determine working directory (use cwd)
@@ -230,12 +231,44 @@ func runInit(args []string) {
 		fmt.Fprintf(os.Stderr, "WARNING: could not write .gitignore: %v\n", err)
 	}
 
+	// ── Phase 6.5: Agent setup ──
+
+	var createdAgents []agents.CreatedAgent
+
+	configPath := filepath.Join(dir, "tavok-agents.yml")
+	if agents.ConfigFileExists(dir) {
+		// Mode A: Config file
+		fmt.Println()
+		fmt.Println("  Found tavok-agents.yml")
+		created, agentErr := agents.RunFromConfig(baseURL, secrets.AdminToken, result.Server.ID, configPath)
+		if agentErr != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: agent setup from config: %v\n", agentErr)
+		} else {
+			createdAgents = created
+		}
+	} else {
+		// Mode B: Interactive wizard
+		created, agentErr := agents.RunInteractive(baseURL, secrets.AdminToken, result.Server.ID, *yes)
+		if agentErr != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: agent setup: %v\n", agentErr)
+		} else {
+			createdAgents = created
+		}
+	}
+
+	// Write agent credentials if any were created
+	if len(createdAgents) > 0 {
+		if err := agents.WriteAgentCredentials(dir, createdAgents); err != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: could not write .tavok-agents.json: %v\n", err)
+		}
+	}
+
 	// ── Phase 7: Print summary ──
 
 	fmt.Println()
 	fmt.Printf("  Tavok %s is running at %s\n", version, result.URLs.Web)
 	fmt.Println()
-	fmt.Println("  ── Human login (web UI) ──")
+	fmt.Println("  ── Login ──")
 	fmt.Printf("    Email:    %s\n", *email)
 	fmt.Printf("    Password: %s\n", adminPassword)
 	fmt.Printf("    Open %s and sign in with these credentials.\n", result.URLs.Web)
@@ -243,18 +276,18 @@ func runInit(args []string) {
 	fmt.Println()
 	fmt.Printf("  Server: %q (%s)\n", result.Server.Name, result.Server.ID)
 	fmt.Printf("  Channel: #%s (%s)\n", result.Channel.Name, result.Channel.ID)
+
+	if len(createdAgents) > 0 {
+		fmt.Println()
+		fmt.Println("  ── Agents ──")
+		for _, a := range createdAgents {
+			fmt.Printf("    • %s (%s)\n", a.Name, a.ConnectionMethod)
+		}
+		fmt.Println("    Credentials saved to .tavok-agents.json")
+	}
+
 	fmt.Println()
-	fmt.Println("  ── Agent registration (agents do NOT use email/password) ──")
-	fmt.Printf("    curl -s -X POST %s/api/v1/agents/register \\\n", result.URLs.Web)
-	fmt.Println("      -H \"Content-Type: application/json\" \\")
-	fmt.Printf("      -d '{\"displayName\":\"MyBot\",\"serverId\":\"%s\"}'\n", result.Server.ID)
-	fmt.Println()
-	fmt.Println("    Returns an API key (sk-tvk-...). Agents connect with:")
-	fmt.Println("      WebSocket: ws://localhost:4001/socket/websocket?api_key=sk-tvk-...")
-	fmt.Printf("      Join topic: room:%s\n", result.Channel.ID)
-	fmt.Println()
-	fmt.Println("    Topic pattern: room:{channelId} for chat channels, dm:{dmId} for DMs.")
-	fmt.Println("    List channels: GET /api/v1/agents/{agentId}/server (Bearer sk-tvk-...)")
+	fmt.Printf("  Manage agents: open %s → Agents panel, or re-run tavok init\n", result.URLs.Web)
 }
 
 // runBootstrapFromExisting handles the case where .env already exists (idempotent re-run).
@@ -410,5 +443,6 @@ func printUsage() {
 	fmt.Println("  2. Pulls pre-built Docker images from ghcr.io")
 	fmt.Println("  3. Starts all services")
 	fmt.Println("  4. Creates admin account and default server")
-	fmt.Println("  5. Writes .tavok.json for SDK auto-discovery")
+	fmt.Println("  5. Interactive agent setup (or reads tavok-agents.yml)")
+	fmt.Println("  6. Writes .tavok.json and .tavok-agents.json for SDK auto-discovery")
 }

@@ -21,8 +21,7 @@ export type ModalView =
   | "rest-form"
   | "sse-form"
   | "openai-form"
-  | "credentials"
-  | "settings";
+  | "credentials";
 
 export interface AgentListItem {
   id: string;
@@ -38,7 +37,6 @@ export interface AgentListItem {
   triggerMode: string;
   thinkingSteps: string | null;
   connectionMethod: ConnectionMethodType | null; // null = BYOK
-  approvalStatus: "PENDING" | "APPROVED" | "REJECTED" | null; // null = BYOK
   capabilities: unknown;
   createdAt: string;
 }

@@ -1,10 +1,10 @@
 import crypto from "crypto";
 
 /**
- * Admin token authentication for the bootstrap endpoint.
+ * Admin token authentication for bootstrap endpoints.
  *
  * Validates the TAVOK_ADMIN_TOKEN from .env against the Authorization header.
- * Narrowly scoped — only used by POST /api/v1/bootstrap. Not a general admin key.
+ * Used by POST /api/v1/bootstrap and POST /api/v1/bootstrap/agents.
  *
  * Security properties:
  * - Constant-time comparison (crypto.timingSafeEqual) to prevent timing attacks

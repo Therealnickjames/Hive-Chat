@@ -15,7 +15,7 @@ Quick start::
 """
 
 from .agent import Agent
-from .auth import deregister_agent, register_agent, update_agent
+from .auth import deregister_agent, discover_credentials, update_agent
 from .config import TavokConfig
 from .rest import PollMessage, RestAgent, RestStream
 from .stream import StreamContext
@@ -23,7 +23,6 @@ from .types import (
     AuthorType,
     Message,
     MessageType,
-    RegistrationResult,
     StreamComplete,
     StreamError,
     StreamStart,
@@ -38,7 +37,6 @@ __all__ = [
     "Message",
     "MessageType",
     "PollMessage",
-    "RegistrationResult",
     "RestAgent",
     "RestStream",
     "StreamComplete",
@@ -52,7 +50,7 @@ __all__ = [
     "WebhookHandler",
     "WebhookVerificationError",
     "deregister_agent",
-    "register_agent",
+    "discover_credentials",
     "update_agent",
 ]
 

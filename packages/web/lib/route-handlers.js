@@ -508,7 +508,7 @@ export function createServerChannelPatchHandler({
 }
 
 // ============================================================
-// AGENT SELF-REGISTRATION HANDLERS (DEC-0040)
+// AGENT HANDLERS (DEC-0040)
 // ============================================================
 
 /**
@@ -517,128 +517,6 @@ export function createServerChannelPatchHandler({
  */
 export function hashApiKey(apiKey) {
   return crypto.createHash("sha256").update(apiKey).digest("hex");
-}
-
-/**
- * POST /api/v1/agents/register
- * Creates Bot + AgentRegistration, returns API key once.
- */
-export function createAgentRegisterHandler({
-  prismaClient,
-  generateIdFn,
-  generateKeyFn,
-}) {
-  return async function agentRegisterHandler(request) {
-    let body;
-    try {
-      const parsedBody = await request.json();
-      if (!isJsonObjectBody(parsedBody)) {
-        return NextResponse.json(
-          { error: "Invalid JSON body" },
-          { status: 400 },
-        );
-      }
-      body = parsedBody;
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    const displayName = body.displayName;
-    const serverId = body.serverId;
-    const model = body.model;
-    const capabilities = body.capabilities;
-    const healthUrl = body.healthUrl;
-    const webhookUrl = body.webhookUrl;
-    const systemPrompt = body.systemPrompt;
-    const avatarUrl = body.avatarUrl;
-
-    if (
-      !displayName ||
-      typeof displayName !== "string" ||
-      displayName.trim().length === 0
-    ) {
-      return NextResponse.json(
-        { error: "displayName is required" },
-        { status: 400 },
-      );
-    }
-
-    if (!serverId || typeof serverId !== "string") {
-      return NextResponse.json(
-        { error: "serverId is required" },
-        { status: 400 },
-      );
-    }
-
-    const server = await prismaClient.server.findUnique({
-      where: { id: serverId },
-      select: { id: true },
-    });
-
-    if (!server) {
-      return NextResponse.json({ error: "Server not found" }, { status: 404 });
-    }
-
-    const apiKey = generateKeyFn
-      ? generateKeyFn()
-      : `sk-tvk-${crypto.randomBytes(32).toString("base64url")}`;
-    const apiKeyHash = hashApiKey(apiKey);
-
-    const botId = generateIdFn ? generateIdFn() : generateId();
-    const registrationId = generateIdFn ? generateIdFn() : generateId();
-
-    try {
-      const result = await prismaClient.$transaction(async (tx) => {
-        const bot = await tx.bot.create({
-          data: {
-            id: botId,
-            name: displayName.trim(),
-            avatarUrl: avatarUrl,
-            serverId,
-            llmProvider: "custom",
-            llmModel: model || "custom",
-            apiEndpoint: "",
-            apiKeyEncrypted: "",
-            systemPrompt: systemPrompt || "",
-            temperature: 0.7,
-            maxTokens: 4096,
-            isActive: true,
-            triggerMode: "MENTION",
-          },
-        });
-
-        const registration = await tx.agentRegistration.create({
-          data: {
-            id: registrationId,
-            botId: bot.id,
-            apiKeyHash,
-            capabilities: Array.isArray(capabilities) ? capabilities : [],
-            healthUrl: healthUrl,
-            webhookUrl: webhookUrl,
-          },
-        });
-
-        return { bot, registration };
-      });
-
-      return NextResponse.json(
-        {
-          agentId: result.bot.id,
-          apiKey,
-          websocketUrl: "ws://localhost:4001/socket/websocket",
-          serverId,
-          capabilities: result.registration.capabilities,
-        },
-        { status: 201 },
-      );
-    } catch (error) {
-      console.error("Agent registration failed:", error);
-      return NextResponse.json(
-        { error: "Registration failed" },
-        { status: 500 },
-      );
-    }
-  };
 }
 
 /**

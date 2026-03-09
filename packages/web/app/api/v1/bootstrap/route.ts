@@ -11,8 +11,8 @@ import { RateLimiter, getClientIp } from "@/lib/rate-limit";
 /**
  * POST /api/v1/bootstrap — First-run setup endpoint.
  *
- * Creates admin user, default server with #general channel, and enables
- * agent self-registration. Called by the CLI after services are healthy.
+ * Creates admin user, default server with #general channel.
+ * Called by the CLI after services are healthy.
  *
  * Three independent guards (defense in depth):
  * 1. Admin token required (TAVOK_ADMIN_TOKEN from .env)
@@ -105,8 +105,6 @@ export async function POST(request: Request) {
           id: serverId,
           name: data.serverName,
           ownerId: userId,
-          allowAgentRegistration: true,
-          registrationApprovalRequired: false,
         },
       }),
       prisma.channel.create({

@@ -1,76 +1,72 @@
-"""Tavok SDK authentication and registration.
+"""Tavok SDK authentication and credential discovery.
 
-Handles agent registration via the REST API and API key storage.
+Handles API key discovery from .tavok-agents.json and agent management
+via the REST API.
 """
 
 from __future__ import annotations
 
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
 import httpx
 
-from .types import RegistrationResult
+logger = logging.getLogger("tavok")
+
+_MAX_WALK_DEPTH = 10
 
 
-async def register_agent(
-    *,
-    base_url: str,
-    server_id: str,
-    display_name: str,
-    model: str | None = None,
-    avatar_url: str | None = None,
-    capabilities: list[str] | None = None,
-    health_url: str | None = None,
-    webhook_url: str | None = None,
-    max_tokens_sec: int | None = None,
-) -> RegistrationResult:
-    """Register a new agent with a Tavok server.
+def discover_credentials(name: str) -> dict[str, Any] | None:
+    """Discover agent credentials from .tavok-agents.json.
+
+    Walks up from the current directory looking for a ``.tavok-agents.json``
+    file containing credentials for an agent with the given name.
 
     Args:
-        base_url: The Tavok web server URL (e.g. ``http://localhost:5555``).
-        server_id: ULID of the server to join.
-        display_name: Agent display name shown in chat.
-        model: LLM model identifier (e.g. ``claude-sonnet-4-20250514``).
-        avatar_url: URL for the agent's avatar image.
-        capabilities: List of capability strings (e.g. ``["chat", "code"]``).
-        health_url: Health check endpoint the platform can ping.
-        webhook_url: Webhook endpoint for receiving events via HTTP.
-        max_tokens_sec: Maximum tokens per second for streaming.
+        name: The agent name to look up.
 
     Returns:
-        :class:`RegistrationResult` with ``agent_id``, ``api_key``, and
-        ``websocket_url``.
-
-    Raises:
-        httpx.HTTPStatusError: If the registration request fails.
+        A dict with ``id``, ``apiKey``, ``connectionMethod`` if found,
+        or ``None`` if no matching credentials exist.
     """
-    url = f"{base_url.rstrip('/')}/api/v1/agents/register"
+    try:
+        current = Path.cwd()
+    except OSError:
+        return None
 
-    body: dict = {
-        "serverId": server_id,
-        "displayName": display_name,
-    }
-    if model is not None:
-        body["model"] = model
-    if avatar_url is not None:
-        body["avatarUrl"] = avatar_url
-    if capabilities is not None:
-        body["capabilities"] = capabilities
-    if health_url is not None:
-        body["healthUrl"] = health_url
-    if webhook_url is not None:
-        body["webhookUrl"] = webhook_url
-    if max_tokens_sec is not None:
-        body["maxTokensSec"] = max_tokens_sec
+    for _ in range(_MAX_WALK_DEPTH):
+        candidate = current / ".tavok-agents.json"
+        if candidate.is_file():
+            try:
+                with open(candidate) as f:
+                    data = json.load(f)
+                agents = data.get("agents", [])
+                for agent in agents:
+                    if agent.get("name") == name:
+                        logger.info(
+                            "Discovered credentials for '%s' from %s",
+                            name,
+                            candidate,
+                        )
+                        return agent
+                logger.debug(
+                    "No agent named '%s' in %s", name, candidate
+                )
+                return None
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning(
+                    "Failed to read %s: %s", candidate, exc
+                )
+                return None
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=body, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
+        parent = current.parent
+        if parent == current:
+            break  # filesystem root
+        current = parent
 
-    return RegistrationResult(
-        agent_id=data["agentId"],
-        api_key=data["apiKey"],
-        websocket_url=data.get("websocketUrl", ""),
-    )
+    return None
 
 
 async def update_agent(

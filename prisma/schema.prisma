@@ -94,10 +94,6 @@ model Server {
   iconUrl   String?
   ownerId   String   @db.VarChar(26)
 
-  // Agent registration settings (DEC-0047)
-  allowAgentRegistration       Boolean @default(false) // whether external agents can self-register
-  registrationApprovalRequired Boolean @default(true)  // require owner approval for self-registered agents
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -319,11 +315,6 @@ model AgentRegistration {
   sseEnabled         Boolean  @default(false)   // whether SSE event endpoint is active for this agent
   openaiSystemPrompt String?  @db.Text          // override system prompt for OpenAI-compat mode
 
-  // Approval flow (DEC-0047)
-  approvalStatus ApprovalStatus @default(APPROVED) // APPROVED default = backward compat for existing agents
-  reviewedBy     String?        @db.VarChar(26)    // userId of who approved/rejected
-  reviewedAt     DateTime?
-
   // Relation: each AgentRegistration owns exactly one Bot
   bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
 
@@ -521,13 +512,6 @@ enum TriggerMode {
   ALWAYS
   MENTION
   KEYWORD
-}
-
-// Agent registration approval status (DEC-0047)
-enum ApprovalStatus {
-  PENDING   // Awaiting server owner approval
-  APPROVED  // Approved and active
-  REJECTED  // Rejected by server owner
 }
 
 // Agent connection method — how an agent communicates with Tavok (DEC-0043)

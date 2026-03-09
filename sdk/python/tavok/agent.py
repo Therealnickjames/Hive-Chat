@@ -1,13 +1,14 @@
 """Tavok SDK Agent — the main user-facing class.
 
-An Agent registers with a Tavok server, connects via WebSocket, and
-responds to messages with optional token streaming.
+An Agent connects via WebSocket and responds to messages with optional
+token streaming. Credentials are auto-discovered from ``.tavok-agents.json``
+(written by ``tavok init``) or provided via environment variables.
 
 Minimal example::
 
     from tavok import Agent
 
-    agent = Agent(name="my-agent")
+    agent = Agent(name="Jack")  # auto-discovers credentials
 
     @agent.on_mention
     async def handle(msg):
@@ -15,7 +16,7 @@ Minimal example::
             await s.token("Hello! ")
             await s.token("I'm an agent.")
 
-    agent.run()  # auto-discovers server from .tavok.json or env vars
+    agent.run()  # connects and runs forever
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ import sys
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from .auth import register_agent
+from .auth import discover_credentials
 from .config import TavokConfig
 from .stream import StreamContext
 from .types import Message, StreamComplete, StreamError, StreamStart, StreamToken
@@ -43,17 +44,26 @@ MessageHandler = Callable[[Message], Coroutine[Any, Any, None]]
 class Agent:
     """A Tavok agent that connects via WebSocket and responds to messages.
 
-    All connection parameters are optional. The agent discovers configuration
-    from (in order): explicit arguments, environment variables, ``.tavok.json``
-    file, then localhost defaults.
+    Credentials are resolved in order:
+
+    1. Explicit ``api_key`` / ``agent_id`` arguments
+    2. ``TAVOK_API_KEY`` / ``TAVOK_AGENT_ID`` environment variables
+    3. Auto-discovery from ``.tavok-agents.json`` (by ``name``)
+
+    Connection topology is resolved from:
+
+    1. Explicit ``url`` / ``api_url`` arguments
+    2. ``TAVOK_URL`` / ``TAVOK_GATEWAY_URL`` environment variables
+    3. ``.tavok.json`` file (written by ``tavok init``)
+    4. Localhost defaults
 
     Args:
         url: Gateway WebSocket URL (e.g. ``ws://localhost:4001``).
         api_url: Web server URL for REST API (e.g. ``http://localhost:5555``).
-        name: Display name for the agent.
-        api_key: Existing API key. If not provided, the agent will register
-            on :meth:`start` and receive a new key. Also reads ``TAVOK_API_KEY``.
-        agent_id: Existing agent/bot ULID. Required if ``api_key`` is provided.
+        name: Agent name. Used for auto-discovery from ``.tavok-agents.json``.
+        api_key: API key. If not provided, auto-discovered by name.
+            Also reads ``TAVOK_API_KEY``.
+        agent_id: Agent/bot ULID. If not provided, auto-discovered by name.
             Also reads ``TAVOK_AGENT_ID``.
         server_id: Default server ULID. Also discovered from ``.tavok.json``.
         channel_ids: Default channel ULIDs. Also discovered from ``.tavok.json``.
@@ -84,6 +94,19 @@ class Agent:
         self._name = name
         self._api_key = api_key or os.environ.get("TAVOK_API_KEY")
         self._agent_id = agent_id or os.environ.get("TAVOK_AGENT_ID")
+
+        # Auto-discover credentials from .tavok-agents.json if not provided
+        if not self._api_key:
+            creds = discover_credentials(name)
+            if creds:
+                self._api_key = creds.get("apiKey")
+                self._agent_id = self._agent_id or creds.get("id")
+                logger.info(
+                    "Auto-discovered credentials for '%s' (id=%s)",
+                    name,
+                    self._agent_id,
+                )
+
         self._default_server_id = server_id or config.server_id
         self._default_channel_ids = channel_ids or (
             [config.channel_id] if config.channel_id else None
@@ -110,12 +133,12 @@ class Agent:
 
     @property
     def agent_id(self) -> str | None:
-        """The agent's bot ULID (available after registration)."""
+        """The agent's bot ULID."""
         return self._agent_id
 
     @property
     def api_key(self) -> str | None:
-        """The agent's API key (available after registration)."""
+        """The agent's API key."""
         return self._api_key
 
     @property
@@ -233,44 +256,28 @@ class Agent:
         server_id: str | None = None,
         channel_ids: list[str] | None = None,
     ) -> None:
-        """Register (if needed), connect, and join channels.
+        """Connect to the gateway and join channels.
+
+        Requires an API key — either provided explicitly, via env var,
+        or auto-discovered from ``.tavok-agents.json``. Run ``tavok init``
+        to create agent credentials.
 
         Args:
-            server_id: The server ULID to register with. If not provided,
-                uses the value from the constructor, env vars, or .tavok.json.
+            server_id: Override the default server ULID.
             channel_ids: Channel ULIDs to join. If not provided, uses
                 auto-discovered defaults. If empty list, no channels joined.
         """
-        resolved_server = server_id or self._default_server_id
         resolved_channels = channel_ids if channel_ids is not None else self._default_channel_ids
 
-        # Step 1: Register if we don't have an API key
         if not self._api_key:
-            if not resolved_server:
-                raise ValueError(
-                    "server_id is required for agent registration. "
-                    "Provide it to start(), Agent(), set TAVOK_SERVER_ID, "
-                    "or run 'npx tavok init' to create .tavok.json."
-                )
-            logger.info("Registering agent '%s' with server %s", self._name, resolved_server)
-            result = await register_agent(
-                base_url=self._api_url,
-                server_id=resolved_server,
-                display_name=self._name,
-                model=self._model,
-                capabilities=self._capabilities,
-                avatar_url=self._avatar_url,
-            )
-            self._api_key = result.api_key
-            self._agent_id = result.agent_id
-            logger.info(
-                "Registered: agent_id=%s, api_key=%s...%s",
-                self._agent_id,
-                self._api_key[:12],
-                self._api_key[-4:],
+            raise ValueError(
+                f"No API key found for agent '{self._name}'. "
+                "Run 'tavok init' to create agent credentials in "
+                ".tavok-agents.json, set TAVOK_API_KEY env var, "
+                "or pass api_key= to Agent()."
             )
 
-        # Step 2: Connect WebSocket
+        # Connect WebSocket
         ws_url = f"{self._gateway_url}/socket/websocket"
         self._socket = PhoenixSocket(
             ws_url, params={"api_key": self._api_key}
@@ -323,16 +330,15 @@ class Agent:
         server_id: str | None = None,
         channel_ids: list[str] | None = None,
     ) -> None:
-        """Blocking entry point — registers, connects, and runs forever.
+        """Blocking entry point — connects and runs forever.
 
         This is the simplest way to run an agent::
 
-            agent = Agent(name="my-agent")
-            agent.run()  # auto-discovers from .tavok.json
+            agent = Agent(name="Jack")
+            agent.run()  # auto-discovers credentials from .tavok-agents.json
 
         Args:
-            server_id: The server ULID. Optional if discoverable from
-                constructor, env vars, or .tavok.json.
+            server_id: Override the default server ULID.
             channel_ids: Channel ULIDs to join.
         """
         async def _main() -> None:

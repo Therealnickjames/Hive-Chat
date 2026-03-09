@@ -1251,3 +1251,23 @@ model AgentRegistration {
 5. **Log noise reduction**: Gateway downgrades `verify_agent_api_key` log from `warning` to `debug` for 401/404 responses (expected auth rejections). Web suppresses NextAuth `JWT_SESSION_ERROR` (expected after secret rotation).
 
 **Consequences**: Agent developers get a complete onboarding path from registration through channel discovery to WebSocket join. Secrets are protected from accidental git commits. Operators see cleaner logs.
+
+---
+
+## DEC-0060: Remove agent self-registration, add CLI agent setup
+
+**Date**: 2026-03-09
+**Status**: Accepted
+**Context**: The self-registration flow (`POST /api/v1/agents/register`) required agents to register themselves, which added complexity (approval flow, registration settings) and friction (users had to enable registration, agents had to discover the endpoint and handle registration). The target user (using frameworks like OpenClaw, LangGraph, CrewAI) wants to add agents from the CLI during setup, not have agents register themselves.
+
+**Decision**: Invert the onboarding model — users add agents, not agents adding themselves.
+
+1. **New `POST /api/v1/bootstrap/agents` endpoint**: Admin-token-authenticated, creates agents from the CLI. Returns API key. Reuses `createAgent()` from shared `agent-factory.ts`.
+
+2. **CLI agent setup phase** (Phase 6.5 in `tavok init`): 1-question interactive wizard — just the agent name. Default connection method: WEBSOCKET. Credentials saved to `.tavok-agents.json` (mode 0600, gitignored). Supports declarative `tavok-agents.yml` config file for repeatable deployments.
+
+3. **SDK auto-discovery**: `Agent(name="Jack")` walks up directories for `.tavok-agents.json`, finds credentials automatically. Falls back to `TAVOK_API_KEY` env var, then explicit `api_key=` param.
+
+4. **Removed**: `POST /api/v1/agents/register` endpoint, approve/reject endpoints, agent-settings endpoint, `ApprovalStatus` enum, `allowAgentRegistration`/`registrationApprovalRequired` server fields, approval UI components.
+
+**Consequences**: Zero-friction agent setup — name the agent, done. No copying keys, no editing config files. Self-registration and approval flow completely removed. Protocol bumped to v4.0.
