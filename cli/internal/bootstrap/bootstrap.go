@@ -259,7 +259,7 @@ func WriteTavokConfig(dir string, cfg TavokConfig) error {
 // WriteCredentials writes admin credentials to .tavok-credentials (mode 0600).
 func WriteCredentials(dir, email, password string) error {
 	content := fmt.Sprintf(
-		"# Tavok Admin Credentials\n# DELETE THIS FILE after your first login\nemail=%s\npassword=%s\n",
+		"# Tavok Admin Credentials — for HUMAN web UI login only\n# Agents use API keys from POST /api/v1/agents/register\n# DELETE THIS FILE after your first login\nemail=%s\npassword=%s\n",
 		email, password,
 	)
 	return os.WriteFile(filepath.Join(dir, ".tavok-credentials"), []byte(content), 0o600)
