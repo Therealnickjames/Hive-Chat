@@ -108,7 +108,7 @@ function New-EncryptedApiKey([string]$Plaintext) {
   $script = "const c=require('crypto');const i=Buffer.from(process.env.HIVE_TEST_API_KEY_B64,'base64').toString('utf8');const kHex=process.env.ENCRYPTION_KEY;if(!kHex||kHex.length!==64){process.stderr.write('invalid ENCRYPTION_KEY');process.exit(1);}const k=Buffer.from(kHex,'hex');const iv=c.randomBytes(12);const x=c.createCipheriv('aes-256-gcm',k,iv);let e=x.update(i,'utf8','hex');e+=x.final('hex');process.stdout.write(iv.toString('hex')+':'+x.getAuthTag().toString('hex')+':'+e);"
   $ciphertext = & docker compose -f $ComposePath exec -T -e "HIVE_TEST_API_KEY_B64=$apiKeyB64" web node -e $script
   if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ciphertext)) {
-    throw "Failed to generate encrypted API key for bot fixture"
+    throw "Failed to generate encrypted API key for agent fixture"
   }
 
   return $ciphertext.Trim()
@@ -863,7 +863,7 @@ $userBId = New-TestId
 $serverId = New-TestId
 $channelId = New-TestId
 $memberId = New-TestId
-$botId = New-TestId
+$agentId = New-TestId
 $userCNonce = New-TestId
 $dmChannelId = New-TestId
 $dmMessageId = New-TestId
@@ -876,7 +876,7 @@ $webStopped = $false
 
 Ensure-ServicesRunning
 $mockOpenAiPid = Start-MockOpenAiSseServer
-$botApiKeyEncrypted = New-EncryptedApiKey -Plaintext "test-api-key"
+$agentApiKeyEncrypted = New-EncryptedApiKey -Plaintext "test-api-key"
 $bcryptHash = New-BcryptHash -Password $testPassword
 
 try {
@@ -893,8 +893,8 @@ INSERT INTO "Server" (id, name, "ownerId", "createdAt", "updatedAt")
 VALUES ('$serverId', '$testPrefix server', '$userAId', '$now'::timestamptz, '$now'::timestamptz);
 INSERT INTO "Channel" (id, "serverId", name, position, "createdAt", "updatedAt")
 VALUES ('$channelId', '$serverId', '$testPrefix channel', 0, '$now'::timestamptz, '$now'::timestamptz);
-INSERT INTO "Bot" (id, name, "serverId", "llmProvider", "llmModel", "apiEndpoint", "apiKeyEncrypted", "systemPrompt", temperature, "maxTokens", "isActive", "triggerMode", "createdAt", "updatedAt")
-VALUES ('$botId', '$testPrefix bot', '$serverId', 'custom', 'gpt-4o-mini', 'http://web:3909', '$botApiKeyEncrypted', 'You are helpful.', 0.7, 512, true, 'ALWAYS', '$now'::timestamptz, '$now'::timestamptz);
+INSERT INTO "Agent" (id, name, "serverId", "llmProvider", "llmModel", "apiEndpoint", "apiKeyEncrypted", "systemPrompt", temperature, "maxTokens", "isActive", "triggerMode", "createdAt", "updatedAt")
+VALUES ('$agentId', '$testPrefix agent', '$serverId', 'custom', 'gpt-4o-mini', 'http://web:3909', '$agentApiKeyEncrypted', 'You are helpful.', 0.7, 512, true, 'ALWAYS', '$now'::timestamptz, '$now'::timestamptz);
 INSERT INTO "Member" (id, "userId", "serverId", "joinedAt")
 VALUES
 ('$memberId', '$userAId', '$serverId', '$now'::timestamptz),
@@ -1017,8 +1017,8 @@ COMMIT;
   $placeholderBody = @{
     id = $placeholderId
     channelId = $channelId
-    authorId = $botId
-    authorType = "BOT"
+    authorId = $agentId
+    authorType = "AGENT"
     content = ""
     type = "STREAMING"
     streamingStatus = "ACTIVE"
@@ -1026,10 +1026,10 @@ COMMIT;
   }
 
   $postPlaceholder = Invoke-CurlJson -Url "$webUrl/api/internal/messages" -Method POST -Headers @{ "x-internal-secret" = $internalSecret } -Body $placeholderBody
-  Assert "K-004 BOT placeholder POST returns 201" ($postPlaceholder.StatusCode -eq 201) ("status=" + $postPlaceholder.StatusCode + " body=" + $postPlaceholder.BodyText)
+  Assert "K-004 AGENT placeholder POST returns 201" ($postPlaceholder.StatusCode -eq 201) ("status=" + $postPlaceholder.StatusCode + " body=" + $postPlaceholder.BodyText)
   $postPlaceholderPayload = $postPlaceholder.BodyText | ConvertFrom-Json
-  Assert "K-004 BOT placeholder response includes id" ($postPlaceholderPayload.id -eq $placeholderId)
-  Assert "K-004 BOT placeholder response has STREAMING ACTIVE state" (
+  Assert "K-004 AGENT placeholder response includes id" ($postPlaceholderPayload.id -eq $placeholderId)
+  Assert "K-004 AGENT placeholder response has STREAMING ACTIVE state" (
     $postPlaceholderPayload.type -eq "STREAMING" -and
     $postPlaceholderPayload.streamingStatus -eq "ACTIVE"
   )
@@ -1043,9 +1043,9 @@ COMMIT;
     $placeholder.streamingStatus -eq "ACTIVE"
   )
 
-  # End-to-end bot trigger: persist placeholder -> stream_start -> stream_token -> stream_complete
-  Invoke-Psql "UPDATE ""Channel"" SET ""defaultBotId"" = '$botId' WHERE id = '$channelId';"
-  # Invalidate Gateway config cache so it picks up the new defaultBotId
+  # End-to-end agent trigger: persist placeholder -> stream_start -> stream_token -> stream_complete
+  Invoke-Psql "UPDATE ""Channel"" SET ""defaultAgentId"" = '$agentId' WHERE id = '$channelId';"
+  # Invalidate Gateway config cache so it picks up the new defaultAgentId
   Invoke-CurlJson -Url "http://localhost:4001/api/internal/cache?channelId=$channelId" -Method DELETE -Headers @{ "x-internal-secret" = $internalSecret }
   $ref = [string](Get-Random)
   Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "new_message" -Payload @{ content = "trigger stream token flow" } -Ref $ref
@@ -1085,7 +1085,7 @@ COMMIT;
 
   # K-005
   Write-Header "K-005: Error path terminal event delivery (unreachable endpoint)"
-  Invoke-Psql "UPDATE ""Bot"" SET ""apiEndpoint"" = 'http://192.0.2.1:9999' WHERE id = '$botId';"
+  Invoke-Psql "UPDATE ""Agent"" SET ""apiEndpoint"" = 'http://192.0.2.1:9999' WHERE id = '$agentId';"
 
   $ref = [string](Get-Random)
   Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "new_message" -Payload @{ content = "trigger unreachable endpoint error" } -Ref $ref
@@ -1121,7 +1121,7 @@ COMMIT;
   if ([string]::IsNullOrWhiteSpace($mockTimeoutPid)) {
     $mockTimeoutPid = Start-StallTokenSseServer
   }
-  Invoke-Psql "UPDATE ""Bot"" SET ""apiEndpoint"" = 'http://web:3910' WHERE id = '$botId';"
+  Invoke-Psql "UPDATE ""Agent"" SET ""apiEndpoint"" = 'http://web:3910' WHERE id = '$agentId';"
 
   $ref = [string](Get-Random)
   Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "new_message" -Payload @{ content = "trigger token timeout path" } -Ref $ref
@@ -1167,7 +1167,7 @@ services:
     $k8JoinReply = Wait-PhxReply -Socket $memberSocket -Ref $ref
     Assert "K-008 member socket rejoins after gateway restart" ($k8JoinReply.payload.status -eq "ok")
 
-    Invoke-Psql "UPDATE ""Bot"" SET ""apiEndpoint"" = 'http://192.0.2.1:9999' WHERE id = '$botId';"
+    Invoke-Psql "UPDATE ""Agent"" SET ""apiEndpoint"" = 'http://192.0.2.1:9999' WHERE id = '$agentId';"
 
     $ref = [string](Get-Random)
     Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "new_message" -Payload @{ content = "trigger watchdog force-terminate path" } -Ref $ref
@@ -1424,7 +1424,7 @@ services:
   # Fetch the latest user messages to get a valid messageId
   $k13Fetch = Invoke-CurlJson -Url "$webUrl/api/internal/messages?channelId=$channelId&afterSequence=0&limit=50" -Method GET -Headers @{ "x-internal-secret" = $internalSecret }
   $k13Payload = $k13Fetch.BodyText | ConvertFrom-Json
-  $k13UserMsg = @($k13Payload.messages | Where-Object { $_.authorType -ne "BOT" -and $_.streamingStatus -ne "ACTIVE" }) | Select-Object -First 1
+  $k13UserMsg = @($k13Payload.messages | Where-Object { $_.authorType -ne "AGENT" -and $_.streamingStatus -ne "ACTIVE" }) | Select-Object -First 1
   Assert "K-013 precondition: found a user-authored message to edit" ($null -ne $k13UserMsg)
   $k13MsgId = $k13UserMsg.id
 
@@ -1474,11 +1474,11 @@ services:
   Assert "K-013 empty content edit rejected" ($k13EmptyReply.payload.status -eq "error")
   Assert "K-013 empty content reason" ($k13EmptyReply.payload.response.reason -eq "empty_content")
 
-  # Bot message rejection: try to edit the bot's streaming message from K-004
-  $k13BotRef = [string](Get-Random)
-  Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "message_edit" -Payload @{ messageId = $streamMessageId; content = "edit bot msg" } -Ref $k13BotRef
-  $k13BotReply = Wait-PhxReply -Socket $memberSocket -Ref $k13BotRef
-  Assert "K-013 bot message edit rejected" ($k13BotReply.payload.status -eq "error") ("status=" + $k13BotReply.payload.status)
+  # Agent message rejection: try to edit the agent's streaming message from K-004
+  $k13AgentRef = [string](Get-Random)
+  Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "message_edit" -Payload @{ messageId = $streamMessageId; content = "edit agent msg" } -Ref $k13AgentRef
+  $k13AgentReply = Wait-PhxReply -Socket $memberSocket -Ref $k13AgentRef
+  Assert "K-013 agent message edit rejected" ($k13AgentReply.payload.status -eq "error") ("status=" + $k13AgentReply.payload.status)
 
   # K-014
   Write-Header "K-014: Message delete via WebSocket (TASK-0014)"
@@ -1490,7 +1490,7 @@ services:
   $k14MsgId = $k14MsgReply.payload.response.id
 
   # Happy path: author deletes own message
-  # Wait a moment for persistence to settle (bot trigger may be in flight)
+  # Wait a moment for persistence to settle (agent trigger may be in flight)
   Start-Sleep -Milliseconds 500
   $k14DelRef = [string](Get-Random)
   Send-PhxMessage -Socket $memberSocket -Topic $topic -Event "message_delete" -Payload @{ messageId = $k14MsgId } -Ref $k14DelRef
@@ -2040,7 +2040,7 @@ DELETE FROM "DirectMessageChannel" WHERE id = '$dmChannelId';
 DELETE FROM "Attachment" WHERE "userId" IN ('$userAId', '$userBId', '$userCNonce');
 DELETE FROM "Message" WHERE "channelId" = '$channelId';
 DELETE FROM "Member" WHERE id IN ('$memberId', '$memberBId');
-DELETE FROM "Bot" WHERE id = '$botId';
+DELETE FROM "Agent" WHERE id = '$agentId';
 DELETE FROM "Channel" WHERE id = '$channelId';
 DELETE FROM "Server" WHERE id = '$serverId';
 DELETE FROM "User" WHERE id IN ('$userAId', '$userBId', '$userCNonce');
