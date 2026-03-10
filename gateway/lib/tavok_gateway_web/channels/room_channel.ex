@@ -56,6 +56,19 @@ defmodule TavokGatewayWeb.RoomChannel do
     # Track presence on join
     send(self(), :after_join)
 
+    # Deliver charter to SDK agents on join
+    if socket.assigns[:author_type] == "AGENT" do
+      Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
+        case WebClient.get_channel_charter(channel_id) do
+          {:ok, charter} when is_binary(charter) and charter != "" ->
+            push(socket, "charter_update", %{channelId: channel_id, charter: charter})
+
+          _ ->
+            :ok
+        end
+      end)
+    end
+
     # If client provides lastSequence, schedule sync after join completes
     case parse_sequence(Map.get(params, "lastSequence")) do
       {:ok, nil} ->
@@ -81,7 +94,7 @@ defmodule TavokGatewayWeb.RoomChannel do
 
   defp authorize_join(channel_id, socket) do
     case socket.assigns[:author_type] do
-      "BOT" ->
+      "AGENT" ->
         # Agents can join any channel in their server (DEC-0040)
         # The agent's server_id was set during WebSocket connect auth
         authorize_agent_join(channel_id, socket.assigns[:server_id])
@@ -211,45 +224,47 @@ defmodule TavokGatewayWeb.RoomChannel do
   end
 
   @impl true
-  def handle_info({:check_bot_trigger, trigger_message_id, content}, socket) do
+  def handle_info({:check_agent_trigger, trigger_message_id, content}, socket) do
     channel_id = socket.assigns.channel_id
 
-    # Run bot trigger check in a separate Task to avoid blocking the channel process.
+    # Run agent trigger check in a separate Task to avoid blocking the channel process.
     # The channel process handles ALL messages for this room — blocking it with HTTP calls
     # would freeze message delivery for every user in the channel. (ISSUE-007)
     Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
-      # Multi-bot: try ChannelBot join table first, fall back to single defaultBot (TASK-0012)
-      case ConfigCache.get_channel_bots(channel_id) do
-        {:ok, bots} when is_list(bots) and length(bots) > 0 ->
-          # Evaluate trigger condition for each bot independently
+      # Multi-agent: try ChannelAgent join table first, fall back to single defaultAgent (TASK-0012)
+      case ConfigCache.get_channel_agents(channel_id) do
+        {:ok, agents} when is_list(agents) and length(agents) > 0 ->
+          # Evaluate trigger condition for each agent independently
           any_triggered =
-            Enum.reduce(bots, false, fn bot_config, acc ->
-              maybe_trigger_bot(socket, bot_config, trigger_message_id, content) or acc
+            Enum.reduce(agents, false, fn agent_config, acc ->
+              maybe_trigger_agent(socket, agent_config, trigger_message_id, content) or acc
             end)
 
-          maybe_emit_trigger_hint(socket, bots, content, any_triggered)
+          maybe_emit_trigger_hint(socket, agents, content, any_triggered)
 
         {:ok, _empty} ->
-          # No bots in ChannelBot table — fall back to single defaultBot (backward compat)
-          case ConfigCache.get_channel_bot(channel_id) do
+          # No agents in ChannelAgent table — fall back to single defaultAgent (backward compat)
+          case ConfigCache.get_channel_agent(channel_id) do
             {:ok, nil} ->
-              # BUG-008: Log when no bot is configured — helps diagnose BYOK trigger failures
+              # BUG-008: Log when no agent is configured — helps diagnose BYOK trigger failures
               Logger.debug(
-                "[TriggerDecision] channel=#{channel_id} no defaultBot configured — no trigger"
+                "[TriggerDecision] channel=#{channel_id} no defaultAgent configured — no trigger"
               )
 
               :noop
 
-            {:ok, bot_config} ->
-              any_triggered = maybe_trigger_bot(socket, bot_config, trigger_message_id, content)
-              maybe_emit_trigger_hint(socket, [bot_config], content, any_triggered)
+            {:ok, agent_config} ->
+              any_triggered =
+                maybe_trigger_agent(socket, agent_config, trigger_message_id, content)
+
+              maybe_emit_trigger_hint(socket, [agent_config], content, any_triggered)
 
             {:error, reason} ->
-              Logger.error("Failed to fetch channel bot: #{inspect(reason)}")
+              Logger.error("Failed to fetch channel agent: #{inspect(reason)}")
           end
 
         {:error, reason} ->
-          Logger.error("Failed to fetch channel bots: #{inspect(reason)}")
+          Logger.error("Failed to fetch channel agents: #{inspect(reason)}")
       end
     end)
 
@@ -329,8 +344,8 @@ defmodule TavokGatewayWeb.RoomChannel do
                     # 3b. Buffer for reconnection sync gap (DEC-0051)
                     MessageBuffer.buffer_message(channel_id, message_payload)
 
-                    # 4. Check for bot trigger (async — don't delay the reply)
-                    send(self(), {:check_bot_trigger, message_id, content})
+                    # 4. Check for agent trigger (async — don't delay the reply)
+                    send(self(), {:check_agent_trigger, message_id, content})
 
                     # 5. Persist in background — never blocks the channel process
                     persist_body = %{
@@ -601,6 +616,9 @@ defmodule TavokGatewayWeb.RoomChannel do
             {:ok, response} ->
               # Broadcast charter_status to all clients in the room
               Broadcast.endpoint_broadcast!("room:#{channel_id}", "charter_status", response)
+
+              # Also broadcast charter_update so SDK agents get the updated charter in real-time
+              Broadcast.endpoint_broadcast!("room:#{channel_id}", "charter_update", response)
               Logger.info("Charter #{action}: channel=#{channel_id}")
 
             {:error, reason} ->
@@ -626,12 +644,12 @@ defmodule TavokGatewayWeb.RoomChannel do
   # ---------- Agent-Originated Streaming (DEC-0040 / Session 2) ----------
   # These handlers allow agents connected via API key to stream tokens
   # directly through the WebSocket, bypassing the Go streaming proxy.
-  # Only BOT author_type connections can use these events.
+  # Only AGENT author_type connections can use these events.
 
   @impl true
   def handle_in("stream_start", payload, socket) do
     case socket.assigns[:author_type] do
-      "BOT" ->
+      "AGENT" ->
         handle_agent_stream_start(payload, socket)
 
       _ ->
@@ -642,7 +660,7 @@ defmodule TavokGatewayWeb.RoomChannel do
   @impl true
   def handle_in("stream_token", payload, socket) do
     case socket.assigns[:author_type] do
-      "BOT" ->
+      "AGENT" ->
         handle_agent_stream_token(payload, socket)
 
       _ ->
@@ -653,7 +671,7 @@ defmodule TavokGatewayWeb.RoomChannel do
   @impl true
   def handle_in("stream_complete", payload, socket) do
     case socket.assigns[:author_type] do
-      "BOT" ->
+      "AGENT" ->
         handle_agent_stream_complete(payload, socket)
 
       _ ->
@@ -664,7 +682,7 @@ defmodule TavokGatewayWeb.RoomChannel do
   @impl true
   def handle_in("stream_error", payload, socket) do
     case socket.assigns[:author_type] do
-      "BOT" ->
+      "AGENT" ->
         handle_agent_stream_error(payload, socket)
 
       _ ->
@@ -680,7 +698,7 @@ defmodule TavokGatewayWeb.RoomChannel do
         socket
       ) do
     case socket.assigns[:author_type] do
-      "BOT" ->
+      "AGENT" ->
         Broadcast.broadcast_pre_serialized!(socket, "stream_thinking", %{
           messageId: message_id,
           phase: phase,
@@ -709,10 +727,10 @@ defmodule TavokGatewayWeb.RoomChannel do
   @impl true
   def handle_in("typed_message", %{"type" => msg_type, "content" => content} = payload, socket) do
     case socket.assigns[:author_type] do
-      "BOT" when msg_type in @valid_typed_message_types ->
+      "AGENT" when msg_type in @valid_typed_message_types ->
         handle_agent_typed_message(msg_type, content, payload, socket)
 
-      "BOT" ->
+      "AGENT" ->
         {:reply, {:error, %{reason: "invalid_message_type", type: msg_type}}, socket}
 
       _ ->
@@ -727,9 +745,9 @@ defmodule TavokGatewayWeb.RoomChannel do
 
   defp handle_agent_stream_start(_payload, socket) do
     channel_id = socket.assigns.channel_id
-    bot_id = socket.assigns.user_id
-    bot_name = socket.assigns.display_name
-    bot_avatar_url = socket.assigns[:bot_avatar_url]
+    agent_id = socket.assigns.user_id
+    agent_name = socket.assigns.display_name
+    agent_avatar_url = socket.assigns[:agent_avatar_url]
 
     message_id = Ulid.generate()
 
@@ -740,9 +758,9 @@ defmodule TavokGatewayWeb.RoomChannel do
         # Broadcast stream_start to all clients
         Broadcast.broadcast_pre_serialized!(socket, "stream_start", %{
           messageId: message_id,
-          botId: bot_id,
-          botName: bot_name,
-          botAvatarUrl: bot_avatar_url,
+          agentId: agent_id,
+          agentName: agent_name,
+          agentAvatarUrl: agent_avatar_url,
           sequence: seq_str
         })
 
@@ -750,8 +768,8 @@ defmodule TavokGatewayWeb.RoomChannel do
         placeholder = %{
           id: message_id,
           channelId: channel_id,
-          authorId: bot_id,
-          authorType: "BOT",
+          authorId: agent_id,
+          authorType: "AGENT",
           content: "",
           type: "STREAMING",
           streamingStatus: "ACTIVE",
@@ -876,9 +894,9 @@ defmodule TavokGatewayWeb.RoomChannel do
 
   defp handle_agent_typed_message(msg_type, content, payload, socket) do
     channel_id = socket.assigns.channel_id
-    bot_id = socket.assigns.user_id
-    bot_name = socket.assigns.display_name
-    bot_avatar_url = socket.assigns[:bot_avatar_url]
+    agent_id = socket.assigns.user_id
+    agent_name = socket.assigns.display_name
+    agent_avatar_url = socket.assigns[:agent_avatar_url]
     metadata = Map.get(payload, "metadata")
 
     message_id = Ulid.generate()
@@ -899,10 +917,10 @@ defmodule TavokGatewayWeb.RoomChannel do
         broadcast_payload = %{
           id: message_id,
           channelId: channel_id,
-          authorId: bot_id,
-          authorType: "BOT",
-          authorName: bot_name,
-          authorAvatarUrl: bot_avatar_url,
+          authorId: agent_id,
+          authorType: "AGENT",
+          authorName: agent_name,
+          authorAvatarUrl: agent_avatar_url,
           content: content_str,
           type: msg_type,
           streamingStatus: nil,
@@ -919,8 +937,8 @@ defmodule TavokGatewayWeb.RoomChannel do
         persist_payload = %{
           id: message_id,
           channelId: channel_id,
-          authorId: bot_id,
-          authorType: "BOT",
+          authorId: agent_id,
+          authorType: "AGENT",
           content: content_str,
           type: msg_type,
           streamingStatus: nil,
@@ -938,17 +956,17 @@ defmodule TavokGatewayWeb.RoomChannel do
     end
   end
 
-  # ---------- Bot trigger helpers ----------
+  # ---------- Agent trigger helpers ----------
 
-  # Evaluate trigger condition and run bot if matched (TASK-0012)
+  # Evaluate trigger condition and run agent if matched (TASK-0012)
   # Branches on connectionMethod to dispatch via the appropriate channel (DEC-0043)
-  defp maybe_trigger_bot(socket, bot_config, trigger_message_id, content) do
+  defp maybe_trigger_agent(socket, agent_config, trigger_message_id, content) do
     channel_id = socket.assigns.channel_id
-    trigger_mode = Map.get(bot_config, "triggerMode", "ALWAYS")
-    bot_name = Map.get(bot_config, "name", "")
-    bot_id = Map.get(bot_config, "id", "")
-    connection_method = Map.get(bot_config, "connectionMethod", "WEBSOCKET")
-    has_mention = String.contains?(content, "@#{bot_name}")
+    trigger_mode = Map.get(agent_config, "triggerMode", "ALWAYS")
+    agent_name = Map.get(agent_config, "name", "")
+    agent_id = Map.get(agent_config, "id", "")
+    connection_method = Map.get(agent_config, "connectionMethod", "WEBSOCKET")
+    has_mention = String.contains?(content, "@#{agent_name}")
 
     should_trigger =
       case trigger_mode do
@@ -958,28 +976,38 @@ defmodule TavokGatewayWeb.RoomChannel do
       end
 
     Logger.info(
-      "[TriggerDecision] channel=#{channel_id} bot=#{bot_id} mode=#{trigger_mode} method=#{connection_method} " <>
+      "[TriggerDecision] channel=#{channel_id} agent=#{agent_id} mode=#{trigger_mode} method=#{connection_method} " <>
         "should_trigger=#{should_trigger} has_mention=#{has_mention} content_len=#{String.length(content)}"
     )
 
     if should_trigger do
       case connection_method do
-        "WEBSOCKET" ->
-          run_bot_trigger(socket, bot_config, trigger_message_id, content)
+        nil ->
+          # BYOK agent — Go Proxy handles LLM
+          run_byok_trigger(socket, agent_config, trigger_message_id, content)
           true
 
+        "WEBSOCKET" ->
+          # SDK agent — already connected, responds independently via stream_start
+          # Do NOT trigger Go Proxy (causes dual-response error)
+          Logger.info(
+            "[TriggerDecision] channel=#{channel_id} agent=#{agent_id} SDK agent (WEBSOCKET), skipping BYOK trigger"
+          )
+
+          false
+
         "WEBHOOK" ->
-          run_webhook_trigger(socket, bot_config, trigger_message_id, content)
+          run_webhook_trigger(socket, agent_config, trigger_message_id, content)
           true
 
         "REST_POLL" ->
-          run_poll_trigger(socket, bot_config, trigger_message_id, content)
+          run_poll_trigger(socket, agent_config, trigger_message_id, content)
           true
 
         _ ->
-          # INBOUND_WEBHOOK, SSE, OPENAI_COMPAT are agent-initiated — no server-side trigger
+          # INBOUND_WEBHOOK, SSE, OPENAI_COMPAT — agent-initiated, no server-side trigger
           Logger.info(
-            "[TriggerDecision] channel=#{channel_id} bot=#{bot_id} skipping dispatch for connectionMethod=#{connection_method}"
+            "[TriggerDecision] channel=#{channel_id} agent=#{agent_id} skipping dispatch for connectionMethod=#{connection_method}"
           )
 
           false
@@ -989,25 +1017,25 @@ defmodule TavokGatewayWeb.RoomChannel do
     end
   end
 
-  defp maybe_emit_trigger_hint(_socket, _bots, _content, true), do: :ok
+  defp maybe_emit_trigger_hint(_socket, _agents, _content, true), do: :ok
 
-  defp maybe_emit_trigger_hint(socket, bots, content, false) do
+  defp maybe_emit_trigger_hint(socket, agents, content, false) do
     channel_id = socket.assigns.channel_id
 
-    mention_bot =
-      Enum.find(bots, fn bot ->
-        trigger_mode = Map.get(bot, "triggerMode", "ALWAYS")
-        bot_name = Map.get(bot, "name", "")
-        has_name = String.trim(bot_name) != ""
-        not_mentioned = not String.contains?(content, "@#{bot_name}")
+    mention_agent =
+      Enum.find(agents, fn agent ->
+        trigger_mode = Map.get(agent, "triggerMode", "ALWAYS")
+        agent_name = Map.get(agent, "name", "")
+        has_name = String.trim(agent_name) != ""
+        not_mentioned = not String.contains?(content, "@#{agent_name}")
 
         trigger_mode == "MENTION" and has_name and not_mentioned
       end)
 
-    if mention_bot do
-      Broadcast.endpoint_broadcast!("room:#{channel_id}", "bot_trigger_skipped", %{
-        botId: Map.get(mention_bot, "id", ""),
-        botName: Map.get(mention_bot, "name", ""),
+    if mention_agent do
+      Broadcast.endpoint_broadcast!("room:#{channel_id}", "agent_trigger_skipped", %{
+        agentId: Map.get(mention_agent, "id", ""),
+        agentName: Map.get(mention_agent, "name", ""),
         triggerMode: "MENTION",
         reason: "mention_required"
       })
@@ -1016,11 +1044,11 @@ defmodule TavokGatewayWeb.RoomChannel do
     :ok
   end
 
-  defp run_bot_trigger(socket, bot_config, trigger_message_id, trigger_content) do
+  defp run_byok_trigger(socket, agent_config, trigger_message_id, trigger_content) do
     channel_id = socket.assigns.channel_id
-    bot_id = Map.get(bot_config, "id")
-    bot_name = Map.get(bot_config, "name")
-    bot_avatar_url = Map.get(bot_config, "avatarUrl")
+    agent_id = Map.get(agent_config, "id")
+    agent_name = Map.get(agent_config, "name")
+    agent_avatar_url = Map.get(agent_config, "avatarUrl")
 
     # 1. Generate ULID for the streaming placeholder
     message_id = Ulid.generate()
@@ -1033,9 +1061,9 @@ defmodule TavokGatewayWeb.RoomChannel do
         # 3. Broadcast stream_start immediately — no DB dependency
         Broadcast.endpoint_broadcast!("room:#{channel_id}", "stream_start", %{
           messageId: message_id,
-          botId: bot_id,
-          botName: bot_name,
-          botAvatarUrl: bot_avatar_url,
+          agentId: agent_id,
+          agentName: agent_name,
+          agentAvatarUrl: agent_avatar_url,
           sequence: seq_str
         })
 
@@ -1046,8 +1074,8 @@ defmodule TavokGatewayWeb.RoomChannel do
         placeholder = %{
           id: message_id,
           channelId: channel_id,
-          authorId: bot_id,
-          authorType: "BOT",
+          authorId: agent_id,
+          authorType: "AGENT",
           content: "",
           type: "STREAMING",
           streamingStatus: "ACTIVE",
@@ -1067,7 +1095,7 @@ defmodule TavokGatewayWeb.RoomChannel do
           Jason.encode!(%{
             channelId: channel_id,
             messageId: message_id,
-            botId: bot_id,
+            agentId: agent_id,
             triggerMessageId: trigger_message_id,
             contextMessages: context_messages
           })
@@ -1075,7 +1103,7 @@ defmodule TavokGatewayWeb.RoomChannel do
         case Redix.command(:redix, ["PUBLISH", "hive:stream:request", stream_request]) do
           {:ok, _} ->
             Logger.info(
-              "Stream request published: channel=#{channel_id} message=#{message_id} bot=#{bot_id}"
+              "Stream request published: channel=#{channel_id} message=#{message_id} agent=#{agent_id}"
             )
 
           {:error, reason} ->
@@ -1090,24 +1118,24 @@ defmodule TavokGatewayWeb.RoomChannel do
   # Dispatch trigger to agent's webhook URL (DEC-0043: WEBHOOK connectionMethod)
   # The Next.js dispatch endpoint handles HMAC signing, agent HTTP call,
   # and response broadcasting (sync, SSE stream, or async callback).
-  defp run_webhook_trigger(socket, bot_config, trigger_message_id, trigger_content) do
+  defp run_webhook_trigger(socket, agent_config, trigger_message_id, trigger_content) do
     channel_id = socket.assigns.channel_id
-    bot_id = Map.get(bot_config, "id")
+    agent_id = Map.get(agent_config, "id")
     context_messages = fetch_context_messages(channel_id, trigger_content)
 
     Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
-      case WebClient.dispatch_webhook(bot_id, %{
+      case WebClient.dispatch_webhook(agent_id, %{
              channelId: channel_id,
              triggerMessageId: trigger_message_id,
              triggerContent: trigger_content,
              contextMessages: context_messages
            }) do
         {:ok, _} ->
-          Logger.info("Webhook dispatched: channel=#{channel_id} bot=#{bot_id}")
+          Logger.info("Webhook dispatched: channel=#{channel_id} agent=#{agent_id}")
 
         {:error, reason} ->
           Logger.error(
-            "Webhook dispatch failed: channel=#{channel_id} bot=#{bot_id} reason=#{inspect(reason)}"
+            "Webhook dispatch failed: channel=#{channel_id} agent=#{agent_id} reason=#{inspect(reason)}"
           )
       end
     end)
@@ -1116,12 +1144,12 @@ defmodule TavokGatewayWeb.RoomChannel do
   # Enqueue message for REST polling agents (DEC-0043: REST_POLL connectionMethod)
   # The message is queued in AgentMessage table for the agent to pick up
   # via GET /api/v1/agents/{id}/messages.
-  defp run_poll_trigger(socket, bot_config, trigger_message_id, trigger_content) do
+  defp run_poll_trigger(socket, agent_config, trigger_message_id, trigger_content) do
     channel_id = socket.assigns.channel_id
-    bot_id = Map.get(bot_config, "id")
+    agent_id = Map.get(agent_config, "id")
 
     Task.Supervisor.async_nolink(TavokGateway.TaskSupervisor, fn ->
-      case WebClient.enqueue_agent_message(bot_id, %{
+      case WebClient.enqueue_agent_message(agent_id, %{
              channelId: channel_id,
              messageId: trigger_message_id,
              content: trigger_content,
@@ -1130,11 +1158,11 @@ defmodule TavokGatewayWeb.RoomChannel do
              authorType: socket.assigns[:author_type] || "USER"
            }) do
         {:ok, _} ->
-          Logger.info("Message enqueued for polling: channel=#{channel_id} bot=#{bot_id}")
+          Logger.info("Message enqueued for polling: channel=#{channel_id} agent=#{agent_id}")
 
         {:error, reason} ->
           Logger.error(
-            "Enqueue failed: channel=#{channel_id} bot=#{bot_id} reason=#{inspect(reason)}"
+            "Enqueue failed: channel=#{channel_id} agent=#{agent_id} reason=#{inspect(reason)}"
           )
       end
     end)
@@ -1154,7 +1182,7 @@ defmodule TavokGatewayWeb.RoomChannel do
           |> Enum.map(fn m ->
             role =
               case Map.get(m, "authorType") do
-                "BOT" -> "assistant"
+                "AGENT" -> "assistant"
                 _ -> "user"
               end
 

@@ -13,7 +13,7 @@ defmodule TavokGatewayWeb.DmChannel do
   - sync — request missed messages
   - history — request older messages
 
-  No bot/agent/streaming support — DMs are human-only.
+  No agent/streaming support — DMs are human-only.
   See docs/PROTOCOL.md for event payloads.
   """
   use Phoenix.Channel
@@ -37,8 +37,8 @@ defmodule TavokGatewayWeb.DmChannel do
     user_id = socket.assigns.user_id
 
     # Only humans can join DM channels
-    if socket.assigns[:author_type] == "BOT" do
-      {:error, %{reason: "bots_cannot_join_dms"}}
+    if socket.assigns[:author_type] == "AGENT" do
+      {:error, %{reason: "agents_cannot_join_dms"}}
     else
       case authorize_join(dm_id, user_id) do
         {:ok, other_user} ->

@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-func TestGetBotSuccess(t *testing.T) {
-	expected := BotConfig{
-		ID:          "bot-1",
-		Name:        "TestBot",
+func TestGetAgentSuccess(t *testing.T) {
+	expected := AgentConfig{
+		ID:          "agent-1",
+		Name:        "TestAgent",
 		LLMProvider: "openai",
 		LLMModel:    "gpt-4",
 		APIEndpoint: "https://api.openai.com",
@@ -24,8 +24,8 @@ func TestGetBotSuccess(t *testing.T) {
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/internal/bots/bot-1" {
-			t.Errorf("path = %q, want /api/internal/bots/bot-1", r.URL.Path)
+		if r.URL.Path != "/api/internal/agents/agent-1" {
+			t.Errorf("path = %q, want /api/internal/agents/agent-1", r.URL.Path)
 		}
 		if r.Header.Get("x-internal-secret") != "test-secret" {
 			t.Errorf("x-internal-secret = %q, want %q", r.Header.Get("x-internal-secret"), "test-secret")
@@ -36,23 +36,23 @@ func TestGetBotSuccess(t *testing.T) {
 	defer srv.Close()
 
 	loader := NewLoader(srv.URL, "test-secret")
-	bot, err := loader.GetBot("bot-1")
+	agent, err := loader.GetAgent("agent-1")
 
 	if err != nil {
-		t.Fatalf("GetBot() error = %v", err)
+		t.Fatalf("GetAgent() error = %v", err)
 	}
-	if bot.ID != expected.ID {
-		t.Errorf("ID = %q, want %q", bot.ID, expected.ID)
+	if agent.ID != expected.ID {
+		t.Errorf("ID = %q, want %q", agent.ID, expected.ID)
 	}
-	if bot.Name != expected.Name {
-		t.Errorf("Name = %q, want %q", bot.Name, expected.Name)
+	if agent.Name != expected.Name {
+		t.Errorf("Name = %q, want %q", agent.Name, expected.Name)
 	}
-	if bot.APIKey != expected.APIKey {
-		t.Errorf("APIKey = %q, want %q", bot.APIKey, expected.APIKey)
+	if agent.APIKey != expected.APIKey {
+		t.Errorf("APIKey = %q, want %q", agent.APIKey, expected.APIKey)
 	}
 }
 
-func TestGetBotUnauthorized(t *testing.T) {
+func TestGetAgentUnauthorized(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"error":"Unauthorized"}`))
@@ -60,43 +60,43 @@ func TestGetBotUnauthorized(t *testing.T) {
 	defer srv.Close()
 
 	loader := NewLoader(srv.URL, "wrong-secret")
-	_, err := loader.GetBot("bot-1")
+	_, err := loader.GetAgent("agent-1")
 
 	if err == nil {
 		t.Fatal("expected error for 401 response")
 	}
 }
 
-func TestGetBotNotFound(t *testing.T) {
+func TestGetAgentNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error":"Bot not found"}`))
+		w.Write([]byte(`{"error":"Agent not found"}`))
 	}))
 	defer srv.Close()
 
 	loader := NewLoader(srv.URL, "secret")
-	_, err := loader.GetBot("nonexistent")
+	_, err := loader.GetAgent("nonexistent")
 
 	if err == nil {
 		t.Fatal("expected error for 404 response")
 	}
 }
 
-func TestGetBotInvalidJSON(t *testing.T) {
+func TestGetAgentInvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`not valid json`))
 	}))
 	defer srv.Close()
 
 	loader := NewLoader(srv.URL, "secret")
-	_, err := loader.GetBot("bot-1")
+	_, err := loader.GetAgent("agent-1")
 
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
 }
 
-func TestGetBotWithContextCancelled(t *testing.T) {
+func TestGetAgentWithContextCancelled(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(5 * time.Second) // slow response
 		w.Write([]byte(`{}`))
@@ -107,7 +107,7 @@ func TestGetBotWithContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	_, err := loader.GetBotWithContext(ctx, "bot-1")
+	_, err := loader.GetAgentWithContext(ctx, "agent-1")
 	if err == nil {
 		t.Fatal("expected error for cancelled context")
 	}
@@ -210,50 +210,50 @@ func TestFinalizeMessageWithRetryContextCancelled(t *testing.T) {
 // --- TASK-0011: Thinking Timeline Tests ---
 
 func TestGetThinkingPhaseDefaults(t *testing.T) {
-	bot := &BotConfig{}
+	agent := &AgentConfig{}
 	// No ThinkingSteps configured — should use defaults
-	if got := bot.GetThinkingPhase(0); got != "Thinking" {
+	if got := agent.GetThinkingPhase(0); got != "Thinking" {
 		t.Errorf("GetThinkingPhase(0) = %q, want %q", got, "Thinking")
 	}
-	if got := bot.GetThinkingPhase(1); got != "Writing" {
+	if got := agent.GetThinkingPhase(1); got != "Writing" {
 		t.Errorf("GetThinkingPhase(1) = %q, want %q", got, "Writing")
 	}
 	// Out of range → returns last
-	if got := bot.GetThinkingPhase(5); got != "Writing" {
+	if got := agent.GetThinkingPhase(5); got != "Writing" {
 		t.Errorf("GetThinkingPhase(5) = %q, want %q (last)", got, "Writing")
 	}
 }
 
 func TestGetThinkingPhaseCustom(t *testing.T) {
-	bot := &BotConfig{
+	agent := &AgentConfig{
 		ThinkingSteps: []string{"Planning", "Researching", "Drafting", "Reviewing"},
 	}
-	if got := bot.GetThinkingPhase(0); got != "Planning" {
+	if got := agent.GetThinkingPhase(0); got != "Planning" {
 		t.Errorf("GetThinkingPhase(0) = %q, want %q", got, "Planning")
 	}
-	if got := bot.GetThinkingPhase(2); got != "Drafting" {
+	if got := agent.GetThinkingPhase(2); got != "Drafting" {
 		t.Errorf("GetThinkingPhase(2) = %q, want %q", got, "Drafting")
 	}
-	if got := bot.GetThinkingPhase(3); got != "Reviewing" {
+	if got := agent.GetThinkingPhase(3); got != "Reviewing" {
 		t.Errorf("GetThinkingPhase(3) = %q, want %q", got, "Reviewing")
 	}
 	// Out of range → returns last
-	if got := bot.GetThinkingPhase(10); got != "Reviewing" {
+	if got := agent.GetThinkingPhase(10); got != "Reviewing" {
 		t.Errorf("GetThinkingPhase(10) = %q, want %q (last)", got, "Reviewing")
 	}
 }
 
 func TestGetThinkingPhaseNegativeIndex(t *testing.T) {
-	bot := &BotConfig{ThinkingSteps: []string{"Alpha", "Beta"}}
-	if got := bot.GetThinkingPhase(-1); got != "Beta" {
+	agent := &AgentConfig{ThinkingSteps: []string{"Alpha", "Beta"}}
+	if got := agent.GetThinkingPhase(-1); got != "Beta" {
 		t.Errorf("GetThinkingPhase(-1) = %q, want %q (last)", got, "Beta")
 	}
 }
 
-func TestGetBotWithThinkingSteps(t *testing.T) {
-	expected := BotConfig{
-		ID:            "bot-ts",
-		Name:          "TimelineBot",
+func TestGetAgentWithThinkingSteps(t *testing.T) {
+	expected := AgentConfig{
+		ID:            "agent-ts",
+		Name:          "TimelineAgent",
 		LLMProvider:   "openai",
 		LLMModel:      "gpt-4",
 		APIEndpoint:   "https://api.openai.com",
@@ -268,16 +268,16 @@ func TestGetBotWithThinkingSteps(t *testing.T) {
 	defer srv.Close()
 
 	loader := NewLoader(srv.URL, "secret")
-	bot, err := loader.GetBot("bot-ts")
+	agent, err := loader.GetAgent("agent-ts")
 
 	if err != nil {
-		t.Fatalf("GetBot() error = %v", err)
+		t.Fatalf("GetAgent() error = %v", err)
 	}
-	if len(bot.ThinkingSteps) != 3 {
-		t.Fatalf("ThinkingSteps len = %d, want 3", len(bot.ThinkingSteps))
+	if len(agent.ThinkingSteps) != 3 {
+		t.Fatalf("ThinkingSteps len = %d, want 3", len(agent.ThinkingSteps))
 	}
-	if bot.ThinkingSteps[0] != "Planning" {
-		t.Errorf("ThinkingSteps[0] = %q, want %q", bot.ThinkingSteps[0], "Planning")
+	if agent.ThinkingSteps[0] != "Planning" {
+		t.Errorf("ThinkingSteps[0] = %q, want %q", agent.ThinkingSteps[0], "Planning")
 	}
 }
 

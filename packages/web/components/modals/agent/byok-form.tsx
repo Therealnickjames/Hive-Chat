@@ -32,41 +32,43 @@ const PROVIDER_DEFAULTS: Record<string, { endpoint: string; model: string }> = {
 
 interface BYOKFormProps {
   serverId: string;
-  editingBot: AgentListItem | null;
+  editingAgent: AgentListItem | null;
   onSave: () => void;
   onCancel: () => void;
 }
 
 export function BYOKForm({
   serverId,
-  editingBot,
+  editingAgent,
   onSave,
   onCancel,
 }: BYOKFormProps) {
-  const [name, setName] = useState(editingBot?.name || "");
-  const [provider, setProvider] = useState(editingBot?.llmProvider || "openai");
-  const [model, setModel] = useState(editingBot?.llmModel || "gpt-4o");
+  const [name, setName] = useState(editingAgent?.name || "");
+  const [provider, setProvider] = useState(
+    editingAgent?.llmProvider || "openai",
+  );
+  const [model, setModel] = useState(editingAgent?.llmModel || "gpt-4o");
   const [endpoint, setEndpoint] = useState(
-    editingBot?.apiEndpoint || "https://api.openai.com",
+    editingAgent?.apiEndpoint || "https://api.openai.com",
   );
   const [apiKey, setApiKey] = useState("");
   const [systemPrompt, setSystemPrompt] = useState(
-    editingBot?.systemPrompt || "You are a helpful assistant.",
+    editingAgent?.systemPrompt || "You are a helpful assistant.",
   );
   const [temperature, setTemperature] = useState(
-    String(editingBot?.temperature ?? 0.7),
+    String(editingAgent?.temperature ?? 0.7),
   );
   const [maxTokens, setMaxTokens] = useState(
-    String(editingBot?.maxTokens ?? 4096),
+    String(editingAgent?.maxTokens ?? 4096),
   );
   const [triggerMode, setTriggerMode] = useState(
-    editingBot?.triggerMode || "ALWAYS",
+    editingAgent?.triggerMode || "ALWAYS",
   );
   const [thinkingSteps, setThinkingSteps] = useState(
-    editingBot?.thinkingSteps
+    editingAgent?.thinkingSteps
       ? (() => {
           try {
-            const parsed = JSON.parse(editingBot.thinkingSteps);
+            const parsed = JSON.parse(editingAgent.thinkingSteps);
             return Array.isArray(parsed) ? parsed.join(", ") : "";
           } catch {
             return "";
@@ -115,19 +117,19 @@ export function BYOKForm({
     }
 
     try {
-      const url = editingBot
-        ? `/api/servers/${serverId}/bots/${editingBot.id}`
-        : `/api/servers/${serverId}/bots`;
+      const url = editingAgent
+        ? `/api/servers/${serverId}/agents/${editingAgent.id}`
+        : `/api/servers/${serverId}/agents`;
 
       const res = await fetch(url, {
-        method: editingBot ? "PATCH" : "POST",
+        method: editingAgent ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed to save bot");
+        setError(data.error || "Failed to save agent");
         return;
       }
 
@@ -187,7 +189,7 @@ export function BYOKForm({
 
       <Input
         label={
-          editingBot ? "API Key (leave blank to keep existing)" : "API Key"
+          editingAgent ? "API Key (leave blank to keep existing)" : "API Key"
         }
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
@@ -253,7 +255,7 @@ export function BYOKForm({
           Back
         </Button>
         <Button type="submit" loading={loading} disabled={!name.trim()}>
-          {editingBot ? "Save" : "Create Agent"}
+          {editingAgent ? "Save" : "Create Agent"}
         </Button>
       </div>
     </form>

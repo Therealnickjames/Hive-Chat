@@ -3,7 +3,7 @@ defmodule TavokGatewayWeb.DmChannelTest do
   Unit tests for DmChannel pure/deterministic logic.
 
   Since DmChannel.parse_sequence/1 is private, we test it indirectly through
-  the public handle_in("sync", ...) handler. Content validation and bot rejection
+  the public handle_in("sync", ...) handler. Content validation and agent rejection
   are tested via handle_in("new_message", ...) and join/3.
   """
   use ExUnit.Case
@@ -295,23 +295,23 @@ defmodule TavokGatewayWeb.DmChannelTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Bot join rejection — DMs are human-only
+  # Agent join rejection — DMs are human-only
   # ---------------------------------------------------------------------------
 
-  describe "bot join rejection" do
-    test "bots cannot join DM channels" do
+  describe "agent join rejection" do
+    test "agents cannot join DM channels" do
       socket = %Phoenix.Socket{
         assigns: %{
-          user_id: "bot-agent-1",
+          user_id: "agent-1",
           username: "agent",
           display_name: "Agent",
-          author_type: "BOT"
+          author_type: "AGENT"
         }
       }
 
       result = DmChannel.join("dm:dm-channel-1", %{}, socket)
 
-      assert {:error, %{reason: "bots_cannot_join_dms"}} = result
+      assert {:error, %{reason: "agents_cannot_join_dms"}} = result
     end
   end
 

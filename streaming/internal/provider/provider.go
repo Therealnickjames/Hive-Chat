@@ -17,7 +17,7 @@ type StreamMessage struct {
 
 // StreamRequest contains everything needed to start an LLM stream.
 type StreamRequest struct {
-	BotID           string            `json:"botId"`
+	AgentID         string            `json:"agentId"`
 	Model           string            `json:"model"`
 	APIEndpoint     string            `json:"apiEndpoint"`
 	APIKey          string            `json:"apiKey"`

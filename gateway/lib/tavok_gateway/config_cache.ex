@@ -1,15 +1,15 @@
 defmodule TavokGateway.ConfigCache do
   @moduledoc """
-  ETS-backed cache for channel bot config and membership checks.
+  ETS-backed cache for channel agent config and membership checks.
 
-  Eliminates per-message HTTP round-trips to Next.js for bot config lookups
+  Eliminates per-message HTTP round-trips to Next.js for agent config lookups
   and reduces per-join HTTP calls for membership checks.
 
   Cache entries:
-  - Bot config: key {:bot, channel_id}, TTL 5 minutes
+  - Agent config: key {:agent, channel_id}, TTL 5 minutes
   - Membership: key {:member, channel_id, user_id}, TTL 15 minutes
 
-  Both "no bot" (nil) and positive results are cached to prevent repeated 404s.
+  Both "no agent" (nil) and positive results are cached to prevent repeated 404s.
   Errors are NOT cached — the next call retries.
 
   The ETS table is :public with read_concurrency: true so channel processes
@@ -30,7 +30,7 @@ defmodule TavokGateway.ConfigCache do
   # ---------- Configuration ----------
 
   @table_name :hive_config_cache
-  @bot_ttl_ms 5 * 60 * 1_000
+  @agent_ttl_ms 5 * 60 * 1_000
   @membership_ttl_ms 15 * 60 * 1_000
   @sweep_interval_ms 60 * 1_000
 
@@ -41,12 +41,12 @@ defmodule TavokGateway.ConfigCache do
   end
 
   @doc """
-  Get bot config for a channel. Returns {:ok, bot_config | nil} or {:error, reason}.
+  Get agent config for a channel. Returns {:ok, agent_config | nil} or {:error, reason}.
   Fast path: reads directly from ETS (no GenServer mailbox hop on cache hit).
   Slow path: routes through GenServer for request collapsing on cache miss.
   """
-  def get_channel_bot(channel_id) do
-    key = {:bot, channel_id}
+  def get_channel_agent(channel_id) do
+    key = {:agent, channel_id}
 
     case ets_lookup(key) do
       {:hit, value} ->
@@ -55,18 +55,18 @@ defmodule TavokGateway.ConfigCache do
 
       :miss ->
         # Route through GenServer to coalesce concurrent misses for same key
-        GenServer.call(__MODULE__, {:fetch_bot, channel_id}, 10_000)
+        GenServer.call(__MODULE__, {:fetch_agent, channel_id}, 10_000)
     end
   end
 
   @doc """
-  Get ALL bots for a channel (multi-bot — TASK-0012).
-  Returns {:ok, [bot_config, ...]} or {:error, reason}.
+  Get ALL agents for a channel (multi-agent — TASK-0012).
+  Returns {:ok, [agent_config, ...]} or {:error, reason}.
   Fast path: reads directly from ETS. Slow path: request collapsing via GenServer.
-  Separate cache key {:bots, channel_id} with same TTL as single-bot cache.
+  Separate cache key {:agents, channel_id} with same TTL as single-agent cache.
   """
-  def get_channel_bots(channel_id) do
-    key = {:bots, channel_id}
+  def get_channel_agents(channel_id) do
+    key = {:agents, channel_id}
 
     case ets_lookup(key) do
       {:hit, value} ->
@@ -74,7 +74,7 @@ defmodule TavokGateway.ConfigCache do
         {:ok, value}
 
       :miss ->
-        GenServer.call(__MODULE__, {:fetch_bots, channel_id}, 10_000)
+        GenServer.call(__MODULE__, {:fetch_agents, channel_id}, 10_000)
     end
   end
 
@@ -96,16 +96,16 @@ defmodule TavokGateway.ConfigCache do
     end
   end
 
-  @doc "Invalidate cached bot config for a channel (single + multi-bot)."
-  def invalidate_bot(channel_id) do
+  @doc "Invalidate cached agent config for a channel (single + multi-agent)."
+  def invalidate_agent(channel_id) do
     try do
-      :ets.delete(@table_name, {:bot, channel_id})
-      :ets.delete(@table_name, {:bots, channel_id})
+      :ets.delete(@table_name, {:agent, channel_id})
+      :ets.delete(@table_name, {:agents, channel_id})
     rescue
       ArgumentError -> :ok
     end
 
-    Logger.info("[ConfigCache] Invalidated bot cache: channel=#{channel_id}")
+    Logger.info("[ConfigCache] Invalidated agent cache: channel=#{channel_id}")
     :ok
   end
 
@@ -120,11 +120,11 @@ defmodule TavokGateway.ConfigCache do
     :ok
   end
 
-  @doc "Invalidate all cached entries for a channel (bot + bots + all memberships)."
+  @doc "Invalidate all cached entries for a channel (agent + agents + all memberships)."
   def invalidate_channel(channel_id) do
     try do
-      :ets.delete(@table_name, {:bot, channel_id})
-      :ets.delete(@table_name, {:bots, channel_id})
+      :ets.delete(@table_name, {:agent, channel_id})
+      :ets.delete(@table_name, {:agents, channel_id})
       :ets.match_delete(@table_name, {{:member, channel_id, :_}, :_, :_})
     rescue
       ArgumentError -> :ok
@@ -154,7 +154,7 @@ defmodule TavokGateway.ConfigCache do
     schedule_sweep()
 
     Logger.info(
-      "[ConfigCache] Started — bot_ttl=#{@bot_ttl_ms}ms membership_ttl=#{@membership_ttl_ms}ms"
+      "[ConfigCache] Started — agent_ttl=#{@agent_ttl_ms}ms membership_ttl=#{@membership_ttl_ms}ms"
     )
 
     {:ok, %{table: table, hits: 0, misses: 0, coalesced: 0, in_flight: %{}}}
@@ -170,11 +170,11 @@ defmodule TavokGateway.ConfigCache do
     {:noreply, %{state | misses: state.misses + 1}}
   end
 
-  # --- Request collapsing: bot config fetch ---
+  # --- Request collapsing: agent config fetch ---
 
   @impl true
-  def handle_call({:fetch_bot, channel_id}, from, state) do
-    key = {:bot, channel_id}
+  def handle_call({:fetch_agent, channel_id}, from, state) do
+    key = {:agent, channel_id}
 
     # Double-check ETS (may have been populated between caller's miss and this call)
     case ets_lookup(key) do
@@ -189,12 +189,12 @@ defmodule TavokGateway.ConfigCache do
             # No in-flight request — start one
             task =
               Task.async(fn ->
-                case WebClient.get_channel_bot(channel_id) do
-                  {:ok, bot_config} ->
+                case WebClient.get_channel_agent(channel_id) do
+                  {:ok, agent_config} ->
                     now = System.monotonic_time(:millisecond)
-                    expires_at = now + @bot_ttl_ms
-                    :ets.insert(@table_name, {key, bot_config, expires_at})
-                    {:ok, bot_config}
+                    expires_at = now + @agent_ttl_ms
+                    :ets.insert(@table_name, {key, agent_config, expires_at})
+                    {:ok, agent_config}
 
                   {:error, _reason} = error ->
                     error
@@ -218,11 +218,11 @@ defmodule TavokGateway.ConfigCache do
     end
   end
 
-  # --- Request collapsing: multi-bot fetch (TASK-0012) ---
+  # --- Request collapsing: multi-agent fetch (TASK-0012) ---
 
   @impl true
-  def handle_call({:fetch_bots, channel_id}, from, state) do
-    key = {:bots, channel_id}
+  def handle_call({:fetch_agents, channel_id}, from, state) do
+    key = {:agents, channel_id}
 
     case ets_lookup(key) do
       {:hit, value} ->
@@ -235,12 +235,12 @@ defmodule TavokGateway.ConfigCache do
           nil ->
             task =
               Task.async(fn ->
-                case WebClient.get_channel_bots(channel_id) do
-                  {:ok, bots} ->
+                case WebClient.get_channel_agents(channel_id) do
+                  {:ok, agents} ->
                     now = System.monotonic_time(:millisecond)
-                    expires_at = now + @bot_ttl_ms
-                    :ets.insert(@table_name, {key, bots, expires_at})
-                    {:ok, bots}
+                    expires_at = now + @agent_ttl_ms
+                    :ets.insert(@table_name, {key, agents, expires_at})
+                    {:ok, agents}
 
                   {:error, _reason} = error ->
                     error

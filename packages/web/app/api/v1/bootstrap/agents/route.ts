@@ -11,7 +11,7 @@ import {
 /**
  * POST /api/v1/bootstrap/agents — CLI-initiated agent creation
  *
- * Creates an agent (Bot + AgentRegistration) using admin token auth.
+ * Creates an agent (Agent + AgentRegistration) using admin token auth.
  * Used by `tavok init` to set up agents without a user session.
  *
  * Auth: Authorization: Bearer admin-{TAVOK_ADMIN_TOKEN}
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     });
 
     const connectionInfo = buildConnectionInfo(
-      result.bot.id,
+      result.agent.id,
       result.connectionMethod,
       {
         webhookUrl,
@@ -95,8 +95,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        id: result.bot.id,
-        name: result.bot.name,
+        id: result.agent.id,
+        name: result.agent.name,
         apiKey: result.apiKey,
         serverId,
         connectionMethod: result.connectionMethod,

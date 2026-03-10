@@ -7,7 +7,7 @@ import crypto from "crypto";
  * GET /api/internal/agents/verify?api_key=sk-tvk-...
  *
  * Called by the Elixir Gateway on WebSocket connect to verify an agent's API key.
- * Returns bot info on success (id, name, serverId) so the Gateway can assign
+ * Returns agent info on success (id, name, serverId) so the Gateway can assign
  * socket state without another round-trip.
  *
  * Auth: X-Internal-Secret header (same as other internal APIs).
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         capabilities: true,
-        bot: {
+        agent: {
           select: {
             id: true,
             name: true,
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!registration.bot.isActive) {
+    if (!registration.agent.isActive) {
       return NextResponse.json(
         { error: "Agent is deactivated", valid: false },
         { status: 403 },
@@ -65,10 +65,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       valid: true,
-      botId: registration.bot.id,
-      botName: registration.bot.name,
-      botAvatarUrl: registration.bot.avatarUrl,
-      serverId: registration.bot.serverId,
+      agentId: registration.agent.id,
+      agentName: registration.agent.name,
+      agentAvatarUrl: registration.agent.avatarUrl,
+      serverId: registration.agent.serverId,
       capabilities: registration.capabilities,
     });
   } catch (error) {

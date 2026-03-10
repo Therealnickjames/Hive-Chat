@@ -7,7 +7,7 @@ import { ChannelsSection } from "./channels-section";
 import { RolesSection } from "./roles-section";
 import { MembersSection } from "./members-section";
 import { InvitesSection } from "./invites-section";
-import { BotsSection } from "./bots-section";
+import { AgentsSection } from "./agents-section";
 import { DangerZoneSection } from "./danger-zone-section";
 
 type SettingsTab =
@@ -16,7 +16,7 @@ type SettingsTab =
   | "roles"
   | "members"
   | "invites"
-  | "bots"
+  | "agents"
   | "danger";
 
 const TABS: { key: SettingsTab; label: string }[] = [
@@ -25,7 +25,7 @@ const TABS: { key: SettingsTab; label: string }[] = [
   { key: "roles", label: "Roles" },
   { key: "members", label: "Members" },
   { key: "invites", label: "Invites" },
-  { key: "bots", label: "Bots" },
+  { key: "agents", label: "Agents" },
   { key: "danger", label: "Danger Zone" },
 ];
 
@@ -125,7 +125,7 @@ export function ServerSettingsOverlay({
             {activeTab === "roles" && <RolesSection serverId={serverId} />}
             {activeTab === "members" && <MembersSection serverId={serverId} />}
             {activeTab === "invites" && <InvitesSection serverId={serverId} />}
-            {activeTab === "bots" && <BotsSection serverId={serverId} />}
+            {activeTab === "agents" && <AgentsSection serverId={serverId} />}
             {activeTab === "danger" && (
               <DangerZoneSection
                 serverId={serverId}

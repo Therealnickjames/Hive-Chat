@@ -57,14 +57,14 @@ async function run() {
   await input.press("Enter");
 
   await page
-    .getByText(/no bot triggered\..*mention @.+ to trigger it\./i)
+    .getByText(/no agent triggered\..*mention @.+ to trigger it\./i)
     .waitFor({ timeout: 10000 });
 
-  const apiKeyErrorLocator = page.getByText(/Bot API key is not configured/i);
-  const inlineErrorHintLocator = page.getByText(/Bot response failed:/i);
+  const apiKeyErrorLocator = page.getByText(/Agent API key is not configured/i);
+  const inlineErrorHintLocator = page.getByText(/Agent response failed:/i);
   const baselineApiKeyErrors = await apiKeyErrorLocator.count();
 
-  // Reproduce the scrolled-up case; UI should still follow new bot outcome.
+  // Reproduce the scrolled-up case; UI should still follow new agent outcome.
   await page.evaluate(() => {
     const list = document.querySelector(".flex-1.overflow-y-auto.pb-4");
     if (list) list.scrollTop = 0;
@@ -78,15 +78,15 @@ async function run() {
   await page.waitForTimeout(1200);
 
   // Validate mixed-trigger channel behavior (#general):
-  // - ALWAYS bot should trigger and produce visible error outcome
-  // - mention-required hint should NOT appear when at least one bot triggers
+  // - ALWAYS agent should trigger and produce visible error outcome
+  // - mention-required hint should NOT appear when at least one agent triggers
   await page.goto(`${baseUrl}/servers/${serverId}/channels/${general.id}`, {
     waitUntil: "domcontentloaded",
   });
   await page.waitForTimeout(1000);
 
   const generalInput = page.getByRole("textbox", { name: "Message #general" });
-  const generalHint = page.getByText(/no bot triggered\..*mention @.+ to trigger it\./i);
+  const generalHint = page.getByText(/no agent triggered\..*mention @.+ to trigger it\./i);
   const generalHintBefore = await generalHint.count();
   const generalErrorBefore = await apiKeyErrorLocator.count();
 
@@ -97,7 +97,7 @@ async function run() {
 
   const generalHintAfter = await generalHint.count();
   if (generalHintAfter > generalHintBefore) {
-    throw new Error("Mention-required hint appeared in #general despite ALWAYS bot trigger");
+    throw new Error("Mention-required hint appeared in #general despite ALWAYS agent trigger");
   }
 
   await browser.close();

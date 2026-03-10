@@ -4,7 +4,7 @@
 // - Listens for stream requests on Redis pub/sub
 // - Opens SSE connections to LLM APIs (Anthropic, OpenAI, etc.)
 // - Pushes tokens back through Redis to the Elixir Gateway
-// - Handles bot configuration loading from the Next.js API
+// - Handles agent configuration loading from the Next.js API
 //
 // See docs/PROTOCOL.md §2 for Redis pub/sub contracts.
 // See docs/DECISIONS.md DEC-0001 for architecture rationale.

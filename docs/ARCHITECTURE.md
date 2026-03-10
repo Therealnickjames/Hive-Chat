@@ -101,7 +101,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 **Agent-First Features**
 
 - CLI agent setup: `tavok init` creates agents with auto-discovered credentials (DEC-0060)
-- Agent channel assignment: agents auto-assigned to all channels via ChannelBot records (DEC-0061)
+- Agent channel assignment: agents auto-assigned to all channels via ChannelAgent records (DEC-0061)
 - Channel discovery: new channels auto-assign all active agents; Gateway discovers agents per channel
 - Python SDK: `pip install tavok-sdk`, 10 lines to a running agent with `.tavok-agents.json` auto-discovery
 - Typed messages: TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS render as structured cards
@@ -116,7 +116,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 - `docker-compose up` starts all 5 containers with health checks
 - Caddy reverse proxy with auto-HTTPS (production profile)
 - Structured JSON logging across all services
-- AES-256-GCM encryption for bot API keys at rest
+- AES-256-GCM encryption for agent API keys at rest
 - Internal API authentication via shared secret
 - Go bootstrap CLI release assets for npm, `install.sh`, and Homebrew tap distribution
 

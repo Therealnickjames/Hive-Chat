@@ -23,7 +23,7 @@ export async function GET(
   const { id: agentId, channelId } = await params;
 
   const agent = await authenticateAgentRequest(request);
-  if (!agent || agent.botId !== agentId) {
+  if (!agent || agent.agentId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
       { status: 401 },
@@ -115,36 +115,39 @@ export async function GET(
       }
     }
 
-    const botAuthorIds = [
+    const agentAuthorIds = [
       ...new Set(
-        messages.filter((m) => m.authorType === "BOT").map((m) => m.authorId),
+        messages.filter((m) => m.authorType === "AGENT").map((m) => m.authorId),
       ),
     ];
-    const botMap = new Map<
+    const agentMap = new Map<
       string,
       { name: string; avatarUrl: string | null }
     >();
-    if (botAuthorIds.length > 0) {
-      const bots = await prisma.bot.findMany({
-        where: { id: { in: botAuthorIds } },
+    if (agentAuthorIds.length > 0) {
+      const agents = await prisma.agent.findMany({
+        where: { id: { in: agentAuthorIds } },
         select: { id: true, name: true, avatarUrl: true },
       });
-      for (const bot of bots) {
-        botMap.set(bot.id, { name: bot.name, avatarUrl: bot.avatarUrl });
+      for (const agent of agents) {
+        agentMap.set(agent.id, {
+          name: agent.name,
+          avatarUrl: agent.avatarUrl,
+        });
       }
     }
 
     const payload = messages.map((m) => {
       // BUG-002: Use descriptive fallback instead of "Unknown" for deleted authors
       let authorName =
-        m.authorType === "BOT" ? "Deleted Agent" : "Deleted User";
+        m.authorType === "AGENT" ? "Deleted Agent" : "Deleted User";
       let authorAvatarUrl: string | null = null;
 
-      if (m.authorType === "BOT") {
-        const bot = botMap.get(m.authorId);
-        if (bot) {
-          authorName = bot.name;
-          authorAvatarUrl = bot.avatarUrl;
+      if (m.authorType === "AGENT") {
+        const foundAgent = agentMap.get(m.authorId);
+        if (foundAgent) {
+          authorName = foundAgent.name;
+          authorAvatarUrl = foundAgent.avatarUrl;
         }
       } else if (m.authorType === "USER") {
         const user = userMap.get(m.authorId);

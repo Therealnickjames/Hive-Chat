@@ -39,7 +39,7 @@ function makePrismaClient(overrides: any = {}) {
           updateMany: async () => ({ count: 1 }),
         },
       }),
-    bot: {
+    agent: {
       findUnique: async () => ({
         name: "TestAgent",
         avatarUrl: "https://example.com/avatar.png",
@@ -54,8 +54,8 @@ function makeTypedMessageBody(type: string, content: string, extras: any = {}) {
   return {
     id: `msg-${type.toLowerCase()}`,
     channelId: "c1",
-    authorId: "bot-1",
-    authorType: "BOT",
+    authorId: "agent-1",
+    authorType: "AGENT",
     content,
     type,
     sequence: "10",
@@ -106,7 +106,7 @@ describe("TASK-0039: Typed Message Types", () => {
   it("still accepts STANDARD, STREAMING, SYSTEM types", async () => {
     const handler = createInternalMessagesPostHandler({
       prismaClient: makePrismaClient({
-        bot: { findUnique: async () => null },
+        agent: { findUnique: async () => null },
         user: {
           findUnique: async () => ({
             displayName: "Alice",
@@ -174,7 +174,7 @@ describe("TASK-0039: Metadata Persistence", () => {
               updateMany: async () => ({ count: 1 }),
             },
           }),
-        bot: {
+        agent: {
           findUnique: async () => ({ name: "Agent", avatarUrl: null }),
         },
         user: { findUnique: async () => null },
@@ -226,7 +226,7 @@ describe("TASK-0039: Metadata Persistence", () => {
               updateMany: async () => ({ count: 1 }),
             },
           }),
-        bot: {
+        agent: {
           findUnique: async () => ({ name: "Agent", avatarUrl: null }),
         },
         user: { findUnique: async () => null },
@@ -263,7 +263,7 @@ describe("TASK-0039: Metadata Persistence", () => {
               updateMany: async () => ({ count: 1 }),
             },
           }),
-        bot: {
+        agent: {
           findUnique: async () => ({ name: "Agent", avatarUrl: null }),
         },
         user: { findUnique: async () => null },
@@ -301,7 +301,7 @@ describe("TASK-0039: Metadata Persistence", () => {
               updateMany: async () => ({ count: 1 }),
             },
           }),
-        bot: {
+        agent: {
           findUnique: async () => ({ name: "Agent", avatarUrl: null }),
         },
         user: { findUnique: async () => null },
@@ -329,7 +329,7 @@ describe("TASK-0039: Metadata Persistence", () => {
   });
 });
 
-describe("TASK-0039: BOT authorType for typed messages", () => {
+describe("TASK-0039: AGENT authorType for typed messages", () => {
   beforeEach(() => {
     process.env.INTERNAL_API_SECRET = "test-secret";
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -339,7 +339,7 @@ describe("TASK-0039: BOT authorType for typed messages", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns BOT authorName for typed messages with BOT authorType", async () => {
+  it("returns AGENT authorName for typed messages with AGENT authorType", async () => {
     const handler = createInternalMessagesPostHandler({
       prismaClient: makePrismaClient(),
     });
@@ -362,7 +362,7 @@ describe("TASK-0039: BOT authorType for typed messages", () => {
     const payload = await res.json();
     expect(payload.authorName).toBe("TestAgent");
     expect(payload.authorAvatarUrl).toBe("https://example.com/avatar.png");
-    expect(payload.authorType).toBe("BOT");
+    expect(payload.authorType).toBe("AGENT");
   });
 
   it("returns empty reactions array for typed messages", async () => {

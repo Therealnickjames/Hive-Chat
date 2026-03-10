@@ -98,7 +98,7 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 	// Build messages (Anthropic doesn't put system in messages, it's a separate field)
 	// Consolidate consecutive same-role messages — Anthropic requires strictly
 	// alternating user/assistant turns. In chat history, consecutive user messages
-	// can appear when a previous bot response was empty or multiple users posted
+	// can appear when a previous agent response was empty or multiple users posted
 	// in sequence. Sending non-alternating roles causes the model to intermittently
 	// return empty responses (stopReason: "end_turn", zero content blocks). (ISSUE-027)
 	rawMessages := make([]anthropicMessage, 0, len(req.ContextMessages))
@@ -386,8 +386,8 @@ func (a *Anthropic) Stream(ctx context.Context, req StreamRequest, tokens chan<-
 // consolidateMessages merges consecutive same-role messages into single messages.
 // Anthropic's Messages API requires strictly alternating user/assistant turns.
 // Consecutive same-role messages can appear in chat history when:
-//   - A previous bot response was empty (now persisted as placeholder)
-//   - Multiple users posted without bot responses between them
+//   - A previous agent response was empty (now persisted as placeholder)
+//   - Multiple users posted without agent responses between them
 //   - Messages were deleted leaving gaps
 //
 // Only merges messages with string content — structured content blocks (tool_result)

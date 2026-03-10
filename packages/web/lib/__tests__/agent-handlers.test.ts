@@ -90,9 +90,9 @@ describe("authenticateAgentKey", () => {
         findFirst: async ({ where }: any) => {
           if (
             where.apiKeyHash === TEST_API_KEY_HASH &&
-            where.botId === "agent-1"
+            where.agentId === "agent-1"
           ) {
-            return { id: "reg-1", botId: "agent-1" };
+            return { id: "reg-1", agentId: "agent-1" };
           }
           return null;
         },
@@ -110,9 +110,9 @@ describe("authenticateAgentKey", () => {
     const mockPrisma = {
       agentRegistration: {
         findFirst: async ({ where }: any) => {
-          // Key matches but botId doesn't
-          if (where.botId === "agent-1") return null;
-          return { id: "reg-1", botId: "agent-2" };
+          // Key matches but agentId doesn't
+          if (where.agentId === "agent-1") return null;
+          return { id: "reg-1", agentId: "agent-2" };
         },
       },
     };
@@ -131,7 +131,7 @@ describe("createAgentGetHandler", () => {
   it("returns 200 with agent info for valid registered agent", async () => {
     const handler = createAgentGetHandler({
       prismaClient: {
-        bot: {
+        agent: {
           findUnique: async () => ({
             id: "b1",
             name: "Test Agent",
@@ -165,7 +165,7 @@ describe("createAgentGetHandler", () => {
   it("returns 404 when agent doesn't exist", async () => {
     const handler = createAgentGetHandler({
       prismaClient: {
-        bot: { findUnique: async () => null },
+        agent: { findUnique: async () => null },
       },
     });
     const res = await handler("nonexistent");
@@ -173,13 +173,13 @@ describe("createAgentGetHandler", () => {
     expect((await res.json()).error).toBe("Agent not found");
   });
 
-  it("returns 404 when bot exists but has no AgentRegistration", async () => {
+  it("returns 404 when agent exists but has no AgentRegistration", async () => {
     const handler = createAgentGetHandler({
       prismaClient: {
-        bot: {
+        agent: {
           findUnique: async () => ({
             id: "b1",
-            name: "UI Bot",
+            name: "UI Agent",
             agentRegistration: null, // Not a self-registered agent
           }),
         },
@@ -207,18 +207,18 @@ describe("createAgentPatchHandler", () => {
           findFirst: async ({ where }: any) => {
             if (
               where.apiKeyHash === TEST_API_KEY_HASH &&
-              where.botId === "agent-1"
+              where.agentId === "agent-1"
             ) {
-              return { id: "reg-1", botId: "agent-1" };
+              return { id: "reg-1", agentId: "agent-1" };
             }
             return null;
           },
           update: async () => ({}),
         },
-        bot: { update: async () => ({}) },
+        agent: { update: async () => ({}) },
         $transaction: async (cb: any) =>
           cb({
-            bot: { update: async () => ({}) },
+            agent: { update: async () => ({}) },
             agentRegistration: { update: async () => ({}) },
           }),
         ...overrides,
@@ -239,17 +239,17 @@ describe("createAgentPatchHandler", () => {
   });
 
   it("returns 200 on partial update (subset of fields)", async () => {
-    let capturedBotUpdate: any = null;
+    let capturedAgentUpdate: any = null;
     const handler = createAgentPatchHandler({
       prismaClient: {
         agentRegistration: {
-          findFirst: async () => ({ id: "reg-1", botId: "agent-1" }),
+          findFirst: async () => ({ id: "reg-1", agentId: "agent-1" }),
         },
         $transaction: async (cb: any) =>
           cb({
-            bot: {
+            agent: {
               update: async ({ data }: any) => {
-                capturedBotUpdate = data;
+                capturedAgentUpdate = data;
                 return {};
               },
             },
@@ -265,7 +265,7 @@ describe("createAgentPatchHandler", () => {
       "agent-1",
     );
     expect(res.status).toBe(200);
-    expect(capturedBotUpdate.name).toBe("Just Name");
+    expect(capturedAgentUpdate.name).toBe("Just Name");
   });
 
   it("returns 401 for missing Authorization header", async () => {
@@ -308,7 +308,7 @@ describe("createAgentPatchHandler", () => {
     const handler = createAgentPatchHandler({
       prismaClient: {
         agentRegistration: {
-          findFirst: async () => ({ id: "reg-1", botId: "agent-1" }),
+          findFirst: async () => ({ id: "reg-1", agentId: "agent-1" }),
         },
         $transaction: async () => {
           throw new Error("DB error");
@@ -342,9 +342,9 @@ describe("createAgentDeleteHandler", () => {
     const handler = createAgentDeleteHandler({
       prismaClient: {
         agentRegistration: {
-          findFirst: async () => ({ id: "reg-1", botId: "agent-1" }),
+          findFirst: async () => ({ id: "reg-1", agentId: "agent-1" }),
         },
-        bot: {
+        agent: {
           delete: async ({ where }: any) => {
             deletedId = where.id;
             return {};
@@ -386,9 +386,9 @@ describe("createAgentDeleteHandler", () => {
     const handler = createAgentDeleteHandler({
       prismaClient: {
         agentRegistration: {
-          findFirst: async () => ({ id: "reg-1", botId: "agent-1" }),
+          findFirst: async () => ({ id: "reg-1", agentId: "agent-1" }),
         },
-        bot: {
+        agent: {
           delete: async () => {
             throw new Error("FK constraint");
           },
@@ -425,7 +425,7 @@ describe("createAgentVerifyHandler", () => {
               return {
                 id: "reg-1",
                 capabilities: ["text"],
-                bot: {
+                agent: {
                   id: "b1",
                   name: "Test Agent",
                   avatarUrl: null,
@@ -452,8 +452,8 @@ describe("createAgentVerifyHandler", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.valid).toBe(true);
-    expect(data.botId).toBe("b1");
-    expect(data.botName).toBe("Test Agent");
+    expect(data.agentId).toBe("b1");
+    expect(data.agentName).toBe("Test Agent");
     expect(data.serverId).toBe("s1");
     expect(data.capabilities).toEqual(["text"]);
   });
@@ -524,7 +524,7 @@ describe("createAgentVerifyHandler", () => {
           findFirst: async () => ({
             id: "reg-1",
             capabilities: ["text"],
-            bot: {
+            agent: {
               id: "b1",
               name: "Deactivated Agent",
               avatarUrl: null,

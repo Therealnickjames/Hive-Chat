@@ -30,7 +30,7 @@ export function InboundWebhookForm({
     setError("");
 
     try {
-      const res = await fetch(`/api/servers/${serverId}/bots`, {
+      const res = await fetch(`/api/servers/${serverId}/agents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,7 +128,7 @@ export function OutboundWebhookForm({
     setError("");
 
     try {
-      const res = await fetch(`/api/servers/${serverId}/bots`, {
+      const res = await fetch(`/api/servers/${serverId}/agents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

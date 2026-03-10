@@ -116,17 +116,17 @@ export async function POST(
       },
     });
 
-    // Auto-assign all active bots in this server to the new channel
-    const serverBots = await prisma.bot.findMany({
+    // Auto-assign all active agents in this server to the new channel
+    const serverAgents = await prisma.agent.findMany({
       where: { serverId, isActive: true },
       select: { id: true },
     });
-    if (serverBots.length > 0) {
-      await prisma.channelBot.createMany({
-        data: serverBots.map((bot) => ({
+    if (serverAgents.length > 0) {
+      await prisma.channelAgent.createMany({
+        data: serverAgents.map((agent) => ({
           id: ulid(),
           channelId: channel.id,
-          botId: bot.id,
+          agentId: agent.id,
         })),
       });
     }

@@ -71,7 +71,7 @@ async function run() {
     .count();
   const inputDisabledAtEnd = await input.isDisabled();
   const inlineHintCount = await page
-    .getByText(/Bot response failed:|Disconnected from channel gateway/i)
+    .getByText(/Agent response failed:|Disconnected from channel gateway/i)
     .count();
   const visibleSentMessageCount = await page
     .getByText(new RegExp(`drop-send probe ${marker}`))

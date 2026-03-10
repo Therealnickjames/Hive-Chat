@@ -25,7 +25,7 @@ export async function POST(
   const { id: agentId, messageId } = await params;
 
   const agent = await authenticateAgentRequest(request);
-  if (!agent || agent.botId !== agentId) {
+  if (!agent || agent.agentId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
       { status: 401 },
@@ -51,7 +51,7 @@ export async function POST(
     };
 
   // Verify message ownership and resolve channelId from DB (not from request body)
-  const ownership = await verifyMessageOwnership(messageId, agent.botId);
+  const ownership = await verifyMessageOwnership(messageId, agent.agentId);
   if (!ownership.valid) {
     return NextResponse.json(
       { error: ownership.error },
@@ -141,7 +141,7 @@ export async function POST(
 
 async function verifyMessageOwnership(
   messageId: string,
-  botId: string,
+  agentId: string,
 ): Promise<
   | { valid: true; channelId: string }
   | { valid: false; error: string; status: number }
@@ -171,7 +171,7 @@ async function verifyMessageOwnership(
     return { valid: false, error: "Message not found", status: 404 };
   }
 
-  if (message.authorId !== botId) {
+  if (message.authorId !== agentId) {
     return {
       valid: false,
       error: "Message does not belong to this agent",

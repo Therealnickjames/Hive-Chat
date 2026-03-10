@@ -29,7 +29,7 @@ export async function GET(
   const { id: agentId } = await params;
 
   const agent = await authenticateAgentRequest(request);
-  if (!agent || agent.botId !== agentId) {
+  if (!agent || agent.agentId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
       { status: 401 },
@@ -45,7 +45,7 @@ export async function GET(
   try {
     // Build query
     const where: Record<string, unknown> = {
-      botId: agentId,
+      agentId: agentId,
       delivered: false,
     };
     if (channelId) {
@@ -129,7 +129,7 @@ export async function POST(
   const { id: agentId } = await params;
 
   const agent = await authenticateAgentRequest(request);
-  if (!agent || agent.botId !== agentId) {
+  if (!agent || agent.agentId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
       { status: 401 },
@@ -178,8 +178,8 @@ export async function POST(
       await persistMessage({
         id: messageId,
         channelId,
-        authorId: agent.botId,
-        authorType: "BOT",
+        authorId: agent.agentId,
+        authorType: "AGENT",
         content: "",
         type: "STREAMING",
         streamingStatus: "ACTIVE",
@@ -188,9 +188,9 @@ export async function POST(
 
       await broadcastStreamStart(channelId, {
         messageId,
-        botId: agent.botId,
-        botName: agent.botName,
-        botAvatarUrl: agent.botAvatarUrl,
+        agentId: agent.agentId,
+        agentName: agent.agentName,
+        agentAvatarUrl: agent.agentAvatarUrl,
         sequence,
       });
 
@@ -217,8 +217,8 @@ export async function POST(
     await persistMessage({
       id: messageId,
       channelId,
-      authorId: agent.botId,
-      authorType: "BOT",
+      authorId: agent.agentId,
+      authorType: "AGENT",
       content,
       type: "STANDARD",
       sequence,
@@ -227,10 +227,10 @@ export async function POST(
     await broadcastMessageNew(channelId, {
       id: messageId,
       channelId,
-      authorId: agent.botId,
-      authorType: "BOT",
-      authorName: agent.botName,
-      authorAvatarUrl: agent.botAvatarUrl,
+      authorId: agent.agentId,
+      authorType: "AGENT",
+      authorName: agent.agentName,
+      authorAvatarUrl: agent.agentAvatarUrl,
       content,
       type: "STANDARD",
       streamingStatus: null,

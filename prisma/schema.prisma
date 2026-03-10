@@ -103,7 +103,7 @@ model Server {
   members  Member[]
   invites  Invite[]
   roles    Role[]
-  bots     Bot[]
+  agents   Agent[]
 
   @@index([ownerId])
 }
@@ -115,7 +115,7 @@ model Channel {
   topic        String?
   type         ChannelType @default(TEXT)
   position     Int         @default(0)
-  defaultBotId String?     @db.VarChar(26)
+  defaultAgentId String?     @db.VarChar(26)
   lastSequence BigInt      @default(0) // tracks highest sequence for reconnection seed
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -124,16 +124,16 @@ model Channel {
   swarmMode          SwarmMode      @default(HUMAN_IN_THE_LOOP)
   charterGoal        String?        @db.Text     // What agents should accomplish
   charterRules       String?        @db.Text     // Custom rules / instructions
-  charterAgentOrder  String?        @db.Text     // JSON array of botIds for ordered modes
+  charterAgentOrder  String?        @db.Text     // JSON array of agentIds for ordered modes
   charterMaxTurns    Int            @default(0)  // 0 = unlimited
   charterCurrentTurn Int            @default(0)  // Current turn counter
   charterStatus      CharterStatus  @default(INACTIVE)
 
   // Relations
   server           Server           @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  defaultBot       Bot?             @relation("ChannelDefaultBot", fields: [defaultBotId], references: [id], onDelete: SetNull)
+  defaultAgent     Agent?           @relation("ChannelDefaultAgent", fields: [defaultAgentId], references: [id], onDelete: SetNull)
   messages         Message[]
-  channelBots      ChannelBot[]
+  channelAgents    ChannelAgent[]
   readStates       ChannelReadState[]
   inboundWebhooks  InboundWebhook[] // Discord-style incoming webhooks (DEC-0043)
 
@@ -143,7 +143,7 @@ model Channel {
 model Message {
   id              String        @id @db.VarChar(26) // ULID: time-sortable
   channelId       String        @db.VarChar(26)
-  authorId        String        @db.VarChar(26) // User.id or Bot.id
+  authorId        String        @db.VarChar(26) // User.id or Agent.id
   authorType      AuthorType    @default(USER)
   content         String        @db.Text
   type            MessageType   @default(STANDARD)
@@ -257,10 +257,10 @@ model Invite {
 }
 
 // ============================================================
-// AI / BOT MODELS
+// AI / AGENT MODELS (DEC-0062: renamed from Bot)
 // ============================================================
 
-model Bot {
+model Agent {
   id              String      @id @db.VarChar(26)
   name            String
   avatarUrl       String?
@@ -282,21 +282,21 @@ model Bot {
 
   // Relations
   server            Server             @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  defaultChannels   Channel[]          @relation("ChannelDefaultBot")
-  channelBots       ChannelBot[]
-  agentRegistration AgentRegistration? // null for UI-configured bots (DEC-0040)
+  defaultChannels   Channel[]          @relation("ChannelDefaultAgent")
+  channelAgents     ChannelAgent[]
+  agentRegistration AgentRegistration? // null for UI-configured agents (DEC-0040)
   inboundWebhooks   InboundWebhook[]   // Discord-style incoming webhooks (DEC-0043)
 
   @@index([serverId])
 }
 
-// Agent self-registration (DEC-0040)
-// Agents that register themselves via API, not configured through the UI.
-// Each AgentRegistration creates and owns a Bot record, so all existing
+// Agent connectivity registration (DEC-0040, DEC-0062)
+// SDK/webhook agents need connection credentials (API key, webhook URL, etc).
+// Each AgentRegistration owns an Agent record, so all existing
 // streaming/channel/persistence logic works unchanged.
 model AgentRegistration {
   id              String   @id @db.VarChar(26)
-  botId           String   @unique @db.VarChar(26)
+  agentId         String   @unique @db.VarChar(26)
   apiKeyHash      String   @db.VarChar(64) // SHA-256 hex hash (high-entropy key, fast lookup)
   capabilities    Json     @default("[]") // ["text", "code", "web_search", "tool_use"]
   healthUrl       String?  // endpoint for health checks
@@ -315,26 +315,26 @@ model AgentRegistration {
   sseEnabled         Boolean  @default(false)   // whether SSE event endpoint is active for this agent
   openaiSystemPrompt String?  @db.Text          // override system prompt for OpenAI-compat mode
 
-  // Relation: each AgentRegistration owns exactly one Bot
-  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  // Relation: each AgentRegistration owns exactly one Agent
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   // Fast lookup by API key hash on every WebSocket connect
   @@index([apiKeyHash])
 }
 
-// Multi-bot channel assignment (TASK-0012, DEC-0038)
-// Replaces the single defaultBotId for multi-stream support.
-// defaultBotId is kept on Channel for backward compatibility.
-model ChannelBot {
+// Multi-agent channel assignment (TASK-0012, DEC-0038, DEC-0062)
+// Replaces the single defaultAgentId for multi-stream support.
+// defaultAgentId is kept on Channel for backward compatibility.
+model ChannelAgent {
   id        String   @id @db.VarChar(26)
   channelId String   @db.VarChar(26)
-  botId     String   @db.VarChar(26)
+  agentId   String   @db.VarChar(26)
   createdAt DateTime @default(now())
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  bot     Bot     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  @@unique([channelId, botId])
+  @@unique([channelId, agentId])
   @@index([channelId])
 }
 
@@ -344,7 +344,7 @@ model ChannelBot {
 model InboundWebhook {
   id        String   @id @db.VarChar(26)
   channelId String   @db.VarChar(26)
-  botId     String   @db.VarChar(26)
+  agentId   String   @db.VarChar(26)
   token     String   @unique @db.VarChar(64) // whk_... token — the URL IS the auth
   name      String                           // display name for messages sent through this webhook
   avatarUrl String?
@@ -352,31 +352,31 @@ model InboundWebhook {
   createdAt DateTime @default(now())
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  bot     Bot     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([channelId])
 }
 
 // Agent message queue for REST polling (DEC-0043)
-// When a message triggers a REST_POLL or WEBHOOK bot, a row is inserted here.
+// When a message triggers a REST_POLL or WEBHOOK agent, a row is inserted here.
 // The agent picks it up on next poll. Ephemeral — auto-cleanup after 24h.
 model AgentMessage {
   id         String   @id @db.VarChar(26)
-  botId      String   @db.VarChar(26)
+  agentId    String   @db.VarChar(26)
   channelId  String   @db.VarChar(26)
   messageId  String   @db.VarChar(26) // reference to the original Message
   content    String   @db.Text
   authorId   String   @db.VarChar(26)
   authorName String
-  authorType String   // "USER" | "BOT"
+  authorType String   // "USER" | "AGENT"
   delivered  Boolean  @default(false)
   expiresAt  DateTime // TTL — auto-cleanup after 24h
   createdAt  DateTime @default(now())
 
-  // Primary polling query: undelivered messages for a bot, ordered by time
-  @@index([botId, delivered, createdAt])
-  @@index([botId, channelId])
+  // Primary polling query: undelivered messages for an agent, ordered by time
+  @@index([agentId, delivered, createdAt])
+  @@index([agentId, channelId])
 }
 
 // Mention persistence (TASK-0015)
@@ -416,7 +416,7 @@ model ChannelReadState {
 // ============================================================
 
 // DM channel — a private conversation between two users.
-// Lives outside the server hierarchy. No serverId, no bots.
+// Lives outside the server hierarchy. No serverId, no agents.
 model DirectMessageChannel {
   id        String   @id @db.VarChar(26)
   createdAt DateTime @default(now())
@@ -504,7 +504,7 @@ enum StreamStatus {
 
 enum AuthorType {
   USER
-  BOT
+  AGENT
   SYSTEM
 }
 

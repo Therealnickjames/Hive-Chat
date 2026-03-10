@@ -2,12 +2,12 @@
 
 export type MessageType = "STANDARD" | "STREAMING" | "SYSTEM";
 export type StreamStatus = "ACTIVE" | "COMPLETE" | "ERROR";
-export type AuthorType = "USER" | "BOT" | "SYSTEM";
+export type AuthorType = "USER" | "AGENT" | "SYSTEM";
 
 export interface Message {
   id: string; // ULID (time-sortable)
   channelId: string; // ULID
-  authorId: string; // ULID (User.id or Bot.id)
+  authorId: string; // ULID (User.id or Agent.id)
   authorType: AuthorType;
   content: string;
   type: MessageType;

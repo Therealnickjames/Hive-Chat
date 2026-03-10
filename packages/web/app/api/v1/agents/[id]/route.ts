@@ -31,8 +31,8 @@ async function authenticateAgent(
   const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest("hex");
 
   const registration = await prisma.agentRegistration.findFirst({
-    where: { apiKeyHash, botId: agentId },
-    select: { id: true, botId: true },
+    where: { apiKeyHash, agentId },
+    select: { id: true, agentId: true },
   });
 
   if (!registration) {
@@ -48,7 +48,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const bot = await prisma.bot.findUnique({
+  const agent = await prisma.agent.findUnique({
     where: { id },
     select: {
       id: true,
@@ -73,26 +73,26 @@ export async function GET(
     },
   });
 
-  if (!bot || !bot.agentRegistration) {
+  if (!agent || !agent.agentRegistration) {
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });
   }
 
   return NextResponse.json({
-    agentId: bot.id,
-    displayName: bot.name,
-    avatarUrl: bot.avatarUrl,
-    serverId: bot.serverId,
-    model: bot.llmModel,
-    isActive: bot.isActive,
-    triggerMode: bot.triggerMode,
-    capabilities: bot.agentRegistration.capabilities,
-    healthUrl: bot.agentRegistration.healthUrl,
-    webhookUrl: bot.agentRegistration.webhookUrl,
-    maxTokensSec: bot.agentRegistration.maxTokensSec,
-    lastHealthCheck: bot.agentRegistration.lastHealthCheck,
-    lastHealthOk: bot.agentRegistration.lastHealthOk,
-    connectionMethod: bot.agentRegistration.connectionMethod,
-    createdAt: bot.createdAt,
+    agentId: agent.id,
+    displayName: agent.name,
+    avatarUrl: agent.avatarUrl,
+    serverId: agent.serverId,
+    model: agent.llmModel,
+    isActive: agent.isActive,
+    triggerMode: agent.triggerMode,
+    capabilities: agent.agentRegistration.capabilities,
+    healthUrl: agent.agentRegistration.healthUrl,
+    webhookUrl: agent.agentRegistration.webhookUrl,
+    maxTokensSec: agent.agentRegistration.maxTokensSec,
+    lastHealthCheck: agent.agentRegistration.lastHealthCheck,
+    lastHealthOk: agent.agentRegistration.lastHealthOk,
+    connectionMethod: agent.agentRegistration.connectionMethod,
+    createdAt: agent.createdAt,
   });
 }
 
@@ -132,13 +132,13 @@ export async function PATCH(
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Update Bot fields if provided
-      const botUpdate: Record<string, unknown> = {};
-      if (displayName !== undefined) botUpdate.name = displayName;
-      if (avatarUrl !== undefined) botUpdate.avatarUrl = avatarUrl;
+      // Update Agent fields if provided
+      const agentUpdate: Record<string, unknown> = {};
+      if (displayName !== undefined) agentUpdate.name = displayName;
+      if (avatarUrl !== undefined) agentUpdate.avatarUrl = avatarUrl;
 
-      if (Object.keys(botUpdate).length > 0) {
-        await tx.bot.update({ where: { id }, data: botUpdate });
+      if (Object.keys(agentUpdate).length > 0) {
+        await tx.agent.update({ where: { id }, data: agentUpdate });
       }
 
       // Update AgentRegistration fields if provided
@@ -150,7 +150,7 @@ export async function PATCH(
 
       if (Object.keys(regUpdate).length > 0) {
         await tx.agentRegistration.update({
-          where: { botId: id },
+          where: { agentId: id },
           data: regUpdate,
         });
       }
@@ -175,8 +175,8 @@ export async function DELETE(
   }
 
   try {
-    // Delete Bot — AgentRegistration cascades via onDelete: Cascade
-    await prisma.bot.delete({ where: { id } });
+    // Delete Agent — AgentRegistration cascades via onDelete: Cascade
+    await prisma.agent.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

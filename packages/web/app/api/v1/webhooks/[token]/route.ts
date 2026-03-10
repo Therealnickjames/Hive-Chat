@@ -53,7 +53,7 @@ export async function POST(
     select: {
       id: true,
       channelId: true,
-      botId: true,
+      agentId: true,
       name: true,
       avatarUrl: true,
       isActive: true,
@@ -129,8 +129,8 @@ export async function POST(
       await persistMessage({
         id: messageId,
         channelId: webhook.channelId,
-        authorId: webhook.botId,
-        authorType: "BOT",
+        authorId: webhook.agentId,
+        authorType: "AGENT",
         content:
           typeof typedContent === "string"
             ? typedContent
@@ -143,8 +143,8 @@ export async function POST(
       await broadcastTypedMessage(webhook.channelId, {
         id: messageId,
         channelId: webhook.channelId,
-        authorId: webhook.botId,
-        authorType: "BOT",
+        authorId: webhook.agentId,
+        authorType: "AGENT",
         authorName: displayName,
         authorAvatarUrl: displayAvatar,
         content:
@@ -165,8 +165,8 @@ export async function POST(
       await persistMessage({
         id: messageId,
         channelId: webhook.channelId,
-        authorId: webhook.botId,
-        authorType: "BOT",
+        authorId: webhook.agentId,
+        authorType: "AGENT",
         content: "",
         type: "STREAMING",
         streamingStatus: "ACTIVE",
@@ -176,9 +176,9 @@ export async function POST(
       // Broadcast stream_start
       await broadcastStreamStart(webhook.channelId, {
         messageId,
-        botId: webhook.botId,
-        botName: displayName,
-        botAvatarUrl: displayAvatar,
+        agentId: webhook.agentId,
+        agentName: displayName,
+        agentAvatarUrl: displayAvatar,
         sequence,
       });
 
@@ -206,8 +206,8 @@ export async function POST(
     await persistMessage({
       id: messageId,
       channelId: webhook.channelId,
-      authorId: webhook.botId,
-      authorType: "BOT",
+      authorId: webhook.agentId,
+      authorType: "AGENT",
       content,
       type: "STANDARD",
       sequence,
@@ -217,8 +217,8 @@ export async function POST(
     await broadcastMessageNew(webhook.channelId, {
       id: messageId,
       channelId: webhook.channelId,
-      authorId: webhook.botId,
-      authorType: "BOT",
+      authorId: webhook.agentId,
+      authorType: "AGENT",
       authorName: displayName,
       authorAvatarUrl: displayAvatar,
       content,

@@ -202,7 +202,7 @@ class RestAgent:
     Args:
         api_url: Tavok web server URL (e.g. ``http://localhost:5555``).
         api_key: Agent API key (``sk-tvk-...``).
-        agent_id: Agent/bot ULID.
+        agent_id: Agent ULID.
     """
 
     def __init__(

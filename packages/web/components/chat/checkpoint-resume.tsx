@@ -17,7 +17,7 @@ interface CheckpointResumeProps {
   onResume?: (
     messageId: string,
     checkpointIndex: number,
-    botId: string,
+    agentId: string,
   ) => void;
 }
 
@@ -25,7 +25,7 @@ interface CheckpointResumeProps {
  * Resume from checkpoint UI for ERROR streaming messages. (TASK-0021)
  *
  * Shows checkpoint markers and allows resuming from any checkpoint
- * with a different bot/model selection.
+ * with a different agent/model selection.
  */
 export function CheckpointResume({
   messageId,
@@ -33,33 +33,33 @@ export function CheckpointResume({
   checkpoints,
   onResume,
 }: CheckpointResumeProps) {
-  const { bots } = useChatContext();
+  const { agents } = useChatContext();
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<number>(
     checkpoints.length > 0 ? checkpoints[checkpoints.length - 1].index : 0,
   );
-  const [selectedBotId, setSelectedBotId] = useState<string>(
-    bots.length > 0 ? bots[0].id : "",
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    agents.length > 0 ? agents[0].id : "",
   );
   const [isResuming, setIsResuming] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
 
   const handleResume = useCallback(async () => {
-    if (!selectedBotId || isResuming) return;
+    if (!selectedAgentId || isResuming) return;
     setIsResuming(true);
 
     try {
       if (onResume) {
-        onResume(messageId, selectedCheckpoint, selectedBotId);
+        onResume(messageId, selectedCheckpoint, selectedAgentId);
       }
     } finally {
       setIsResuming(false);
       setShowPicker(false);
     }
-  }, [messageId, selectedCheckpoint, selectedBotId, isResuming, onResume]);
+  }, [messageId, selectedCheckpoint, selectedAgentId, isResuming, onResume]);
 
   if (checkpoints.length === 0) return null;
 
-  const activeBots = bots.filter((b) => b.isActive !== false);
+  const activeAgents = agents.filter((b) => b.isActive !== false);
 
   return (
     <div className="mt-2">
@@ -107,19 +107,19 @@ export function CheckpointResume({
             </select>
           </div>
 
-          {/* Bot/model selector */}
+          {/* Agent/model selector */}
           <div className="mb-3">
             <label className="text-xs text-text-muted block mb-1">
               Resume with
             </label>
             <select
-              value={selectedBotId}
-              onChange={(e) => setSelectedBotId(e.target.value)}
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
               className="w-full text-sm bg-background-primary border border-border rounded px-2 py-1 text-text-primary"
             >
-              {activeBots.map((bot) => (
-                <option key={bot.id} value={bot.id}>
-                  {bot.name}
+              {activeAgents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
                 </option>
               ))}
             </select>
@@ -129,7 +129,7 @@ export function CheckpointResume({
           <div className="flex gap-2">
             <button
               onClick={handleResume}
-              disabled={isResuming || !selectedBotId}
+              disabled={isResuming || !selectedAgentId}
               className="text-xs px-3 py-1 rounded bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition"
             >
               {isResuming ? "Resuming..." : "Resume"}

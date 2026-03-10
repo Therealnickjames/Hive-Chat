@@ -12,7 +12,7 @@ const ZERO = BigInt(0);
 export const Permissions = {
   SEND_MESSAGES: ONE << BigInt(0),
   MANAGE_CHANNELS: ONE << BigInt(1),
-  MANAGE_BOTS: ONE << BigInt(2),
+  MANAGE_AGENTS: ONE << BigInt(2),
   MANAGE_ROLES: ONE << BigInt(3),
   CREATE_INVITE: ONE << BigInt(4),
   KICK_MEMBERS: ONE << BigInt(5),
@@ -51,10 +51,10 @@ export const PERMISSION_INFO: {
     description: "Create, edit, and delete channels",
   },
   {
-    key: "MANAGE_BOTS",
-    bit: Permissions.MANAGE_BOTS,
-    label: "Manage Bots",
-    description: "Create, edit, and delete bots",
+    key: "MANAGE_AGENTS",
+    bit: Permissions.MANAGE_AGENTS,
+    label: "Manage Agents",
+    description: "Create, edit, and delete agents",
   },
   {
     key: "MANAGE_ROLES",

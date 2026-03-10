@@ -41,12 +41,12 @@ export interface StatusContent {
 // ---------- Message Metadata ----------
 // Attached to agent messages (primarily STREAMING/COMPLETE) via Message.metadata
 export interface MessageMetadataPayload {
-  model?: string;          // e.g. "claude-sonnet-4-20250514"
-  provider?: string;       // e.g. "anthropic"
-  tokensIn?: number;       // input tokens
-  tokensOut?: number;      // output tokens
-  latencyMs?: number;      // total wall time in ms
-  costUsd?: number;        // estimated cost in USD (optional)
+  model?: string; // e.g. "claude-sonnet-4-20250514"
+  provider?: string; // e.g. "anthropic"
+  tokensIn?: number; // input tokens
+  tokensOut?: number; // output tokens
+  latencyMs?: number; // total wall time in ms
+  costUsd?: number; // estimated cost in USD (optional)
 }
 
 // Union type for all typed message content

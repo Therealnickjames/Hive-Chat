@@ -295,7 +295,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
   # ---------------------------------------------------------------------------
 
   describe "agent streaming permission" do
-    test "non-BOT users cannot stream_start" do
+    test "non-AGENT users cannot stream_start" do
       socket = %Phoenix.Socket{assigns: %{author_type: "USER"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
@@ -304,7 +304,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
       assert reason == "only_agents_can_stream"
     end
 
-    test "non-BOT users cannot stream_token" do
+    test "non-AGENT users cannot stream_token" do
       socket = %Phoenix.Socket{assigns: %{author_type: "USER"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
@@ -313,7 +313,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
       assert reason == "only_agents_can_stream"
     end
 
-    test "non-BOT users cannot stream_complete" do
+    test "non-AGENT users cannot stream_complete" do
       socket = %Phoenix.Socket{assigns: %{author_type: "USER"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
@@ -322,7 +322,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
       assert reason == "only_agents_can_stream"
     end
 
-    test "non-BOT users cannot stream_error" do
+    test "non-AGENT users cannot stream_error" do
       socket = %Phoenix.Socket{assigns: %{author_type: "USER"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
@@ -331,7 +331,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
       assert reason == "only_agents_can_stream"
     end
 
-    test "non-BOT users cannot stream_thinking" do
+    test "non-AGENT users cannot stream_thinking" do
       socket = %Phoenix.Socket{assigns: %{author_type: "USER"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
@@ -350,7 +350,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
   # ---------------------------------------------------------------------------
 
   describe "typed_message permission" do
-    test "non-BOT users cannot send typed messages" do
+    test "non-AGENT users cannot send typed messages" do
       socket = %Phoenix.Socket{assigns: %{author_type: "USER"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
@@ -364,7 +364,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
     end
 
     test "rejects invalid typed_message payload (missing type)" do
-      socket = %Phoenix.Socket{assigns: %{author_type: "BOT"}}
+      socket = %Phoenix.Socket{assigns: %{author_type: "AGENT"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
         RoomChannel.handle_in("typed_message", %{"content" => "test"}, socket)
@@ -373,7 +373,7 @@ defmodule TavokGatewayWeb.RoomChannelTest do
     end
 
     test "rejects invalid typed_message payload (missing content)" do
-      socket = %Phoenix.Socket{assigns: %{author_type: "BOT"}}
+      socket = %Phoenix.Socket{assigns: %{author_type: "AGENT"}}
 
       {:reply, {:error, %{reason: reason}}, _socket} =
         RoomChannel.handle_in("typed_message", %{"type" => "TOOL_CALL"}, socket)

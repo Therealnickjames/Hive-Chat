@@ -16,7 +16,7 @@ import { broadcastMessageNew } from "@/lib/gateway-client";
  *   - "tavok-channel-{channelId}" — route to specific channel
  *
  * Non-streaming: Injects the last user message into the channel,
- * waits for bot response, returns as OpenAI response format.
+ * waits for agent response, returns as OpenAI response format.
  *
  * Streaming: Returns SSE chunks in OpenAI chat.completion.chunk format.
  */
@@ -154,8 +154,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         id: userMessageId,
         channelId,
-        authorId: agent.botId,
-        authorType: "BOT",
+        authorId: agent.agentId,
+        authorType: "AGENT",
         content: lastUserMsg.content,
         type: "STANDARD",
         sequence,
@@ -165,10 +165,10 @@ export async function POST(request: NextRequest) {
     await broadcastMessageNew(channelId, {
       id: userMessageId,
       channelId,
-      authorId: agent.botId,
-      authorType: "BOT",
-      authorName: agent.botName,
-      authorAvatarUrl: agent.botAvatarUrl,
+      authorId: agent.agentId,
+      authorType: "AGENT",
+      authorName: agent.agentName,
+      authorAvatarUrl: agent.agentAvatarUrl,
       content: lastUserMsg.content,
       type: "STANDARD",
       streamingStatus: null,
@@ -176,23 +176,23 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     });
 
-    // Wait for bot response by polling messages
+    // Wait for agent response by polling messages
     const startTime = Date.now();
     const timeout = 30000; // 30s timeout
 
-    // Poll for bot response
-    let botResponse: string | null = null;
+    // Poll for agent response
+    let agentResponse: string | null = null;
     let responseMetadata: Record<string, unknown> = {};
 
     while (Date.now() - startTime < timeout) {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Check for new bot messages after our user message
+      // Check for new agent messages after our user message
       const newMessages = await prisma.message.findMany({
         where: {
           channelId,
-          authorType: "BOT",
-          authorId: { not: agent.botId }, // Response from another bot
+          authorType: "AGENT",
+          authorId: { not: agent.agentId }, // Response from another agent
           createdAt: { gt: new Date(startTime) },
           isDeleted: false,
           OR: [{ streamingStatus: "COMPLETE" }, { streamingStatus: null }],
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (newMessages.length > 0) {
-        botResponse = newMessages[0].content;
+        agentResponse = newMessages[0].content;
         if (newMessages[0].metadata) {
           responseMetadata = newMessages[0].metadata as Record<string, unknown>;
         }
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!botResponse) {
+    if (!agentResponse) {
       return NextResponse.json(
         {
           error: {
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
             index: 0,
             message: {
               role: "assistant",
-              content: botResponse,
+              content: agentResponse,
             },
             finish_reason: "stop",
           },
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
 
     // Streaming response — send as SSE chunks
     const encoder = new TextEncoder();
-    const words = botResponse.split(/(\s+)/);
+    const words = agentResponse.split(/(\s+)/);
 
     const sseStream = new ReadableStream({
       start(controller) {

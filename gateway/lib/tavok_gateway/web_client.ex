@@ -41,11 +41,11 @@ defmodule TavokGateway.WebClient do
   end
 
   @doc """
-  Get the default bot config for a channel.
-  Returns {:ok, bot_config} or {:ok, nil} (no bot) or {:error, reason}.
+  Get the default agent config for a channel.
+  Returns {:ok, agent_config} or {:ok, nil} (no agent) or {:error, reason}.
   """
-  def get_channel_bot(channel_id) do
-    url = "#{web_url()}/api/internal/channels/#{channel_id}/bot"
+  def get_channel_agent(channel_id) do
+    url = "#{web_url()}/api/internal/channels/#{channel_id}/agent"
 
     case Req.get(url,
            headers: [{"x-internal-secret", internal_secret()}],
@@ -58,39 +58,45 @@ defmodule TavokGateway.WebClient do
         {:ok, nil}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error("get_channel_bot failed: status=#{status} body=#{inspect(response_body)}")
+        Logger.error(
+          "get_channel_agent failed: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
-        Logger.error("get_channel_bot request failed: #{inspect(reason)}")
+        Logger.error("get_channel_agent request failed: #{inspect(reason)}")
         {:error, reason}
     end
   end
 
   @doc """
-  Get ALL bots assigned to a channel (multi-bot — TASK-0012).
-  Returns {:ok, [bot_config, ...]} or {:ok, []} (no bots) or {:error, reason}.
-  Falls back to defaultBot if no ChannelBot entries exist.
+  Get ALL agents assigned to a channel (multi-agent — TASK-0012).
+  Returns {:ok, [agent_config, ...]} or {:ok, []} (no agents) or {:error, reason}.
+  Falls back to defaultAgent if no ChannelAgent entries exist.
   """
-  def get_channel_bots(channel_id) do
-    url = "#{web_url()}/api/internal/channels/#{channel_id}/bots"
+  def get_channel_agents(channel_id) do
+    url = "#{web_url()}/api/internal/channels/#{channel_id}/agents"
 
     case Req.get(url,
            headers: [{"x-internal-secret", internal_secret()}],
            receive_timeout: 10_000
          ) do
-      {:ok, %Req.Response{status: 200, body: %{"bots" => bots}}} ->
-        {:ok, bots}
+      {:ok, %Req.Response{status: 200, body: %{"agents" => agents}}} ->
+        {:ok, agents}
 
       {:ok, %Req.Response{status: 200, body: _}} ->
         {:ok, []}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error("get_channel_bots failed: status=#{status} body=#{inspect(response_body)}")
+        Logger.error(
+          "get_channel_agents failed: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
-        Logger.error("get_channel_bots request failed: #{inspect(reason)}")
+        Logger.error("get_channel_agents request failed: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -116,6 +122,27 @@ defmodule TavokGateway.WebClient do
       {:error, reason} ->
         Logger.error("get_channel_info request failed: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  @doc """
+  Fetch the charter text for a channel.
+  GET /api/internal/channels/{channelId} and extracts charter fields.
+  Returns {:ok, charter_text} or {:ok, nil} or {:error, reason}.
+  """
+  def get_channel_charter(channel_id) do
+    case get_channel_info(channel_id) do
+      {:ok, %{"charter" => charter}} when is_binary(charter) ->
+        {:ok, charter}
+
+      {:ok, %{"charterText" => charter}} when is_binary(charter) ->
+        {:ok, charter}
+
+      {:ok, _} ->
+        {:ok, nil}
+
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -276,7 +303,10 @@ defmodule TavokGateway.WebClient do
         {:ok, response_body}
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.warning("delete_message rejected: status=#{status} body=#{inspect(response_body)}")
+        Logger.warning(
+          "delete_message rejected: status=#{status} body=#{inspect(response_body)}"
+        )
+
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
@@ -287,13 +317,13 @@ defmodule TavokGateway.WebClient do
 
   @doc """
   Dispatch a webhook trigger to Next.js for outbound delivery (DEC-0043).
-  POST /api/internal/agents/{botId}/dispatch
+  POST /api/internal/agents/{agentId}/dispatch
   Next.js handles HMAC signing, calling the agent's webhookUrl, and
   broadcasting the response back to the channel.
   Returns {:ok, response_body} | {:error, reason}.
   """
-  def dispatch_webhook(bot_id, payload) do
-    url = "#{web_url()}/api/internal/agents/#{bot_id}/dispatch"
+  def dispatch_webhook(agent_id, payload) do
+    url = "#{web_url()}/api/internal/agents/#{agent_id}/dispatch"
 
     case Req.post(url,
            json: payload,
@@ -305,26 +335,29 @@ defmodule TavokGateway.WebClient do
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
         Logger.error(
-          "dispatch_webhook failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}"
+          "dispatch_webhook failed: agent=#{agent_id} status=#{status} body=#{inspect(response_body)}"
         )
 
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
-        Logger.error("dispatch_webhook request failed: bot=#{bot_id} reason=#{inspect(reason)}")
+        Logger.error(
+          "dispatch_webhook request failed: agent=#{agent_id} reason=#{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end
 
   @doc """
   Enqueue a message for a REST polling agent (DEC-0043).
-  POST /api/internal/agents/{botId}/enqueue
+  POST /api/internal/agents/{agentId}/enqueue
   The message is queued in the AgentMessage table for the agent to pick up
   via GET /api/v1/agents/{id}/messages.
   Returns {:ok, response_body} | {:error, reason}.
   """
-  def enqueue_agent_message(bot_id, payload) do
-    url = "#{web_url()}/api/internal/agents/#{bot_id}/enqueue"
+  def enqueue_agent_message(agent_id, payload) do
+    url = "#{web_url()}/api/internal/agents/#{agent_id}/enqueue"
 
     case Req.post(url,
            json: payload,
@@ -336,14 +369,14 @@ defmodule TavokGateway.WebClient do
 
       {:ok, %Req.Response{status: status, body: response_body}} ->
         Logger.error(
-          "enqueue_agent_message failed: bot=#{bot_id} status=#{status} body=#{inspect(response_body)}"
+          "enqueue_agent_message failed: agent=#{agent_id} status=#{status} body=#{inspect(response_body)}"
         )
 
         {:error, {:http_error, status, response_body}}
 
       {:error, reason} ->
         Logger.error(
-          "enqueue_agent_message request failed: bot=#{bot_id} reason=#{inspect(reason)}"
+          "enqueue_agent_message request failed: agent=#{agent_id} reason=#{inspect(reason)}"
         )
 
         {:error, reason}

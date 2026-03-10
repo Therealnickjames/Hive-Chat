@@ -135,7 +135,7 @@ func TestStreamRequestDeserialization(t *testing.T) {
 	raw := `{
 		"channelId": "ch-1",
 		"messageId": "msg-1",
-		"botId": "bot-1",
+		"agentId": "agent-1",
 		"triggerMessageId": "trigger-1",
 		"contextMessages": [
 			{"role": "user", "content": "hello"},
@@ -154,8 +154,8 @@ func TestStreamRequestDeserialization(t *testing.T) {
 	if req.MessageID != "msg-1" {
 		t.Errorf("MessageID = %q, want %q", req.MessageID, "msg-1")
 	}
-	if req.BotID != "bot-1" {
-		t.Errorf("BotID = %q, want %q", req.BotID, "bot-1")
+	if req.AgentID != "agent-1" {
+		t.Errorf("AgentID = %q, want %q", req.AgentID, "agent-1")
 	}
 	if req.TriggerMsgID != "trigger-1" {
 		t.Errorf("TriggerMsgID = %q, want %q", req.TriggerMsgID, "trigger-1")
@@ -192,7 +192,7 @@ func TestStreamRequestDeserializationEmpty(t *testing.T) {
 
 // --- TASK-0012: Multi-Stream in One Channel Tests ---
 
-func TestMultipleBotsTrackedIndependently(t *testing.T) {
+func TestMultipleAgentsTrackedIndependently(t *testing.T) {
 	manager := &Manager{
 		logger:               silentLogger(),
 		active:               make(map[string]struct{}),
@@ -200,11 +200,11 @@ func TestMultipleBotsTrackedIndependently(t *testing.T) {
 		semaphore:            make(chan struct{}, 10),
 	}
 
-	// Simulate 3 bots streaming concurrently in the same channel
-	// Each bot gets a unique messageId (per the multi-bot protocol)
-	botMessages := []string{"msg-bot1-ch1", "msg-bot2-ch1", "msg-bot3-ch1"}
+	// Simulate 3 agents streaming concurrently in the same channel
+	// Each agent gets a unique messageId (per the multi-agent protocol)
+	agentMessages := []string{"msg-agent1-ch1", "msg-agent2-ch1", "msg-agent3-ch1"}
 
-	for _, msgID := range botMessages {
+	for _, msgID := range agentMessages {
 		if !manager.tryAcquireSlot() {
 			t.Fatalf("failed to acquire slot for %s", msgID)
 		}
@@ -217,29 +217,29 @@ func TestMultipleBotsTrackedIndependently(t *testing.T) {
 		t.Fatalf("expected 3 active streams, got %d", manager.ActiveCount())
 	}
 
-	// First bot completes
+	// First agent completes
 	manager.mu.Lock()
-	delete(manager.active, "msg-bot1-ch1")
+	delete(manager.active, "msg-agent1-ch1")
 	manager.mu.Unlock()
 	manager.releaseSlot()
 
 	if manager.ActiveCount() != 2 {
-		t.Fatalf("expected 2 active streams after bot1 completes, got %d", manager.ActiveCount())
+		t.Fatalf("expected 2 active streams after agent1 completes, got %d", manager.ActiveCount())
 	}
 
-	// Second bot errors — still tracked until removed
+	// Second agent errors — still tracked until removed
 	manager.mu.Lock()
-	delete(manager.active, "msg-bot2-ch1")
+	delete(manager.active, "msg-agent2-ch1")
 	manager.mu.Unlock()
 	manager.releaseSlot()
 
 	if manager.ActiveCount() != 1 {
-		t.Fatalf("expected 1 active stream after bot2 errors, got %d", manager.ActiveCount())
+		t.Fatalf("expected 1 active stream after agent2 errors, got %d", manager.ActiveCount())
 	}
 
-	// Third bot completes
+	// Third agent completes
 	manager.mu.Lock()
-	delete(manager.active, "msg-bot3-ch1")
+	delete(manager.active, "msg-agent3-ch1")
 	manager.mu.Unlock()
 	manager.releaseSlot()
 
@@ -249,7 +249,7 @@ func TestMultipleBotsTrackedIndependently(t *testing.T) {
 }
 
 func TestMultiStreamSemaphoreIsolation(t *testing.T) {
-	// With concurrency limit of 3, exactly 3 bots can stream simultaneously
+	// With concurrency limit of 3, exactly 3 agents can stream simultaneously
 	manager := &Manager{
 		logger:               silentLogger(),
 		active:               make(map[string]struct{}),
@@ -257,19 +257,19 @@ func TestMultiStreamSemaphoreIsolation(t *testing.T) {
 		semaphore:            make(chan struct{}, 3),
 	}
 
-	// Acquire 3 slots (one per bot)
+	// Acquire 3 slots (one per agent)
 	for i := 0; i < 3; i++ {
 		if !manager.tryAcquireSlot() {
 			t.Fatalf("expected slot %d to be acquired", i)
 		}
 	}
 
-	// 4th bot in same channel should be rejected (semaphore full)
+	// 4th agent in same channel should be rejected (semaphore full)
 	if manager.tryAcquireSlot() {
 		t.Fatal("expected 4th concurrent stream to be rejected")
 	}
 
-	// Release one slot — 4th bot can now proceed
+	// Release one slot — 4th agent can now proceed
 	manager.releaseSlot()
 	if !manager.tryAcquireSlot() {
 		t.Fatal("expected slot to be available after release")
@@ -277,19 +277,19 @@ func TestMultiStreamSemaphoreIsolation(t *testing.T) {
 }
 
 func TestMultiStreamRequestDeserialization(t *testing.T) {
-	// Verify two stream requests for the same channel but different bots
+	// Verify two stream requests for the same channel but different agents
 	// can coexist without field collision
 	raw1 := `{
 		"channelId": "ch-1",
-		"messageId": "msg-bot1",
-		"botId": "bot-1",
+		"messageId": "msg-agent1",
+		"agentId": "agent-1",
 		"triggerMessageId": "trigger-1",
 		"contextMessages": [{"role": "user", "content": "hello"}]
 	}`
 	raw2 := `{
 		"channelId": "ch-1",
-		"messageId": "msg-bot2",
-		"botId": "bot-2",
+		"messageId": "msg-agent2",
+		"agentId": "agent-2",
 		"triggerMessageId": "trigger-1",
 		"contextMessages": [{"role": "user", "content": "hello"}]
 	}`
@@ -310,12 +310,12 @@ func TestMultiStreamRequestDeserialization(t *testing.T) {
 		t.Errorf("TriggerMsgIDs should match: %q != %q", req1.TriggerMsgID, req2.TriggerMsgID)
 	}
 
-	// Different message IDs and bot IDs
+	// Different message IDs and agent IDs
 	if req1.MessageID == req2.MessageID {
-		t.Error("MessageIDs should differ for multi-bot")
+		t.Error("MessageIDs should differ for multi-agent")
 	}
-	if req1.BotID == req2.BotID {
-		t.Error("BotIDs should differ for multi-bot")
+	if req1.AgentID == req2.AgentID {
+		t.Error("AgentIDs should differ for multi-agent")
 	}
 }
 

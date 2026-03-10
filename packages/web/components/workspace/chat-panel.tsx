@@ -44,7 +44,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
   const [deleteTarget, setDeleteTarget] = useState<MessagePayload | null>(null);
   const {
     messages,
-    botTriggerHint,
+    agentTriggerHint,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -280,7 +280,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
 
   const mentionOptions: MentionOption[] = useMemo(() => {
     const scopedMembers = serverDataById[panel.serverId]?.members || [];
-    const scopedBots = serverDataById[panel.serverId]?.bots || [];
+    const scopedAgents = serverDataById[panel.serverId]?.agents || [];
 
     const memberOptions: MentionOption[] = scopedMembers.map((member) => ({
       id: member.userId,
@@ -288,13 +288,13 @@ export function ChatPanel({ panel }: ChatPanelProps) {
       type: "user",
       secondary: member.username,
     }));
-    const botOptions: MentionOption[] = scopedBots.map((bot) => ({
-      id: bot.id,
-      name: bot.name,
-      type: "bot",
+    const agentOptions: MentionOption[] = scopedAgents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      type: "agent",
       secondary: "Agent",
     }));
-    return [...memberOptions, ...botOptions];
+    return [...memberOptions, ...agentOptions];
   }, [panel.serverId, serverDataById]);
   const panelServerName = useMemo(
     () => servers.find((server) => server.id === panel.serverId)?.name,
@@ -308,8 +308,8 @@ export function ChatPanel({ panel }: ChatPanelProps) {
 
   const hasActiveStream = messages.some((m) => m.streamingStatus === "ACTIVE");
   const isErrorHint =
-    typeof botTriggerHint === "string" &&
-    botTriggerHint.startsWith("Bot response failed:");
+    typeof agentTriggerHint === "string" &&
+    agentTriggerHint.startsWith("Agent response failed:");
 
   useEffect(() => {
     setStreamState(panel.channelId, hasActiveStream);
@@ -449,7 +449,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
           activeStreamCount={activeStreamCount}
         />
         <TypingIndicator typingUsers={typingUsers} />
-        {botTriggerHint && (
+        {agentTriggerHint && (
           <div
             role="status"
             aria-live="polite"
@@ -459,7 +459,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
                 : "border-t border-brand/20 bg-brand/10 px-4 py-2.5 text-sm font-semibold text-orange-100"
             }
           >
-            {botTriggerHint}
+            {agentTriggerHint}
           </div>
         )}
         {!isConnected && (
@@ -501,8 +501,8 @@ export function ChatPanel({ panel }: ChatPanelProps) {
         onClose={() => setShowChannelSettings(false)}
         channelId={panel.channelId}
         channelName={panel.channelName}
-        currentBotIds={channelData?.botIds}
-        currentDefaultBotId={channelData?.defaultBotId ?? null}
+        currentAgentIds={channelData?.agentIds}
+        currentDefaultAgentId={channelData?.defaultAgentId ?? null}
       />
       <DeleteMessageModal
         isOpen={!!deleteTarget}

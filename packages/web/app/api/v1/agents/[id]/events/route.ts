@@ -39,7 +39,7 @@ export async function GET(
     }
   }
 
-  if (!agent || agent.botId !== agentId) {
+  if (!agent || agent.agentId !== agentId) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

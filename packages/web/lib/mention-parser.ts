@@ -1,9 +1,9 @@
 /**
- * Mention parser utility for extracting mentioned user/bot IDs from message content.
+ * Mention parser utility for extracting mentioned user/agent IDs from message content.
  * Used by the message persistence handler to create MessageMention rows. (TASK-0015)
  *
  * V0's autocomplete inserts `@DisplayName ` (with trailing space) into the message.
- * This parser matches `@Name` patterns against known members and bots (case-insensitive).
+ * This parser matches `@Name` patterns against known members and agents (case-insensitive).
  */
 
 interface MentionTarget {
@@ -12,17 +12,17 @@ interface MentionTarget {
 }
 
 /**
- * Parse message content for @mentions and return unique IDs of mentioned users/bots.
+ * Parse message content for @mentions and return unique IDs of mentioned users/agents.
  *
  * @param content - The message content to parse
  * @param members - Array of {id, name} for server members (name = displayName)
- * @param bots - Array of {id, name} for server bots
- * @returns Array of unique user/bot IDs that were mentioned
+ * @param agents - Array of {id, name} for server agents
+ * @returns Array of unique user/agent IDs that were mentioned
  */
 export function parseMentionedUserIds(
   content: string,
   members: MentionTarget[],
-  bots: MentionTarget[],
+  agents: MentionTarget[],
 ): string[] {
   if (!content || content.length === 0) return [];
 
@@ -33,7 +33,7 @@ export function parseMentionedUserIds(
   for (const m of members) {
     if (m.name) nameToId.set(m.name.toLowerCase(), m.id);
   }
-  for (const b of bots) {
+  for (const b of agents) {
     if (b.name) nameToId.set(b.name.toLowerCase(), b.id);
   }
 

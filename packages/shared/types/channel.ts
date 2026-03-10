@@ -9,7 +9,7 @@ export interface Channel {
   topic: string | null;
   type: ChannelType;
   position: number;
-  defaultBotId: string | null; // ULID
+  defaultAgentId: string | null; // ULID
   lastSequence: string;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601

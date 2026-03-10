@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 export interface MentionOption {
   id: string;
   name: string;
-  type: "user" | "bot";
+  type: "user" | "agent";
   secondary?: string;
 }
 
@@ -86,7 +86,7 @@ export function MentionAutocomplete({
         >
           <div
             className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-              option.type === "bot"
+              option.type === "agent"
                 ? "bg-emerald-600 text-white"
                 : "bg-brand text-background-floating"
             }`}
@@ -101,7 +101,7 @@ export function MentionAutocomplete({
               </span>
             )}
           </div>
-          {option.type === "bot" && (
+          {option.type === "agent" && (
             <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-emerald-600/20 text-emerald-400">
               AGENT
             </span>

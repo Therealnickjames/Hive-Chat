@@ -17,7 +17,7 @@ export async function GET(
   const { id: agentId } = await params;
 
   const agent = await authenticateAgentRequest(request);
-  if (!agent || agent.botId !== agentId) {
+  if (!agent || agent.agentId !== agentId) {
     return NextResponse.json(
       { error: "Invalid or missing API key" },
       { status: 401 },
@@ -40,7 +40,7 @@ export async function GET(
         },
         orderBy: { position: "asc" },
       },
-      bots: {
+      agents: {
         where: { isActive: true },
         select: {
           id: true,
@@ -71,12 +71,12 @@ export async function GET(
       position: ch.position,
       websocketTopic: `room:${ch.id}`,
     })),
-    agents: server.bots.map((bot) => ({
-      id: bot.id,
-      name: bot.name,
-      avatarUrl: bot.avatarUrl,
-      triggerMode: bot.triggerMode,
-      connectionMethod: bot.connectionMethod,
+    agents: server.agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      avatarUrl: agent.avatarUrl,
+      triggerMode: agent.triggerMode,
+      connectionMethod: agent.connectionMethod,
     })),
   });
 }

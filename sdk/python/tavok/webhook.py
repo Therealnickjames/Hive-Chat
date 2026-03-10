@@ -1,7 +1,7 @@
 """Tavok SDK Webhook Handler — receive outbound webhook triggers from Tavok.
 
 For agents using the WEBHOOK connection method, Tavok POSTs to the agent's
-webhookUrl when a message triggers the bot. This module provides helpers to
+webhookUrl when a message triggers the agent. This module provides helpers to
 verify HMAC signatures and process the incoming payloads.
 
 Flask example::

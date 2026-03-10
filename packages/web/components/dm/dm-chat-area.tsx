@@ -19,7 +19,7 @@ interface DmChatAreaProps {
 
 /**
  * TASK-0019: Chat area for direct messages.
- * Simplified from ChatArea — no streaming, no bots, no unread tracking.
+ * Simplified from ChatArea — no streaming, no agents, no unread tracking.
  */
 export function DmChatArea({ dmId, otherUserName }: DmChatAreaProps) {
   const { data: session } = useSession();

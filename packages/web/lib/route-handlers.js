@@ -11,7 +11,7 @@ import { generateId } from "./ulid";
 import crypto from "crypto";
 
 function isAuthorType(value) {
-  return value === "USER" || value === "BOT" || value === "SYSTEM";
+  return value === "USER" || value === "AGENT" || value === "SYSTEM";
 }
 
 function isMessageType(value) {
@@ -144,14 +144,14 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
       // Runs outside the transaction (non-blocking, best-effort).
       if (authorType === "USER" && content.includes("@")) {
         try {
-          // Fetch server members and bots via the channel's serverId
+          // Fetch server members and agents via the channel's serverId
           const channel = await prismaClient.channel.findUnique({
             where: { id: channelId },
             select: { serverId: true },
           });
 
           if (channel) {
-            const [serverMembers, serverBots] = await Promise.all([
+            const [serverMembers, serverAgents] = await Promise.all([
               prismaClient.member.findMany({
                 where: { serverId: channel.serverId },
                 select: {
@@ -159,7 +159,7 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
                   user: { select: { displayName: true } },
                 },
               }),
-              prismaClient.bot.findMany({
+              prismaClient.agent.findMany({
                 where: { serverId: channel.serverId, isActive: true },
                 select: { id: true, name: true },
               }),
@@ -169,15 +169,15 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
               id: m.userId,
               name: m.user.displayName,
             }));
-            const botTargets = serverBots.map((b) => ({
-              id: b.id,
-              name: b.name,
+            const agentTargets = serverAgents.map((a) => ({
+              id: a.id,
+              name: a.name,
             }));
 
             const mentionedIds = parseMentionedUserIds(
               content,
               memberTargets,
-              botTargets,
+              agentTargets,
             );
 
             if (mentionedIds.length > 0) {
@@ -215,7 +215,8 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
       }
 
       // BUG-002: Use descriptive fallback instead of "Unknown" for deleted authors
-      let authorName = authorType === "BOT" ? "Deleted Agent" : "Deleted User";
+      let authorName =
+        authorType === "AGENT" ? "Deleted Agent" : "Deleted User";
       let authorAvatarUrl = null;
 
       if (authorType === "USER") {
@@ -227,14 +228,14 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
           authorName = user.displayName;
           authorAvatarUrl = user.avatarUrl;
         }
-      } else if (authorType === "BOT") {
-        const bot = await prismaClient.bot.findUnique({
+      } else if (authorType === "AGENT") {
+        const agent = await prismaClient.agent.findUnique({
           where: { id: authorId },
           select: { name: true, avatarUrl: true },
         });
-        if (bot) {
-          authorName = bot.name;
-          authorAvatarUrl = bot.avatarUrl;
+        if (agent) {
+          authorName = agent.name;
+          authorAvatarUrl = agent.avatarUrl;
         }
       }
 
@@ -273,19 +274,19 @@ export function createInternalMessagesPostHandler({ prismaClient }) {
   };
 }
 
-export function createServerBotPatchHandler({
+export function createServerAgentPatchHandler({
   getServerSession,
   authOptions,
   prismaClient,
   encrypt,
 }) {
-  return async function serverBotPatchHandler(request, { params }) {
+  return async function serverAgentPatchHandler(request, { params }) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { serverId, botId } = await params;
+    const { serverId, agentId } = await params;
 
     const server = await prismaClient.server.findUnique({
       where: { id: serverId },
@@ -297,16 +298,16 @@ export function createServerBotPatchHandler({
       );
     }
 
-    const existingBot = await prismaClient.bot.findUnique({
-      where: { id: botId },
+    const existingAgent = await prismaClient.agent.findUnique({
+      where: { id: agentId },
       select: { serverId: true },
     });
     if (
-      !existingBot ||
-      !canMutateServerScopedResource(serverId, existingBot.serverId)
+      !existingAgent ||
+      !canMutateServerScopedResource(serverId, existingAgent.serverId)
     ) {
       return NextResponse.json(
-        { error: "Bot not found in this server" },
+        { error: "Agent not found in this server" },
         { status: 404 },
       );
     }
@@ -347,8 +348,8 @@ export function createServerBotPatchHandler({
       updateData.apiKeyEncrypted = encrypt(body.apiKey);
     }
 
-    const bot = await prismaClient.bot.update({
-      where: { id: botId },
+    const agent = await prismaClient.agent.update({
+      where: { id: agentId },
       data: updateData,
       select: {
         id: true,
@@ -364,7 +365,7 @@ export function createServerBotPatchHandler({
       },
     });
 
-    return NextResponse.json(bot);
+    return NextResponse.json(agent);
   };
 }
 
@@ -421,28 +422,28 @@ export function createServerChannelPatchHandler({
 
     const updateData = {};
 
-    if ("defaultBotId" in body) {
-      if (body.defaultBotId === null) {
-        updateData.defaultBotId = null;
+    if ("defaultAgentId" in body) {
+      if (body.defaultAgentId === null) {
+        updateData.defaultAgentId = null;
       } else if (
-        typeof body.defaultBotId !== "string" ||
-        body.defaultBotId.length === 0
+        typeof body.defaultAgentId !== "string" ||
+        body.defaultAgentId.length === 0
       ) {
         return NextResponse.json(
-          { error: "defaultBotId must be a string or null" },
+          { error: "defaultAgentId must be a string or null" },
           { status: 400 },
         );
       } else {
-        const bot = await prismaClient.bot.findUnique({
-          where: { id: body.defaultBotId },
+        const agent = await prismaClient.agent.findUnique({
+          where: { id: body.defaultAgentId },
         });
-        if (!bot || bot.serverId !== serverId) {
+        if (!agent || agent.serverId !== serverId) {
           return NextResponse.json(
-            { error: "Bot not found in this server" },
+            { error: "Agent not found in this server" },
             { status: 400 },
           );
         }
-        updateData.defaultBotId = body.defaultBotId;
+        updateData.defaultAgentId = body.defaultAgentId;
       }
     }
 
@@ -459,34 +460,36 @@ export function createServerChannelPatchHandler({
       }
     }
 
-    // TASK-0012: Validate botIds array for multi-bot assignment
-    if ("botIds" in body) {
-      if (!Array.isArray(body.botIds)) {
+    // TASK-0012: Validate agentIds array for multi-agent assignment
+    if ("agentIds" in body) {
+      if (!Array.isArray(body.agentIds)) {
         return NextResponse.json(
-          { error: "botIds must be an array of strings" },
+          { error: "agentIds must be an array of strings" },
           { status: 400 },
         );
       }
       // Validate all items are non-empty strings
-      for (const id of body.botIds) {
+      for (const id of body.agentIds) {
         if (typeof id !== "string" || id.length === 0) {
           return NextResponse.json(
-            { error: "botIds must be an array of strings" },
+            { error: "agentIds must be an array of strings" },
             { status: 400 },
           );
         }
       }
-      // Validate all bot IDs exist in the server
-      if (body.botIds.length > 0 && prismaClient.bot?.findMany) {
-        const validBots = await prismaClient.bot.findMany({
-          where: { id: { in: body.botIds }, serverId },
+      // Validate all agent IDs exist in the server
+      if (body.agentIds.length > 0 && prismaClient.agent?.findMany) {
+        const validAgents = await prismaClient.agent.findMany({
+          where: { id: { in: body.agentIds }, serverId },
           select: { id: true },
         });
-        const validIds = new Set(validBots.map((b) => b.id));
-        const invalid = body.botIds.filter((id) => !validIds.has(id));
+        const validIds = new Set(validAgents.map((a) => a.id));
+        const invalid = body.agentIds.filter((id) => !validIds.has(id));
         if (invalid.length > 0) {
           return NextResponse.json(
-            { error: `Bots not found in this server: ${invalid.join(", ")}` },
+            {
+              error: `Agents not found in this server: ${invalid.join(", ")}`,
+            },
             { status: 400 },
           );
         }
@@ -500,7 +503,7 @@ export function createServerChannelPatchHandler({
         id: true,
         name: true,
         topic: true,
-        defaultBotId: true,
+        defaultAgentId: true,
       },
     });
 
@@ -526,7 +529,7 @@ export function hashApiKey(apiKey) {
  */
 export function createAgentGetHandler({ prismaClient }) {
   return async function agentGetHandler(agentId) {
-    const bot = await prismaClient.bot.findUnique({
+    const agent = await prismaClient.agent.findUnique({
       where: { id: agentId },
       select: {
         id: true,
@@ -550,25 +553,25 @@ export function createAgentGetHandler({ prismaClient }) {
       },
     });
 
-    if (!bot || !bot.agentRegistration) {
+    if (!agent || !agent.agentRegistration) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
     return NextResponse.json({
-      agentId: bot.id,
-      displayName: bot.name,
-      avatarUrl: bot.avatarUrl,
-      serverId: bot.serverId,
-      model: bot.llmModel,
-      isActive: bot.isActive,
-      triggerMode: bot.triggerMode,
-      capabilities: bot.agentRegistration.capabilities,
-      healthUrl: bot.agentRegistration.healthUrl,
-      webhookUrl: bot.agentRegistration.webhookUrl,
-      maxTokensSec: bot.agentRegistration.maxTokensSec,
-      lastHealthCheck: bot.agentRegistration.lastHealthCheck,
-      lastHealthOk: bot.agentRegistration.lastHealthOk,
-      createdAt: bot.createdAt,
+      agentId: agent.id,
+      displayName: agent.name,
+      avatarUrl: agent.avatarUrl,
+      serverId: agent.serverId,
+      model: agent.llmModel,
+      isActive: agent.isActive,
+      triggerMode: agent.triggerMode,
+      capabilities: agent.agentRegistration.capabilities,
+      healthUrl: agent.agentRegistration.healthUrl,
+      webhookUrl: agent.agentRegistration.webhookUrl,
+      maxTokensSec: agent.agentRegistration.maxTokensSec,
+      lastHealthCheck: agent.agentRegistration.lastHealthCheck,
+      lastHealthOk: agent.agentRegistration.lastHealthOk,
+      createdAt: agent.createdAt,
     });
   };
 }
@@ -590,8 +593,8 @@ export async function authenticateAgentKey(authHeader, agentId, prismaClient) {
   const apiKeyHash = hashApiKey(apiKey);
 
   const registration = await prismaClient.agentRegistration.findFirst({
-    where: { apiKeyHash, botId: agentId },
-    select: { id: true, botId: true },
+    where: { apiKeyHash, agentId: agentId },
+    select: { id: true, agentId: true },
   });
 
   if (!registration) {
@@ -638,12 +641,15 @@ export function createAgentPatchHandler({ prismaClient }) {
 
     try {
       await prismaClient.$transaction(async (tx) => {
-        const botUpdate = {};
-        if (displayName !== undefined) botUpdate.name = displayName;
-        if (avatarUrl !== undefined) botUpdate.avatarUrl = avatarUrl;
+        const agentUpdate = {};
+        if (displayName !== undefined) agentUpdate.name = displayName;
+        if (avatarUrl !== undefined) agentUpdate.avatarUrl = avatarUrl;
 
-        if (Object.keys(botUpdate).length > 0) {
-          await tx.bot.update({ where: { id: agentId }, data: botUpdate });
+        if (Object.keys(agentUpdate).length > 0) {
+          await tx.agent.update({
+            where: { id: agentId },
+            data: agentUpdate,
+          });
         }
 
         const regUpdate = {};
@@ -654,7 +660,7 @@ export function createAgentPatchHandler({ prismaClient }) {
 
         if (Object.keys(regUpdate).length > 0) {
           await tx.agentRegistration.update({
-            where: { botId: agentId },
+            where: { agentId: agentId },
             data: regUpdate,
           });
         }
@@ -670,7 +676,7 @@ export function createAgentPatchHandler({ prismaClient }) {
 
 /**
  * DELETE /api/v1/agents/{id}
- * Deregister agent. Cascade deletes Bot. Requires Bearer auth.
+ * Deregister agent. Cascade deletes Agent. Requires Bearer auth.
  */
 export function createAgentDeleteHandler({ prismaClient }) {
   return async function agentDeleteHandler(request, agentId) {
@@ -681,7 +687,7 @@ export function createAgentDeleteHandler({ prismaClient }) {
     }
 
     try {
-      await prismaClient.bot.delete({ where: { id: agentId } });
+      await prismaClient.agent.delete({ where: { id: agentId } });
       return NextResponse.json({ success: true });
     } catch (error) {
       console.error("Agent deregistration failed:", error);
@@ -724,7 +730,7 @@ export function createAgentVerifyHandler({ prismaClient }) {
         select: {
           id: true,
           capabilities: true,
-          bot: {
+          agent: {
             select: {
               id: true,
               name: true,
@@ -743,7 +749,7 @@ export function createAgentVerifyHandler({ prismaClient }) {
         );
       }
 
-      if (!registration.bot.isActive) {
+      if (!registration.agent.isActive) {
         return NextResponse.json(
           { error: "Agent is deactivated", valid: false },
           { status: 403 },
@@ -752,10 +758,10 @@ export function createAgentVerifyHandler({ prismaClient }) {
 
       return NextResponse.json({
         valid: true,
-        botId: registration.bot.id,
-        botName: registration.bot.name,
-        botAvatarUrl: registration.bot.avatarUrl,
-        serverId: registration.bot.serverId,
+        agentId: registration.agent.id,
+        agentName: registration.agent.name,
+        agentAvatarUrl: registration.agent.avatarUrl,
+        serverId: registration.agent.serverId,
         capabilities: registration.capabilities,
       });
     } catch (error) {

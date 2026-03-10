@@ -86,7 +86,7 @@ export interface CharterState {
 
 interface UseChannelReturn {
   messages: MessagePayload[];
-  botTriggerHint: string | null;
+  agentTriggerHint: string | null;
   sendMessage: (content: string) => void;
   editMessage: (messageId: string, content: string) => Promise<boolean>;
   deleteMessage: (messageId: string) => Promise<boolean>;
@@ -109,7 +109,7 @@ interface UseChannelReturn {
  */
 export function useChannel(channelId: string | null): UseChannelReturn {
   const [messages, setMessages] = useState<MessagePayload[]>([]);
-  const [botTriggerHint, setBotTriggerHint] = useState<string | null>(null);
+  const [agentTriggerHint, setAgentTriggerHint] = useState<string | null>(null);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [hasJoinedOnce, setHasJoinedOnce] = useState(false);
@@ -127,9 +127,9 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     Map<
       string,
       {
-        botId: string;
-        botName: string;
-        botAvatarUrl: string | null;
+        agentId: string;
+        agentName: string;
+        agentAvatarUrl: string | null;
         sequence: string;
       }
     >
@@ -137,7 +137,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
   const typingTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
   const loadingHistoryRef = useRef(false);
-  const botHintTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const agentHintTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // BUG-006: Track last token timestamp per streaming message for timeout detection
   const streamLastTokenRef = useRef<Map<string, number>>(new Map());
@@ -211,7 +211,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
     // Reset state for new channel
     setMessages([]);
-    setBotTriggerHint(null);
+    setAgentTriggerHint(null);
     setHasMoreHistory(true);
     setIsConnected(false);
     setHasJoinedOnce(false);
@@ -221,9 +221,9 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     pendingStreamMetaRef.current = new Map();
     lastSequenceRef.current = "0";
     loadingHistoryRef.current = false;
-    if (botHintTimerRef.current) {
-      clearTimeout(botHintTimerRef.current);
-      botHintTimerRef.current = null;
+    if (agentHintTimerRef.current) {
+      clearTimeout(agentHintTimerRef.current);
+      agentHintTimerRef.current = null;
     }
 
     async function joinChannel() {
@@ -297,19 +297,19 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         }
       });
 
-      // bot_trigger_skipped: show inline hint for mention-only bots
-      channel.on("bot_trigger_skipped", (raw: unknown) => {
+      // agent_trigger_skipped: show inline hint for mention-only agents
+      channel.on("agent_trigger_skipped", (raw: unknown) => {
         if (!mounted) return;
         const payload = raw as {
-          botId: string;
-          botName: string;
+          agentId: string;
+          agentName: string;
           reason: string;
           triggerMode: string;
         };
 
-        if (payload.reason === "mention_required" && payload.botName) {
-          setBotTriggerHint(
-            `Action needed: no bot triggered. Mention @${payload.botName} to trigger it.`,
+        if (payload.reason === "mention_required" && payload.agentName) {
+          setAgentTriggerHint(
+            `Action needed: no agent triggered. Mention @${payload.agentName} to trigger it.`,
           );
         }
       });
@@ -344,21 +344,21 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
       // ---- Streaming events ----
 
-      // stream_start: add placeholder message for the bot
+      // stream_start: add placeholder message for the agent
       channel.on("stream_start", (raw: unknown) => {
         if (!mounted) return;
         const payload = raw as {
           messageId: string;
-          botId: string;
-          botName: string;
-          botAvatarUrl: string | null;
+          agentId: string;
+          agentName: string;
+          agentAvatarUrl: string | null;
           sequence: string;
         };
 
         pendingStreamMetaRef.current.set(payload.messageId, {
-          botId: payload.botId,
-          botName: payload.botName,
-          botAvatarUrl: payload.botAvatarUrl,
+          agentId: payload.agentId,
+          agentName: payload.agentName,
+          agentAvatarUrl: payload.agentAvatarUrl,
           sequence: payload.sequence,
         });
 
@@ -368,10 +368,10 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         const placeholder: MessagePayload = {
           id: payload.messageId,
           channelId: channelId!,
-          authorId: payload.botId,
-          authorType: "BOT",
-          authorName: payload.botName,
-          authorAvatarUrl: payload.botAvatarUrl,
+          authorId: payload.agentId,
+          authorType: "AGENT",
+          authorName: payload.agentName,
+          authorAvatarUrl: payload.agentAvatarUrl,
           content: "",
           type: "STREAMING",
           streamingStatus: "ACTIVE",
@@ -479,10 +479,10 @@ export function useChannel(channelId: string | null): UseChannelReturn {
           const fallback: MessagePayload = {
             id: payload.messageId,
             channelId: channelId!,
-            authorId: streamMeta?.botId || "",
-            authorType: "BOT",
-            authorName: streamMeta?.botName || "Agent",
-            authorAvatarUrl: streamMeta?.botAvatarUrl || null,
+            authorId: streamMeta?.agentId || "",
+            authorType: "AGENT",
+            authorName: streamMeta?.agentName || "Agent",
+            authorAvatarUrl: streamMeta?.agentAvatarUrl || null,
             content: payload.partialContent || "[Error: " + payload.error + "]",
             type: "STREAMING",
             streamingStatus: "ERROR",
@@ -504,7 +504,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
         // Surface stream failures inline near the input, not only in the message list.
         const errorText = (payload.error || "").trim();
         if (errorText) {
-          setBotTriggerHint(`Bot response failed: ${errorText}`);
+          setAgentTriggerHint(`Agent response failed: ${errorText}`);
         }
       });
 
@@ -781,9 +781,9 @@ export function useChannel(channelId: string | null): UseChannelReturn {
       // BUG-006: Clear stream timeout interval
       clearInterval(streamTimeoutInterval);
       streamLastTokenRef.current.clear();
-      if (botHintTimerRef.current) {
-        clearTimeout(botHintTimerRef.current);
-        botHintTimerRef.current = null;
+      if (agentHintTimerRef.current) {
+        clearTimeout(agentHintTimerRef.current);
+        agentHintTimerRef.current = null;
       }
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -798,13 +798,13 @@ export function useChannel(channelId: string | null): UseChannelReturn {
     if (!trimmed) return;
 
     if (!channelRef.current) {
-      setBotTriggerHint(
+      setAgentTriggerHint(
         "Action needed: disconnected from channel gateway. Reconnecting...",
       );
       return;
     }
 
-    setBotTriggerHint(null);
+    setAgentTriggerHint(null);
     channelRef.current.push("new_message", { content: trimmed });
   }, []);
 
@@ -900,7 +900,7 @@ export function useChannel(channelId: string | null): UseChannelReturn {
 
   return {
     messages,
-    botTriggerHint,
+    agentTriggerHint,
     sendMessage,
     editMessage,
     deleteMessage,

@@ -34,7 +34,7 @@ export async function POST(
   // Verify webhook token
   const webhook = await prisma.inboundWebhook.findUnique({
     where: { token },
-    select: { channelId: true, botId: true, isActive: true },
+    select: { channelId: true, agentId: true, isActive: true },
   });
 
   if (!webhook || !webhook.isActive) {
@@ -78,10 +78,10 @@ export async function POST(
     );
   }
 
-  // Verify the message belongs to this webhook's bot and channel
+  // Verify the message belongs to this webhook's agent and channel
   const ownership = await verifyWebhookMessageOwnership(
     messageId,
-    webhook.botId,
+    webhook.agentId,
     webhook.channelId,
   );
   if (!ownership.valid) {
@@ -174,7 +174,7 @@ export async function POST(
 
 async function verifyWebhookMessageOwnership(
   messageId: string,
-  botId: string,
+  agentId: string,
   channelId: string,
 ): Promise<{ valid: true } | { valid: false; error: string; status: number }> {
   let message;
@@ -202,10 +202,10 @@ async function verifyWebhookMessageOwnership(
     return { valid: false, error: "Message not found", status: 404 };
   }
 
-  if (message.authorId !== botId) {
+  if (message.authorId !== agentId) {
     return {
       valid: false,
-      error: "Message does not belong to this webhook's bot",
+      error: "Message does not belong to this webhook's agent",
       status: 403,
     };
   }

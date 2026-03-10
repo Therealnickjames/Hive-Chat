@@ -63,7 +63,7 @@ class Agent:
         name: Agent name. Used for auto-discovery from ``.tavok-agents.json``.
         api_key: API key. If not provided, auto-discovered by name.
             Also reads ``TAVOK_API_KEY``.
-        agent_id: Agent/bot ULID. If not provided, auto-discovered by name.
+        agent_id: Agent ULID. If not provided, auto-discovered by name.
             Also reads ``TAVOK_AGENT_ID``.
         server_id: Default server ULID. Also discovered from ``.tavok.json``.
         channel_ids: Default channel ULIDs. Also discovered from ``.tavok.json``.
@@ -133,7 +133,7 @@ class Agent:
 
     @property
     def agent_id(self) -> str | None:
-        """The agent's bot ULID."""
+        """The agent's ULID."""
         return self._agent_id
 
     @property
@@ -181,7 +181,7 @@ class Agent:
         return fn
 
     def on_stream_start(self, fn: Callable) -> Callable:
-        """Decorator: called when any bot starts streaming."""
+        """Decorator: called when any agent starts streaming."""
         self._on_stream_start_handlers.append(fn)
         return fn
 
@@ -241,8 +241,8 @@ class Agent:
         return StreamContext(
             socket=self._socket,
             channel_id=channel_id,
-            bot_id=self._agent_id or "",
-            bot_name=self._name,
+            agent_id=self._agent_id or "",
+            agent_name=self._name,
             reply_to=reply_to,
         )
 

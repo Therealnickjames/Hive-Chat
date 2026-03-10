@@ -7,10 +7,10 @@ defmodule TavokGatewayWeb.UserSocket do
   2. Agent (API key): ?api_key=sk-tvk-...  — verified via internal API call to Next.js (DEC-0040)
 
   On success, socket assigns:
-  - :user_id      — User.id (humans) or Bot.id (agents)
+  - :user_id      — User.id (humans) or Agent.id (agents)
   - :username     — human username or agent display name
   - :display_name — human display name or agent display name
-  - :author_type  — "USER" (humans) or "BOT" (agents)
+  - :author_type  — "USER" (humans) or "AGENT" (agents)
   - :server_id    — (agents only) the server the agent belongs to
 
   See docs/PROTOCOL.md §1 for the full WebSocket protocol.
@@ -70,15 +70,15 @@ defmodule TavokGatewayWeb.UserSocket do
       {:ok, agent_info} ->
         socket =
           socket
-          |> assign(:user_id, agent_info["botId"])
-          |> assign(:username, agent_info["botName"])
-          |> assign(:display_name, agent_info["botName"])
-          |> assign(:author_type, "BOT")
+          |> assign(:user_id, agent_info["agentId"])
+          |> assign(:username, agent_info["agentName"])
+          |> assign(:display_name, agent_info["agentName"])
+          |> assign(:author_type, "AGENT")
           |> assign(:server_id, agent_info["serverId"])
-          |> assign(:bot_avatar_url, agent_info["botAvatarUrl"])
+          |> assign(:agent_avatar_url, agent_info["agentAvatarUrl"])
 
         Logger.info(
-          "WebSocket connected: agent=#{agent_info["botId"]} server=#{agent_info["serverId"]}"
+          "WebSocket connected: agent=#{agent_info["agentId"]} server=#{agent_info["serverId"]}"
         )
 
         {:ok, socket}
@@ -97,7 +97,9 @@ defmodule TavokGatewayWeb.UserSocket do
 
   @impl true
   def id(socket) do
-    prefix = if socket.assigns[:author_type] == "BOT", do: "agent_socket", else: "user_socket"
+    prefix =
+      if socket.assigns[:author_type] == "AGENT", do: "agent_socket", else: "user_socket"
+
     "#{prefix}:#{socket.assigns.user_id}"
   end
 

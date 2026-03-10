@@ -7,9 +7,9 @@ import { prisma } from "@/lib/db";
  * Used by all /api/v1/agents/* and /api/v1/webhooks/* endpoints.
  */
 export interface AgentAuthResult {
-  botId: string;
-  botName: string;
-  botAvatarUrl: string | null;
+  agentId: string;
+  agentName: string;
+  agentAvatarUrl: string | null;
   serverId: string;
   capabilities: unknown;
   connectionMethod: string;
@@ -38,10 +38,10 @@ export async function authenticateAgentRequest(
   const registration = await prisma.agentRegistration.findFirst({
     where: { apiKeyHash },
     select: {
-      botId: true,
+      agentId: true,
       capabilities: true,
       connectionMethod: true,
-      bot: {
+      agent: {
         select: {
           id: true,
           name: true,
@@ -53,15 +53,15 @@ export async function authenticateAgentRequest(
     },
   });
 
-  if (!registration || !registration.bot.isActive) {
+  if (!registration || !registration.agent.isActive) {
     return null;
   }
 
   return {
-    botId: registration.botId,
-    botName: registration.bot.name,
-    botAvatarUrl: registration.bot.avatarUrl,
-    serverId: registration.bot.serverId,
+    agentId: registration.agentId,
+    agentName: registration.agent.name,
+    agentAvatarUrl: registration.agent.avatarUrl,
+    serverId: registration.agent.serverId,
     capabilities: registration.capabilities,
     connectionMethod: registration.connectionMethod,
   };
@@ -83,10 +83,10 @@ export async function authenticateAgentKey(
   const registration = await prisma.agentRegistration.findFirst({
     where: { apiKeyHash },
     select: {
-      botId: true,
+      agentId: true,
       capabilities: true,
       connectionMethod: true,
-      bot: {
+      agent: {
         select: {
           id: true,
           name: true,
@@ -98,15 +98,15 @@ export async function authenticateAgentKey(
     },
   });
 
-  if (!registration || !registration.bot.isActive) {
+  if (!registration || !registration.agent.isActive) {
     return null;
   }
 
   return {
-    botId: registration.botId,
-    botName: registration.bot.name,
-    botAvatarUrl: registration.bot.avatarUrl,
-    serverId: registration.bot.serverId,
+    agentId: registration.agentId,
+    agentName: registration.agent.name,
+    agentAvatarUrl: registration.agent.avatarUrl,
+    serverId: registration.agent.serverId,
     capabilities: registration.capabilities,
     connectionMethod: registration.connectionMethod,
   };

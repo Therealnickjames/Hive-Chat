@@ -70,7 +70,7 @@ export async function POST(
  * start to atomically verify and reserve a turn, preventing the TOCTOU race
  * where two concurrent streams both pass the turn check on a stale snapshot.
  *
- * Body: { botId: string }
+ * Body: { agentId: string }
  *
  * On success: increments charterCurrentTurn and returns { granted: true, ... }.
  * On rejection: returns 409 with reason (wrong agent, max turns, not active).
@@ -87,16 +87,16 @@ export async function PUT(
 
   const { channelId } = await params;
 
-  let body: { botId?: string };
+  let body: { agentId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { botId } = body;
-  if (!botId || typeof botId !== "string") {
-    return NextResponse.json({ error: "botId is required" }, { status: 400 });
+  const { agentId } = body;
+  if (!agentId || typeof agentId !== "string") {
+    return NextResponse.json({ error: "agentId is required" }, { status: 400 });
   }
 
   try {
@@ -142,11 +142,11 @@ export async function PUT(
       const agentOrder = channel.charterAgentOrder ?? [];
       if (orderedModes.includes(channel.swarmMode) && agentOrder.length > 0) {
         const expectedIndex = channel.charterCurrentTurn % agentOrder.length;
-        const expectedBot = agentOrder[expectedIndex];
-        if (expectedBot !== botId) {
+        const expectedAgent = agentOrder[expectedIndex];
+        if (expectedAgent !== agentId) {
           return {
             granted: false,
-            reason: `Not your turn: waiting for agent ${expectedBot} (turn ${channel.charterCurrentTurn + 1})`,
+            reason: `Not your turn: waiting for agent ${expectedAgent} (turn ${channel.charterCurrentTurn + 1})`,
             status: 409,
           };
         }

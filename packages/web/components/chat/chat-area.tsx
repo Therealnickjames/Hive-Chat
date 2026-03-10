@@ -37,7 +37,7 @@ export function ChatArea({
   const {
     refreshMembers,
     members,
-    bots,
+    agents,
     hasPermission,
     markAsRead,
     unreadMap,
@@ -57,7 +57,7 @@ export function ChatArea({
 
   const {
     messages,
-    botTriggerHint,
+    agentTriggerHint,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -120,17 +120,17 @@ export function ChatArea({
       type: "user",
       secondary: member.username,
     }));
-    const botOptions: MentionOption[] = bots.map((bot) => ({
-      id: bot.id,
-      name: bot.name,
-      type: "bot",
+    const agentOptions: MentionOption[] = agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      type: "agent",
       secondary: "Agent",
     }));
-    return [...memberOptions, ...botOptions];
-  }, [members, bots]);
+    return [...memberOptions, ...agentOptions];
+  }, [members, agents]);
   const isErrorHint =
-    typeof botTriggerHint === "string" &&
-    botTriggerHint.startsWith("Bot response failed:");
+    typeof agentTriggerHint === "string" &&
+    agentTriggerHint.startsWith("Agent response failed:");
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -154,7 +154,7 @@ export function ChatArea({
         activeStreamCount={activeStreamCount}
       />
       <TypingIndicator typingUsers={typingUsers} />
-      {botTriggerHint && (
+      {agentTriggerHint && (
         <div
           role="status"
           aria-live="polite"
@@ -164,7 +164,7 @@ export function ChatArea({
               : "border-t border-brand/60 bg-brand/20 px-4 py-2 text-sm font-bold tracking-wide text-brand"
           }
         >
-          {botTriggerHint}
+          {agentTriggerHint}
         </div>
       )}
       {!isConnected && (

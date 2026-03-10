@@ -30,22 +30,22 @@ class StreamContext:
         socket: The active PhoenixSocket connection.
         channel_id: The channel to stream into.
         reply_to: Optional message ID this stream replies to.
-        bot_id: The agent's bot ID.
-        bot_name: The agent's display name.
+        agent_id: The agent's ULID.
+        agent_name: The agent's display name.
     """
 
     def __init__(
         self,
         socket: PhoenixSocket,
         channel_id: str,
-        bot_id: str,
-        bot_name: str,
+        agent_id: str,
+        agent_name: str,
         reply_to: str | None = None,
     ) -> None:
         self._socket = socket
         self._channel_id = channel_id
-        self._bot_id = bot_id
-        self._bot_name = bot_name
+        self._agent_id = agent_id
+        self._agent_name = agent_name
         self._reply_to = reply_to
         self._topic = f"room:{channel_id}"
         self._message_id: str | None = None
@@ -66,8 +66,8 @@ class StreamContext:
     async def _start(self) -> None:
         """Send stream_start to create the placeholder message."""
         payload: dict[str, Any] = {
-            "botId": self._bot_id,
-            "botName": self._bot_name,
+            "agentId": self._agent_id,
+            "agentName": self._agent_name,
         }
         if self._reply_to:
             payload["replyTo"] = self._reply_to

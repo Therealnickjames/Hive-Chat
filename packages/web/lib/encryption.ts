@@ -1,5 +1,5 @@
 /**
- * AES-256-GCM encryption for bot API keys.
+ * AES-256-GCM encryption for agent API keys.
  *
  * Ciphertext format: iv:authTag:encrypted (all hex-encoded)
  * Key: ENCRYPTION_KEY env var (64 hex chars = 32 bytes)

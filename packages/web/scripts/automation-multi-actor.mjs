@@ -161,8 +161,8 @@ async function run() {
     throw new Error("Demo did not visibly receive alice message in viewport");
   }
 
-  const demoErrors = demoPage.getByText(/Bot API key is not configured/i);
-  const aliceErrors = alicePage.getByText(/Bot API key is not configured/i);
+  const demoErrors = demoPage.getByText(/Agent API key is not configured/i);
+  const aliceErrors = alicePage.getByText(/Agent API key is not configured/i);
   const demoErrorBefore = await demoErrors.count();
   const aliceErrorBefore = await aliceErrors.count();
 
@@ -179,7 +179,7 @@ async function run() {
 
   const demoErrorAfter = await demoErrors.count();
   const aliceErrorAfter = await aliceErrors.count();
-  const inlineHintCount = await demoPage.getByText(/Bot response failed:/i).count();
+  const inlineHintCount = await demoPage.getByText(/Agent response failed:/i).count();
 
   await logDebug("Agent-to-human cycle observed", {
     marker,

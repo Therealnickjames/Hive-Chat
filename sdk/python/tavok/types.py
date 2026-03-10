@@ -14,7 +14,7 @@ class AuthorType(str, Enum):
     """Who authored a message."""
 
     USER = "USER"
-    BOT = "BOT"
+    AGENT = "AGENT"
     SYSTEM = "SYSTEM"
 
 
@@ -41,9 +41,9 @@ class Message:
     Attributes:
         id: ULID message identifier.
         channel_id: Channel the message belongs to.
-        author_id: Author's user or bot ULID.
+        author_id: Author's user or agent ULID.
         author_name: Display name of the author.
-        author_type: USER, BOT, or SYSTEM.
+        author_type: USER, AGENT, or SYSTEM.
         content: Message text content.
         type: STANDARD, STREAMING, or SYSTEM.
         sequence: Channel sequence number (string for BigInt safety).
@@ -66,13 +66,13 @@ class Message:
     author_avatar_url: str | None = None
     streaming_status: StreamStatus | None = None
 
-    def mentions_me(self, bot_id: str) -> bool:
-        """Check if this message mentions the given bot ID.
+    def mentions_me(self, agent_id: str) -> bool:
+        """Check if this message mentions the given agent ID.
 
         Looks for @mention patterns in the content. The mention format
-        used by Tavok is ``<@BOT_ID>``.
+        used by Tavok is ``<@AGENT_ID>``.
         """
-        return f"<@{bot_id}>" in self.content
+        return f"<@{agent_id}>" in self.content
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> Message:
@@ -122,28 +122,28 @@ class StreamToken:
 
 @dataclass(frozen=True, slots=True)
 class StreamStart:
-    """Broadcast when a bot starts streaming."""
+    """Broadcast when an agent starts streaming."""
 
     message_id: str
-    bot_id: str
-    bot_name: str
-    bot_avatar_url: str | None
+    agent_id: str
+    agent_name: str
+    agent_avatar_url: str | None
     sequence: str
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> StreamStart:
         return cls(
             message_id=payload["messageId"],
-            bot_id=payload.get("botId", ""),
-            bot_name=payload.get("botName", ""),
-            bot_avatar_url=payload.get("botAvatarUrl"),
+            agent_id=payload.get("agentId", ""),
+            agent_name=payload.get("agentName", ""),
+            agent_avatar_url=payload.get("agentAvatarUrl"),
             sequence=str(payload.get("sequence", "0")),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class StreamComplete:
-    """Broadcast when a bot finishes streaming."""
+    """Broadcast when an agent finishes streaming."""
 
     message_id: str
     final_content: str
@@ -180,7 +180,7 @@ class RegistrationResult:
     """Returned after successful agent registration.
 
     Attributes:
-        agent_id: The bot/agent ULID.
+        agent_id: The agent ULID.
         api_key: The ``sk-tvk-...`` API key (shown once, store securely).
         websocket_url: WebSocket endpoint for connecting.
     """

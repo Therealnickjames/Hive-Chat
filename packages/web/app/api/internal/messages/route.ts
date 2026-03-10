@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       messages.reverse();
     }
 
-    // Batch-load user and bot authors for polymorphic authorId values
+    // Batch-load user and agent authors for polymorphic authorId values
     const userAuthorIds = [
       ...new Set(
         messages
@@ -119,29 +119,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // BUG-005: Also include USER-typed authorIds in bot lookup — messages
-    // persisted before BUG-003 fix have authorType=USER with a Bot authorId.
-    const botAuthorIds = [
+    // BUG-005: Also include USER-typed authorIds in agent lookup — messages
+    // persisted before BUG-003 fix have authorType=USER with an Agent authorId.
+    const agentAuthorIds = [
       ...new Set(
         messages
           .filter(
             (m: (typeof messages)[number]) =>
-              m.authorType === "BOT" || m.authorType === "USER",
+              m.authorType === "AGENT" || m.authorType === "USER",
           )
           .map((m: (typeof messages)[number]) => m.authorId),
       ),
     ];
-    const botMap = new Map<
+    const agentMap = new Map<
       string,
       { name: string; avatarUrl: string | null }
     >();
-    if (botAuthorIds.length > 0) {
-      const bots = await prisma.bot.findMany({
-        where: { id: { in: botAuthorIds } },
+    if (agentAuthorIds.length > 0) {
+      const agents = await prisma.agent.findMany({
+        where: { id: { in: agentAuthorIds } },
         select: { id: true, name: true, avatarUrl: true },
       });
-      for (const bot of bots) {
-        botMap.set(bot.id, { name: bot.name, avatarUrl: bot.avatarUrl });
+      for (const agent of agents) {
+        agentMap.set(agent.id, {
+          name: agent.name,
+          avatarUrl: agent.avatarUrl,
+        });
       }
     }
 
@@ -149,14 +152,14 @@ export async function GET(request: NextRequest) {
     const payload = messages.map((m: (typeof messages)[number]) => {
       // BUG-002: Use descriptive fallback instead of "Unknown" for deleted authors
       let authorName =
-        m.authorType === "BOT" ? "Deleted Agent" : "Deleted User";
+        m.authorType === "AGENT" ? "Deleted Agent" : "Deleted User";
       let authorAvatarUrl: string | null = null;
 
-      if (m.authorType === "BOT") {
-        const bot = botMap.get(m.authorId);
-        if (bot) {
-          authorName = bot.name;
-          authorAvatarUrl = bot.avatarUrl;
+      if (m.authorType === "AGENT") {
+        const agent = agentMap.get(m.authorId);
+        if (agent) {
+          authorName = agent.name;
+          authorAvatarUrl = agent.avatarUrl;
         }
       } else if (m.authorType === "USER") {
         const user = userMap.get(m.authorId);
@@ -164,12 +167,12 @@ export async function GET(request: NextRequest) {
           authorName = user.displayName;
           authorAvatarUrl = user.avatarUrl;
         } else {
-          // BUG-005: Messages persisted with authorType=USER but a Bot authorId
-          // (caused by BUG-003) — fall back to bot lookup so history isn't broken
-          const bot = botMap.get(m.authorId);
-          if (bot) {
-            authorName = bot.name;
-            authorAvatarUrl = bot.avatarUrl;
+          // BUG-005: Messages persisted with authorType=USER but an Agent authorId
+          // (caused by BUG-003) — fall back to agent lookup so history isn't broken
+          const agent = agentMap.get(m.authorId);
+          if (agent) {
+            authorName = agent.name;
+            authorAvatarUrl = agent.avatarUrl;
           }
         }
       } else if (m.authorType === "SYSTEM") {

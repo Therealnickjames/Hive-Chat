@@ -18,31 +18,31 @@ export function MemberList({
   presenceMap,
   activeStreamCount = 0,
 }: MemberListProps) {
-  const { members, bots } = useChatContext();
+  const { members, agents } = useChatContext();
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
 
   const onlineMembers = members.filter((m) => presenceMap?.has(m.userId));
   const offlineMembers = members.filter((m) => !presenceMap?.has(m.userId));
 
-  // Agents: bots that are active in this server
-  const activeBots = bots.filter((b) => b.isActive);
-  const inactiveBots = bots.filter((b) => !b.isActive);
+  // Agents: agents that are active in this server
+  const activeAgents = agents.filter((b) => b.isActive);
+  const inactiveAgents = agents.filter((b) => !b.isActive);
 
   return (
     <div className="hidden w-60 flex-col bg-background-secondary lg:flex">
       <div className="flex-1 overflow-y-auto px-2 pt-6">
         {/* Agents section */}
-        {activeBots.length > 0 && (
+        {activeAgents.length > 0 && (
           <>
             <p className="mb-2 px-2 text-xs font-bold uppercase text-text-muted">
-              Agents — {activeBots.length}
+              Agents — {activeAgents.length}
             </p>
-            {activeBots.map((bot) => (
+            {activeAgents.map((agent) => (
               <AgentItem
-                key={bot.id}
-                name={bot.name}
-                model={bot.llmModel}
+                key={agent.id}
+                name={agent.name}
+                model={agent.llmModel}
                 isStreaming={activeStreamCount > 0}
               />
             ))}
@@ -53,7 +53,7 @@ export function MemberList({
         {onlineMembers.length > 0 && (
           <>
             <p
-              className={`mb-2 px-2 text-xs font-bold uppercase text-text-muted ${activeBots.length > 0 ? "mt-4" : ""}`}
+              className={`mb-2 px-2 text-xs font-bold uppercase text-text-muted ${activeAgents.length > 0 ? "mt-4" : ""}`}
             >
               Online — {onlineMembers.length}
             </p>
@@ -90,16 +90,16 @@ export function MemberList({
         )}
 
         {/* Inactive agents */}
-        {inactiveBots.length > 0 && (
+        {inactiveAgents.length > 0 && (
           <>
             <p className="mb-2 mt-4 px-2 text-xs font-bold uppercase text-text-muted">
-              Inactive Agents — {inactiveBots.length}
+              Inactive Agents — {inactiveAgents.length}
             </p>
-            {inactiveBots.map((bot) => (
+            {inactiveAgents.map((agent) => (
               <AgentItem
-                key={bot.id}
-                name={bot.name}
-                model={bot.llmModel}
+                key={agent.id}
+                name={agent.name}
+                model={agent.llmModel}
                 isStreaming={false}
                 isInactive
               />
@@ -107,7 +107,7 @@ export function MemberList({
           </>
         )}
 
-        {members.length === 0 && bots.length === 0 && (
+        {members.length === 0 && agents.length === 0 && (
           <p className="px-2 py-4 text-xs text-text-muted">
             No members to display
           </p>

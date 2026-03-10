@@ -13,8 +13,8 @@ import { ulid } from "ulid";
 /**
  * PATCH /api/servers/{serverId}/channels/{channelId}
  *
- * Update channel settings (assign bots, topic, etc.).
- * Supports both `defaultBotId` (legacy single bot) and `botIds` (multi-bot, TASK-0012).
+ * Update channel settings (assign agents, topic, etc.).
+ * Supports both `defaultAgentId` (legacy single agent) and `agentIds` (multi-agent, TASK-0012).
  * Requires MANAGE_CHANNELS permission.
  */
 export async function PATCH(
@@ -82,28 +82,28 @@ export async function PATCH(
 
   const updateData: Record<string, unknown> = {};
 
-  if ("defaultBotId" in body) {
-    if (body.defaultBotId === null) {
-      updateData.defaultBotId = null;
+  if ("defaultAgentId" in body) {
+    if (body.defaultAgentId === null) {
+      updateData.defaultAgentId = null;
     } else if (
-      typeof body.defaultBotId !== "string" ||
-      body.defaultBotId.length === 0
+      typeof body.defaultAgentId !== "string" ||
+      body.defaultAgentId.length === 0
     ) {
       return NextResponse.json(
-        { error: "defaultBotId must be a string or null" },
+        { error: "defaultAgentId must be a string or null" },
         { status: 400 },
       );
     } else {
-      const bot = await prisma.bot.findUnique({
-        where: { id: body.defaultBotId },
+      const agent = await prisma.agent.findUnique({
+        where: { id: body.defaultAgentId },
       });
-      if (!bot || bot.serverId !== serverId) {
+      if (!agent || agent.serverId !== serverId) {
         return NextResponse.json(
-          { error: "Bot not found in this server" },
+          { error: "Agent not found in this server" },
           { status: 400 },
         );
       }
-      updateData.defaultBotId = body.defaultBotId;
+      updateData.defaultAgentId = body.defaultAgentId;
     }
   }
 
@@ -185,45 +185,45 @@ export async function PATCH(
     updateData.charterMaxTurns = Math.floor(body.charterMaxTurns);
   }
 
-  // Handle botIds array (multi-bot assignment — TASK-0012)
-  if ("botIds" in body) {
-    const botIds = body.botIds;
-    if (!Array.isArray(botIds)) {
+  // Handle agentIds array (multi-agent assignment — TASK-0012)
+  if ("agentIds" in body) {
+    const agentIds = body.agentIds;
+    if (!Array.isArray(agentIds)) {
       return NextResponse.json(
-        { error: "botIds must be an array of strings" },
+        { error: "agentIds must be an array of strings" },
         { status: 400 },
       );
     }
 
-    // Validate all bot IDs exist in this server
-    if (botIds.length > 0) {
-      const validBots = await prisma.bot.findMany({
-        where: { id: { in: botIds as string[] }, serverId },
+    // Validate all agent IDs exist in this server
+    if (agentIds.length > 0) {
+      const validAgents = await prisma.agent.findMany({
+        where: { id: { in: agentIds as string[] }, serverId },
         select: { id: true },
       });
-      const validIds = new Set(validBots.map((b) => b.id));
-      const invalid = (botIds as string[]).filter((id) => !validIds.has(id));
+      const validIds = new Set(validAgents.map((a) => a.id));
+      const invalid = (agentIds as string[]).filter((id) => !validIds.has(id));
       if (invalid.length > 0) {
         return NextResponse.json(
-          { error: `Bots not found in this server: ${invalid.join(", ")}` },
+          { error: `Agents not found in this server: ${invalid.join(", ")}` },
           { status: 400 },
         );
       }
     }
 
-    // Transaction: delete old ChannelBot entries → create new ones → update defaultBotId
+    // Transaction: delete old ChannelAgent entries → create new ones → update defaultAgentId
     await prisma.$transaction([
-      prisma.channelBot.deleteMany({ where: { channelId } }),
-      ...(botIds as string[]).map((botId: string) =>
-        prisma.channelBot.create({
-          data: { id: ulid(), channelId, botId },
+      prisma.channelAgent.deleteMany({ where: { channelId } }),
+      ...(agentIds as string[]).map((agentId: string) =>
+        prisma.channelAgent.create({
+          data: { id: ulid(), channelId, agentId },
         }),
       ),
-      // Set first bot as defaultBotId for backward compat
+      // Set first agent as defaultAgentId for backward compat
       prisma.channel.update({
         where: { id: channelId },
         data: {
-          defaultBotId: botIds.length > 0 ? (botIds[0] as string) : null,
+          defaultAgentId: agentIds.length > 0 ? (agentIds[0] as string) : null,
         },
       }),
     ]);
@@ -233,7 +233,7 @@ export async function PATCH(
     where: { id: channelId },
     data: updateData,
     include: {
-      channelBots: { select: { botId: true } },
+      channelAgents: { select: { agentId: true } },
     },
   });
 
@@ -250,7 +250,7 @@ export async function PATCH(
   return NextResponse.json({
     ...channel,
     lastSequence: serializeSequence(channel.lastSequence),
-    botIds: channel.channelBots.map((cb) => cb.botId),
+    agentIds: channel.channelAgents.map((ca) => ca.agentId),
     charterAgentOrder: parsedAgentOrder,
   });
 }

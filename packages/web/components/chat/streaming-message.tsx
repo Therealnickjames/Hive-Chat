@@ -21,7 +21,7 @@ interface StreamingMessageProps {
   onResumeStream?: (
     messageId: string,
     checkpointIndex: number,
-    botId: string,
+    agentId: string,
   ) => void;
   currentUserId?: string;
   canManageMessages?: boolean;
@@ -34,7 +34,7 @@ interface StreamingMessageProps {
  * - Blinking cursor while streaming
  * - Error indicator on ERROR state
  * - Normal rendering when COMPLETE
- * - Delete action on COMPLETE/ERROR for admins (no edit on bot messages) (TASK-0014)
+ * - Delete action on COMPLETE/ERROR for admins (no edit on agent messages) (TASK-0014)
  */
 export function StreamingMessage({
   message,
@@ -45,13 +45,13 @@ export function StreamingMessage({
   onDelete,
 }: StreamingMessageProps) {
   const [showRewind, setShowRewind] = useState(false);
-  const { members, bots } = useChatContext();
+  const { members, agents } = useChatContext();
   const mentionNames = useMemo(
     () => [
       ...members.map((member) => member.displayName),
-      ...bots.map((bot) => bot.name),
+      ...agents.map((agent) => agent.name),
     ],
-    [members, bots],
+    [members, agents],
   );
   const { text, files } = useMemo(
     () => parseFileReferences(message.content || ""),

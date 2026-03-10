@@ -51,7 +51,7 @@ describe("Permissions constants", () => {
     const keys = PERMISSION_INFO.map((p) => p.key);
     expect(keys).toContain("SEND_MESSAGES");
     expect(keys).toContain("MANAGE_CHANNELS");
-    expect(keys).toContain("MANAGE_BOTS");
+    expect(keys).toContain("MANAGE_AGENTS");
     expect(keys).toContain("MANAGE_ROLES");
     expect(keys).toContain("CREATE_INVITE");
     expect(keys).toContain("KICK_MEMBERS");
@@ -76,9 +76,9 @@ describe("hasPermission", () => {
   });
 
   it("works with combined permissions (bitwise OR)", () => {
-    const combined = Permissions.SEND_MESSAGES | Permissions.MANAGE_BOTS;
+    const combined = Permissions.SEND_MESSAGES | Permissions.MANAGE_AGENTS;
     expect(hasPermission(combined, Permissions.SEND_MESSAGES)).toBe(true);
-    expect(hasPermission(combined, Permissions.MANAGE_BOTS)).toBe(true);
+    expect(hasPermission(combined, Permissions.MANAGE_AGENTS)).toBe(true);
     expect(hasPermission(combined, Permissions.KICK_MEMBERS)).toBe(false);
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 interface MessageActionsProps {
-  /** Show the edit button (author of a non-bot, non-streaming message) */
+  /** Show the edit button (author of a non-agent, non-streaming message) */
   canEdit: boolean;
   /** Show the delete button (author OR has MANAGE_MESSAGES) */
   canDelete: boolean;

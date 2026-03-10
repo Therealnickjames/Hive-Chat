@@ -8,9 +8,9 @@
 ## BREAK-0001
 
 - **Severity**: `CRITICAL`
-- **Description**: Bot streaming placeholder persistence failed because `Message.authorId` enforced a `User` FK for BOT authors.
+- **Description**: Agent streaming placeholder persistence failed because `Message.authorId` enforced a `User` FK for AGENT authors.
 - **Status**: `RESOLVED` (2026-02-25)
-- **Fix summary**: Removed `Message.author` FK relation, dropped `Message_authorId_fkey` via migration, and switched internal message GET author resolution to explicit user/bot lookups.
+- **Fix summary**: Removed `Message.author` FK relation, dropped `Message_authorId_fkey` via migration, and switched internal message GET author resolution to explicit user/agent lookups.
 
 ## BREAK-0002
 

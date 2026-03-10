@@ -273,16 +273,16 @@ func TestStreamLogEntriesAreValidJSON(t *testing.T) {
 	logger.Info("Stream request received",
 		"channelId", "ch-1",
 		"messageId", "msg-1",
-		"botId", "bot-1",
+		"agentId", "agent-1",
 	)
 	logger.Warn("Stream request rejected: concurrency limit reached",
 		"messageId", "msg-2",
 		"activeStreams", 32,
 		"maxStreams", 32,
 	)
-	logger.Error("Failed to load bot config",
+	logger.Error("Failed to load agent config",
 		"messageId", "msg-3",
-		"botId", "bot-3",
+		"agentId", "agent-3",
 		"error", "not found",
 	)
 

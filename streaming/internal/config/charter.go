@@ -39,18 +39,18 @@ func (c *CharterConfig) HasReachedMaxTurns() bool {
 	return c.MaxTurns > 0 && c.CurrentTurn >= c.MaxTurns
 }
 
-// IsAgentTurn checks if a given botID is the expected agent for the current turn
+// IsAgentTurn checks if a given agentID is the expected agent for the current turn
 // in ordered modes (ROUND_ROBIN, CODE_REVIEW_SPRINT).
-func (c *CharterConfig) IsAgentTurn(botID string) bool {
+func (c *CharterConfig) IsAgentTurn(agentID string) bool {
 	if len(c.AgentOrder) == 0 {
 		return true // No ordering defined — any agent can go
 	}
 
 	expectedIndex := c.CurrentTurn % len(c.AgentOrder)
-	return c.AgentOrder[expectedIndex] == botID
+	return c.AgentOrder[expectedIndex] == agentID
 }
 
-// ExpectedAgent returns the bot ID of the agent expected for the current turn.
+// ExpectedAgent returns the agent ID of the agent expected for the current turn.
 // Returns empty string if no ordering is defined.
 func (c *CharterConfig) ExpectedAgent() string {
 	if len(c.AgentOrder) == 0 {
@@ -59,7 +59,7 @@ func (c *CharterConfig) ExpectedAgent() string {
 	return c.AgentOrder[c.CurrentTurn%len(c.AgentOrder)]
 }
 
-// SystemPromptInjection generates the charter context block to append to a bot's system prompt.
+// SystemPromptInjection generates the charter context block to append to an agent's system prompt.
 // Returns empty string if the charter is not active.
 func (c *CharterConfig) SystemPromptInjection() string {
 	if !c.IsActive() {

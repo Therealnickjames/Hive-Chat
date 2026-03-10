@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { useWorkspaceContext } from "@/components/providers/workspace-provider";
-import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
+import { ManageAgentsModal } from "@/components/modals/manage-agents-modal";
 import { Permissions } from "@/lib/permissions";
 import { Bot, Cpu, Users, Zap, Settings2 } from "lucide-react";
 
@@ -48,16 +48,16 @@ export function RightPanel() {
       const channel = scoped.channels.find((c) => c.id === panel.channelId);
       if (!channel) continue;
 
-      const botIds = channel.botIds?.length
-        ? channel.botIds
-        : channel.defaultBotId
-          ? [channel.defaultBotId]
+      const agentIds = channel.agentIds?.length
+        ? channel.agentIds
+        : channel.defaultAgentId
+          ? [channel.defaultAgentId]
           : [];
 
       const isStreaming = activeStreams.has(panel.channelId);
 
-      for (const botId of botIds) {
-        const agent = scoped.bots.find((b) => b.id === botId);
+      for (const agentId of agentIds) {
+        const agent = scoped.agents.find((b) => b.id === agentId);
         if (!agent) continue;
 
         let steps: string[] | undefined;
@@ -107,15 +107,15 @@ export function RightPanel() {
     for (const panel of openPanels) {
       const scoped = serverDataById[panel.serverId];
       if (!scoped) continue;
-      for (const bot of scoped.bots) {
-        if (bot.llmModel && !models.has(bot.llmModel)) {
-          models.set(bot.llmModel, bot.name);
+      for (const agent of scoped.agents) {
+        if (agent.llmModel && !models.has(agent.llmModel)) {
+          models.set(agent.llmModel, agent.name);
         }
       }
     }
-    return Array.from(models.entries()).map(([model, botName]) => ({
+    return Array.from(models.entries()).map(([model, agentName]) => ({
       model,
-      botName,
+      agentName,
     }));
   }, [openPanels, serverDataById]);
 
@@ -128,7 +128,7 @@ export function RightPanel() {
               <Bot className="h-4 w-4 text-brand" />
               AGENTS
             </div>
-            {hasPermission(Permissions.MANAGE_BOTS) && (
+            {hasPermission(Permissions.MANAGE_AGENTS) && (
               <button
                 onClick={() => setShowManageAgents(true)}
                 className="rounded-lg p-1 text-text-muted transition-colors hover:bg-background-floating/60 hover:text-brand"
@@ -264,7 +264,7 @@ export function RightPanel() {
                 No models configured
               </div>
             ) : (
-              modelList.map(({ model, botName }) => (
+              modelList.map(({ model, agentName }) => (
                 <div
                   key={model}
                   className="flex items-center justify-between rounded-2xl border border-white/6 bg-background-floating/34 px-3 py-2"
@@ -273,7 +273,7 @@ export function RightPanel() {
                     {model}
                   </span>
                   <span className="ml-2 shrink-0 text-[11px] font-medium text-text-muted">
-                    {botName}
+                    {agentName}
                   </span>
                 </div>
               ))
@@ -282,7 +282,7 @@ export function RightPanel() {
         </div>
       </div>
 
-      <ManageBotsModal
+      <ManageAgentsModal
         isOpen={showManageAgents}
         onClose={() => setShowManageAgents(false)}
       />

@@ -65,11 +65,11 @@ ws://localhost:4001/socket/websocket?api_key=sk-tvk-...&vsn=2.0.0
 ```
 
 The Gateway calls `GET /api/internal/agents/verify?api_key=sk-tvk-...` on Next.js (internal network).
-On success: socket assigns `user_id=botId`, `username=botName`, `display_name=botName`, `author_type=BOT`, `server_id`, `bot_avatar_url`.
+On success: socket assigns `user_id=agentId`, `username=agentName`, `display_name=agentName`, `author_type=AGENT`, `server_id`, `agent_avatar_url`.
 On failure: socket connection is rejected.
 
 **API key format**: `sk-tvk-` prefix + 32 random bytes base64url encoded (49 chars total).
-**Channel authorization**: agents can join any channel in their server (Bot.serverId == Channel.serverId). No per-channel assignment needed.
+**Channel authorization**: agents can join any channel in their server (Agent.serverId == Channel.serverId). No per-channel assignment needed.
 
 ### Topics
 
@@ -91,7 +91,7 @@ On failure: socket connection is rejected.
 | `typing`          | `{}`                                                      | User is typing (debounced client-side, 3s cooldown)                      |
 | `sync`            | `{lastSequence: string}`                                  | Request missed messages since sequence N                                 |
 | `history`         | `{before?: string, limit?: int}`                          | Request older messages (before = ULID cursor, limit default 50, max 100) |
-| `stream_start`    | `{botId, botName}`                                        | **Agent only** — start streaming, creates placeholder (DEC-0040)         |
+| `stream_start`    | `{agentId, agentName}`                                        | **Agent only** — start streaming, creates placeholder (DEC-0040)         |
 | `stream_token`    | `{messageId, token, index}`                               | **Agent only** — send a streaming token                                  |
 | `stream_complete` | `{messageId, finalContent, thinkingTimeline?, metadata?}` | **Agent only** — finish streaming                                        |
 | `stream_error`    | `{messageId, error, partialContent?}`                     | **Agent only** — mark stream as errored                                  |
@@ -102,7 +102,7 @@ On failure: socket connection is rejected.
 
 | Event                 | Payload                                               | Description                                     |
 | --------------------- | ----------------------------------------------------- | ----------------------------------------------- |
-| `message_new`         | [MessagePayload](#messagepayload)                     | New message (human or bot, non-streaming)       |
+| `message_new`         | [MessagePayload](#messagepayload)                     | New message (human or agent, non-streaming)     |
 | `stream_start`        | [StreamStartPayload](#streamstartpayload)             | AI streaming response begins                    |
 | `stream_token`        | [StreamTokenPayload](#streamtokenpayload)             | Single token from LLM                           |
 | `stream_complete`     | [StreamCompletePayload](#streamcompletepayload)       | Streaming finished successfully                 |
@@ -115,7 +115,7 @@ On failure: socket connection is rejected.
 | `message_deleted`     | [MessageDeletedPayload](#messagedeletedpayload)       | Message was soft-deleted (TASK-0014)            |
 | `reaction_update`     | [ReactionUpdatePayload](#reactionupdatepayload)       | Reaction added/removed on a message (TASK-0030) |
 | `typed_message`       | [TypedMessagePayload](#typedmessagepayload)           | Structured typed message from agent (TASK-0039) |
-| `bot_trigger_skipped` | [BotTriggerSkippedPayload](#bottriggerskippedpayload) | Bot was not triggered (e.g., mention required)  |
+| `agent_trigger_skipped` | [AgentTriggerSkippedPayload](#agenttriggerskippedpayload) | Agent was not triggered (e.g., mention required)  |
 | `user_typing`         | [TypingPayload](#typingpayload)                       | Another user is typing                          |
 | `presence_state`      | Phoenix.Presence state map                            | Full presence state (sent to joiner only)       |
 | `presence_diff`       | `{joins: {...}, leaves: {...}}`                       | Presence changes (broadcast)                    |
@@ -135,8 +135,8 @@ On failure: socket connection is rejected.
 {
   "id": "01HXY...", // ULID
   "channelId": "01HXY...", // ULID
-  "authorId": "01HXY...", // ULID (User or Bot)
-  "authorType": "USER", // "USER" | "BOT" | "SYSTEM"
+  "authorId": "01HXY...", // ULID (User or Agent)
+  "authorType": "USER", // "USER" | "AGENT" | "SYSTEM"
   "authorName": "alice", // display name for rendering
   "authorAvatarUrl": null, // string or null
   "content": "Hello world",
@@ -156,9 +156,9 @@ On failure: socket connection is rejected.
 ```json
 {
   "messageId": "01HXY...", // ULID of the placeholder message
-  "botId": "01HXY...",
-  "botName": "Claude Assistant",
-  "botAvatarUrl": null,
+  "agentId": "01HXY...",
+  "agentName": "Claude Assistant",
+  "agentAvatarUrl": null,
   "sequence": "43"
 }
 ```
@@ -209,12 +209,12 @@ On failure: socket connection is rejected.
 ```json
 {
   "messageId": "01HXY...",
-  "phase": "Thinking", // configurable via bot's thinkingSteps
+  "phase": "Thinking", // configurable via agent's thinkingSteps
   "timestamp": "2026-03-01T12:00:00.123Z" // ISO 8601
 }
 ```
 
-Lifecycle: Go Proxy emits phase[0] from bot config's `thinkingSteps` after loading bot config (about to call LLM), then phase[1] when the first token arrives. Default phases: `["Thinking","Writing"]`. Custom phases (e.g. `["Planning","Researching","Drafting","Reviewing"]`) are configurable per bot. The frontend clears the phase on `stream_complete` or `stream_error`. See DEC-0037.
+Lifecycle: Go Proxy emits phase[0] from agent config's `thinkingSteps` after loading agent config (about to call LLM), then phase[1] when the first token arrives. Default phases: `["Thinking","Writing"]`. Custom phases (e.g. `["Planning","Researching","Drafting","Reviewing"]`) are configurable per agent. The frontend clears the phase on `stream_complete` or `stream_error`. See DEC-0037.
 
 The Go Proxy accumulates all phase transitions into a `thinkingTimeline` array and includes it in the `PUT /api/internal/messages/{messageId}` finalization payload for post-completion replay.
 
@@ -262,13 +262,13 @@ Published after tool execution completes. The Go Proxy then feeds the tool resul
 Published at semantically meaningful points during streaming: thinking phase transitions and tool call boundaries. Checkpoints enable two features:
 
 1. **Stream Rewind** — After completion, the client can replay token history and jump to checkpoint positions on the scrub slider. Token history (`[{o: contentOffset, t: relativeMs}]`) and checkpoints are persisted on the Message record.
-2. **Checkpoint Resume** — On stream error, the user can select a checkpoint and a different bot/model to resume generation from that point. Resume creates a new message with context up to the checkpoint's `contentOffset`.
+2. **Checkpoint Resume** — On stream error, the user can select a checkpoint and a different agent/model to resume generation from that point. Resume creates a new message with context up to the checkpoint's `contentOffset`.
 
 The Go Proxy accumulates all checkpoints and includes them in the `PUT /api/internal/messages/{messageId}` finalization payload alongside `tokenHistory`. (TASK-0021, DEC-0053)
 
 #### TypedMessagePush
 
-Client → Server push from agents to create a typed message. BOT-only — human users cannot push this event.
+Client → Server push from agents to create a typed message. AGENT-only — human users cannot push this event.
 
 ```json
 {
@@ -294,7 +294,7 @@ Server → Client broadcast for typed messages. Same structure as [MessagePayloa
   "id": "01HXY...",
   "channelId": "01HXY...",
   "authorId": "01HXY...",
-  "authorType": "BOT",
+  "authorType": "AGENT",
   "authorName": "My Agent",
   "authorAvatarUrl": null,
   "content": "{\"callId\":\"search_web\",\"toolName\":\"search_web\",\"arguments\":{\"query\":\"Elixir\"},\"status\":\"running\"}",
@@ -383,14 +383,14 @@ Optional metadata on agent messages. Persisted in `Message.metadata` (JSONB). Se
 
 All fields optional. Frontend renders as a collapsible bar: `Claude Sonnet 4 · 843 tokens · 2.3s`.
 
-#### BotTriggerSkippedPayload
+#### AgentTriggerSkippedPayload
 
-Emitted when a bot exists in the channel but was not triggered (e.g., bot requires @mention but was not mentioned). The frontend uses this to show a hint to the user.
+Emitted when an agent exists in the channel but was not triggered (e.g., agent requires @mention but was not mentioned). The frontend uses this to show a hint to the user.
 
 ```json
 {
-  "botId": "01HXY...",
-  "botName": "Jack",
+  "agentId": "01HXY...",
+  "agentName": "Jack",
   "triggerMode": "MENTION",
   "reason": "mention_required"
 }
@@ -416,7 +416,7 @@ Emitted when a bot exists in the channel but was not triggered (e.g., bot requir
 }
 ```
 
-Broadcast to all clients in channel when a message is edited. The Gateway calls the internal API synchronously before broadcasting — correctness > speed for edits. Only the message author can edit; bot messages cannot be edited.
+Broadcast to all clients in channel when a message is edited. The Gateway calls the internal API synchronously before broadcasting — correctness > speed for edits. Only the message author can edit; agent messages cannot be edited.
 
 #### MessageDeletedPayload
 
@@ -470,7 +470,7 @@ Published by Gateway when a message triggers an AI response:
 {
   "channelId": "01HXY...",
   "messageId": "01HXY...",
-  "botId": "01HXY...",
+  "agentId": "01HXY...",
   "triggerMessageId": "01HXY...",
   "contextMessages": [
     { "role": "user", "content": "What is Elixir?" },
@@ -536,7 +536,7 @@ Published by Go Proxy when the agent's thinking phase changes:
 }
 ```
 
-Phases are configurable per bot via `thinkingSteps` (default: `["Thinking","Writing"]`). Cleared by `stream_complete` or `stream_error` on the frontend.
+Phases are configurable per agent via `thinkingSteps` (default: `["Thinking","Writing"]`). Cleared by `stream_complete` or `stream_error` on the frontend.
 
 ### Sequence Number Assignment
 
@@ -605,11 +605,11 @@ Fetch messages for reconnection sync or history.
 }
 ```
 
-#### GET /api/internal/channels/{channelId}/bot
+#### GET /api/internal/channels/{channelId}/agent
 
-Get the default bot configuration for a channel.
+Get the default agent configuration for a channel.
 
-**Response:** `200 OK` with bot config, or `404` if no default bot.
+**Response:** `200 OK` with agent config, or `404` if no default agent.
 
 ```json
 {
@@ -627,15 +627,15 @@ Get the default bot configuration for a channel.
 
 Note: `apiKeyEncrypted` is decrypted server-side and included as `apiKey` in this internal response only.
 
-#### GET /api/internal/channels/{channelId}/bots
+#### GET /api/internal/channels/{channelId}/agents
 
-Get ALL bots assigned to a channel (multi-bot — TASK-0012). Falls back to the single `defaultBot` if no ChannelBot entries exist.
+Get ALL agents assigned to a channel (multi-agent — TASK-0012). Falls back to the single `defaultAgent` if no ChannelAgent entries exist.
 
-**Response:** `200 OK` with array of bot configs.
+**Response:** `200 OK` with array of agent configs.
 
 ```json
 {
-  "bots": [
+  "agents": [
     {
       "id": "01HXY...",
       "name": "Claude Assistant",
@@ -662,7 +662,7 @@ Get ALL bots assigned to a channel (multi-bot — TASK-0012). Falls back to the 
 }
 ```
 
-Note: Each bot's `apiKeyEncrypted` is decrypted server-side and included as `apiKey`. Returns `{"bots": []}` if no bots assigned. See DEC-0038.
+Note: Each agent's `apiKeyEncrypted` is decrypted server-side and included as `apiKey`. Returns `{"agents": []}` if no agents assigned. See DEC-0038.
 
 #### PATCH /api/internal/messages/{messageId}
 
@@ -680,7 +680,7 @@ Edit a message's content. Called by Gateway on `message_edit` WebSocket event. (
 **Validations:**
 
 - Message exists and is not deleted
-- `authorType` is not BOT
+- `authorType` is not AGENT
 - `authorId === userId` (only author can edit)
 - `streamingStatus` is not ACTIVE
 - `content` is non-empty, max 4000 chars
@@ -695,7 +695,7 @@ Edit a message's content. Called by Gateway on `message_edit` WebSocket event. (
 }
 ```
 
-**Errors:** `400` (bad input), `403` (not author / bot message), `404` (not found / deleted), `409` (active stream)
+**Errors:** `400` (bad input), `403` (not author / agent message), `404` (not found / deleted), `409` (active stream)
 
 #### DELETE /api/internal/messages/{messageId}
 
@@ -735,9 +735,9 @@ Verify an agent API key. Called by Gateway on WebSocket connect with `?api_key=s
 ```json
 {
   "valid": true,
-  "botId": "01HXY...",
-  "botName": "My Agent",
-  "botAvatarUrl": null,
+  "agentId": "01HXY...",
+  "agentName": "My Agent",
+  "agentAvatarUrl": null,
   "serverId": "01HXY...",
   "capabilities": ["text"]
 }
@@ -887,7 +887,7 @@ Update agent configuration. Requires `Authorization: Bearer sk-tvk-...`.
 
 #### DELETE /api/v1/agents/{id}
 
-Deregister an agent. Cascade deletes Bot + AgentRegistration. Requires `Authorization: Bearer sk-tvk-...`.
+Deregister an agent. Cascade deletes Agent + AgentRegistration. Requires `Authorization: Bearer sk-tvk-...`.
 
 **Response:** `200 OK`
 
@@ -900,11 +900,11 @@ Deregister an agent. Cascade deletes Bot + AgentRegistration. Requires `Authoriz
 
 ### Go Proxy → Next.js (Web)
 
-#### GET /api/internal/bots/{botId}
+#### GET /api/internal/agents/{agentId}
 
-Full bot configuration including decrypted API key.
+Full agent configuration including decrypted API key.
 
-**Response:** Same as channel bot endpoint above.
+**Response:** Same as channel agent endpoint above.
 
 #### PUT /api/internal/messages/{messageId}
 
@@ -947,7 +947,7 @@ The `checkpoints` field is optional (TASK-0021). If provided, it is a JSON strin
 
 #### POST /api/internal/stream/resume
 
-Resume a streaming message from a checkpoint. Creates a new STREAMING message with content up to the checkpoint's offset, ready for continuation by a different bot/model. (TASK-0021)
+Resume a streaming message from a checkpoint. Creates a new STREAMING message with content up to the checkpoint's offset, ready for continuation by a different agent/model. (TASK-0021)
 
 **Request body:**
 
@@ -956,7 +956,7 @@ Resume a streaming message from a checkpoint. Creates a new STREAMING message wi
   "channelId": "01HXY...",
   "originalMessageId": "01HXY...",
   "checkpointIndex": 2,
-  "botId": "01HXY...",
+  "agentId": "01HXY...",
   "userId": "01HXY..."
 }
 ```
@@ -967,8 +967,8 @@ Resume a streaming message from a checkpoint. Creates a new STREAMING message wi
 {
   "messageId": "01HXY...",
   "channelId": "01HXY...",
-  "botId": "01HXY...",
-  "botName": "GPT-4",
+  "agentId": "01HXY...",
+  "agentName": "GPT-4",
   "content": "partial content up to checkpoint..."
 }
 ```
@@ -1170,7 +1170,7 @@ Agents are created by server owners, not by self-registration.
 **Via CLI (`tavok init`):**
 
 1. CLI calls `POST /api/v1/bootstrap/agents` with `{name, serverId}`
-2. Server creates Bot + AgentRegistration, generates API key
+2. Server creates Agent + AgentRegistration, generates API key
 3. API key returned once; CLI saves to `.tavok-agents.json`
 4. SDK auto-discovers credentials: `Agent(name="Jack")` just works
 
@@ -1178,7 +1178,7 @@ Agents are created by server owners, not by self-registration.
 
 1. User opens Manage Agents modal, clicks Add Agent
 2. Fills in agent details, selects connection method
-3. Server creates Bot + AgentRegistration via internal API
+3. Server creates Agent + AgentRegistration via internal API
 
 #### WebSocket Connection Flow
 
@@ -1186,8 +1186,8 @@ Agents are created by server owners, not by self-registration.
 2. Gateway checks `sk-tvk-` prefix format
 3. Gateway calls `GET /api/internal/agents/verify?api_key=sk-tvk-...` (internal network)
 4. Next.js hashes the key with SHA-256, looks up AgentRegistration by hash
-5. Returns `{valid: true, botId, botName, botAvatarUrl, serverId, capabilities}`
-6. Gateway assigns socket: `user_id=botId`, `username=botName`, `author_type=BOT`, `server_id`
+5. Returns `{valid: true, agentId, agentName, agentAvatarUrl, serverId, capabilities}`
+6. Gateway assigns socket: `user_id=agentId`, `username=agentName`, `author_type=AGENT`, `server_id`
 
 #### Channel Join Authorization
 
@@ -1214,7 +1214,7 @@ Tavok supports 6 connection methods for agents. All methods converge to the same
 | --- | --------------------- | ------------------- | ------------------------------------ | ---------------------------------------------- |
 | 1   | **WebSocket**         | Bidirectional       | Native                               | Python SDK, TS SDK, any WS client (existing)   |
 | 2   | **Inbound Webhook**   | Agent → Tavok       | Yes (batch POST)                     | curl, CI/CD, n8n, Zapier, monitoring, scripts  |
-| 3   | **HTTP Webhook**      | Tavok → Agent       | Yes (SSE response or async callback) | LangGraph, CrewAI, Slack/Telegram-style bots   |
+| 3   | **HTTP Webhook**      | Tavok → Agent       | Yes (SSE response or async callback) | LangGraph, CrewAI, Slack/Telegram-style agents |
 | 4   | **REST Polling**      | Agent polls Tavok   | Yes (REST stream endpoint)           | Serverless (Lambda), cron, Telegram getUpdates |
 | 5   | **SSE**               | Tavok pushes events | Yes (receive via SSE)                | Browser agents, restrictive proxies            |
 | 6   | **OpenAI-Compatible** | Standard API        | Yes (SSE relay)                      | LiteLLM, LangChain, any OpenAI SDK client      |
@@ -1288,7 +1288,7 @@ Send a message via inbound webhook. No auth header needed — the token IS the a
 ```json
 {
   "content": "Build passed!",
-  "username": "CI Bot",
+  "username": "CI Agent",
   "avatarUrl": "https://example.com/ci.png"
 }
 ```
@@ -1311,7 +1311,7 @@ Final: `{"tokens": ["!"], "done": true, "finalContent": "Hello world!", "metadat
 
 ### 7e. HTTP Webhook (Outbound)
 
-When a WEBHOOK-method agent is triggered by a message, the Gateway calls `WebClient.dispatch_webhook/2` which POSTs to Next.js `POST /api/internal/agents/{botId}/dispatch`. Next.js then POSTs to the agent's `webhookUrl` with HMAC-SHA256 signing.
+When a WEBHOOK-method agent is triggered by a message, the Gateway calls `WebClient.dispatch_webhook/2` which POSTs to Next.js `POST /api/internal/agents/{agentId}/dispatch`. Next.js then POSTs to the agent's `webhookUrl` with HMAC-SHA256 signing.
 
 **Outbound payload (Tavok → Agent):**
 
@@ -1506,7 +1506,7 @@ The `model` field encodes the target channel: `tavok-channel-{channelId}`.
 }
 ```
 
-**Non-streaming response:** Standard OpenAI `chat.completion` format with `usage` including token counts from bot metadata.
+**Non-streaming response:** Standard OpenAI `chat.completion` format with `usage` including token counts from agent metadata.
 
 **Streaming:** Set `"stream": true`. Returns SSE chunks in `chat.completion.chunk` format terminated with `data: [DONE]`.
 
@@ -1539,11 +1539,11 @@ Called by the Gateway (internal network only). Require `X-Internal-Secret`.
 
 Gateway Broadcast Controller. Accepts `{topic, event, payload}`, calls `Broadcast.endpoint_broadcast!/3`.
 
-#### POST /api/internal/agents/{botId}/dispatch
+#### POST /api/internal/agents/{agentId}/dispatch
 
 Dispatches a trigger to a WEBHOOK agent. Called by Gateway when `connectionMethod=WEBHOOK`. Includes trigger message and context messages. Next.js handles HMAC signing and outbound HTTP call.
 
-#### POST /api/internal/agents/{botId}/enqueue
+#### POST /api/internal/agents/{agentId}/enqueue
 
 Queues a message for a REST_POLL agent. Called by Gateway when `connectionMethod=REST_POLL`. Creates an `AgentMessage` row with 24h TTL.
 
@@ -1559,7 +1559,7 @@ Topic pattern: `dm:{dmChannelId}`
 
 **Join params**: `{ lastSequence?: string }` — for reconnection sync (same pattern as `room:*`).
 
-**Authorization**: Gateway calls `GET /api/internal/dms/verify?dmId={id}&userId={userId}` to verify participant membership. BOT connections are rejected with `{reason: "bots_cannot_join_dms"}`.
+**Authorization**: Gateway calls `GET /api/internal/dms/verify?dmId={id}&userId={userId}` to verify participant membership. AGENT connections are rejected with `{reason: "agents_cannot_join_dms"}`.
 
 ### 8b. Client → Server Events
 
@@ -1712,7 +1712,7 @@ Extended with charter fields:
 - `swarmMode` — enum string (see 9a)
 - `charterGoal` — text (nullable)
 - `charterRules` — text (nullable)
-- `charterAgentOrder` — JSON array of bot IDs (nullable)
+- `charterAgentOrder` — JSON array of agent IDs (nullable)
 - `charterMaxTurns` — integer >= 0 (0 = unlimited)
 
 Requires `MANAGE_CHANNELS` permission.
@@ -1777,7 +1777,7 @@ Charter session control:
 
 ### 9g. Go Proxy Charter Enforcement
 
-After loading bot config, the Go proxy:
+After loading agent config, the Go proxy:
 
 1. Fetches charter config via `GET /api/internal/channels/{channelId}`
 2. If charter is active and mode != `HUMAN_IN_THE_LOOP`:
@@ -1824,15 +1824,15 @@ When a message is rate-limited, the Gateway replies with an error instead of bro
 | 2026-02-28 | v1.1    | Fix finalization endpoint (POST → PUT), add GET single message, add content length constraint, document StreamWatchdog endpoint                                                                                                             |
 | 2026-02-28 | v1.2    | Add §4b Message Delivery Semantics (broadcast-first pattern, DEC-0028), update Invariant 1 for concurrent persist                                                                                                                           |
 | 2026-02-28 | v1.3    | Add stream_thinking event, StreamThinkingPayload, hive:stream:thinking Redis channel (TASK-0011, DEC-0037)                                                                                                                                  |
-| 2026-03-01 | v1.4    | Add GET /api/internal/channels/{id}/bots multi-bot endpoint (TASK-0012, DEC-0038)                                                                                                                                                           |
+| 2026-03-01 | v1.4    | Add GET /api/internal/channels/{id}/agents multi-agent endpoint (TASK-0012, DEC-0038)                                                                                                                                                       |
 | 2026-03-01 | v1.5    | Add message_edit/message_delete client events, message_edited/message_deleted broadcasts, PATCH/DELETE internal endpoints, editedAt in MessagePayload (TASK-0014)                                                                           |
 | 2026-03-01 | v1.6    | Add POST mark-as-read + GET unread state session endpoints, ChannelReadState model, mentionCount increment on message persist (TASK-0015, TASK-0016)                                                                                        |
-| 2026-03-01 | v1.7    | Extend StreamThinkingPayload with timestamp, configurable thinkingSteps per bot, thinkingTimeline persistence in messages, timeline in stream_complete payload (TASK-0011)                                                                  |
+| 2026-03-01 | v1.7    | Extend StreamThinkingPayload with timestamp, configurable thinkingSteps per agent, thinkingTimeline persistence in messages, timeline in stream_complete payload (TASK-0011)                                                                |
 | 2026-03-01 | v1.8    | Add agent self-registration API (POST/GET/PATCH/DELETE /api/v1/agents), dual WebSocket auth (JWT + API key), GET /api/internal/agents/verify, agent channel authorization (DEC-0040)                                                        |
-| 2026-03-01 | v1.9    | Add agent-originated streaming events (stream_start/token/complete/error/thinking as client events for BOT connections), Python SDK (tavok-sdk v0.1.0)                                                                                      |
+| 2026-03-01 | v1.9    | Add agent-originated streaming events (stream_start/token/complete/error/thinking as client events for AGENT connections), Python SDK (tavok-sdk v0.1.0)                                                                                    |
 | 2026-03-01 | v2.0    | Add typed messages (TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS), metadata field on Message, typed_message channel event, metadata in stream_complete (TASK-0039, DEC-0042)                                                        |
 | 2026-03-01 | v3.0    | Add §7 Agent Connectivity — 6 connection methods (Inbound Webhook, HTTP Webhook, REST Polling, SSE, OpenAI-Compatible), Gateway Broadcast Controller, adapter layer architecture (DEC-0044 through DEC-0046)                                |
-| 2026-03-01 | v3.1    | Add MCP-compatible tool interface — stream_tool_call/stream_tool_result events, tool execution loop in Go proxy, enabledTools on Bot, built-in current_time and web_search tools (TASK-0018, DEC-0048)                                      |
+| 2026-03-01 | v3.1    | Add MCP-compatible tool interface — stream_tool_call/stream_tool_result events, tool execution loop in Go proxy, enabledTools on Agent, built-in current_time and web_search tools (TASK-0018, DEC-0048)                                    |
 | 2026-03-01 | v3.2    | Add §8 Direct Messages — dm:{dmChannelId} topic, DmChannel module, internal DM APIs, client DM APIs, separate Prisma models (DirectMessageChannel, DmParticipant, DirectMessage), frontend DM hooks and components (TASK-0019, DEC-0049)    |
 | 2026-03-01 | v3.3    | Add §9 Channel Charter / Swarm Modes — 7 swarm modes, charter session lifecycle, Go-enforced turn order, charter injection into system prompt, charter_status WebSocket events, frontend swarm settings + live header (TASK-0020, DEC-0050) |
 | 2026-03-02 | v3.4    | Add stream_checkpoint event, StreamCheckpointPayload, hive:stream:checkpoint Redis channel, tokenHistory + checkpoints on MessagePayload, POST /api/internal/stream/resume endpoint (TASK-0021, DEC-0053)                                   |
@@ -1840,4 +1840,5 @@ When a message is rate-limited, the Gateway replies with an error instead of bro
 | 2026-03-08 | v3.6    | Add Bootstrap API (POST /api/v1/bootstrap) — first-run setup with admin token auth, creates admin user + server + channel with agent registration enabled (DEC-0051)                                                                        |
 | 2026-03-09 | v3.7    | Add GET /api/v1/agents/{id}/channels/{channelId}/messages — agent channel history with cursor pagination (before ULID, after_sequence)                                                                                                      |
 | 2026-03-09 | v3.8    | Add GET /api/v1/agents/{id}/server — agent server/channel/agent discovery endpoint. Add topicPattern, dmTopicPattern, serverInfoUrl to registration response. CLI init now shows topic pattern and channel discovery URL.                   |
-| 2026-03-09 | v4.0    | Remove self-registration (DEC-0060), add CLI agent setup via POST /api/v1/bootstrap/agents, add bot_trigger_skipped event (BUG-007), add §10 Rate Limiting with per-user limits (BUG-005), auto channel assignment via ChannelBot (DEC-0061) |
+| 2026-03-09 | v4.0    | Remove self-registration (DEC-0060), add CLI agent setup via POST /api/v1/bootstrap/agents, add agent_trigger_skipped event (BUG-007), add §10 Rate Limiting with per-user limits (BUG-005), auto channel assignment via ChannelAgent (DEC-0061) |
+| 2026-03-09 | v4.1    | Rename Bot → Agent across all services (DEC-0062): AuthorType.BOT → AGENT, Prisma model Bot → Agent, all API paths /bots/ → /agents/, botId → agentId, fix SDK agent trigger routing (WEBSOCKET skips BYOK), add charter_update delivery to SDK agents on join |

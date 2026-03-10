@@ -38,9 +38,9 @@ export type MessageNewEvent = MessagePayload;
 /** Server broadcasts stream start */
 export interface StreamStartEvent {
   messageId: string;
-  botId: string;
-  botName: string;
-  botAvatarUrl: string | null;
+  agentId: string;
+  agentName: string;
+  agentAvatarUrl: string | null;
   sequence: string;
 }
 
@@ -91,7 +91,7 @@ export interface HistoryResponseEvent {
 export interface StreamRequestRedis {
   channelId: string;
   messageId: string;
-  botId: string;
+  agentId: string;
   triggerMessageId: string;
   contextMessages: Array<{
     role: "user" | "assistant" | "system";
@@ -126,7 +126,7 @@ export interface PersistMessageRequest {
   id: string;
   channelId: string;
   authorId: string;
-  authorType: "USER" | "BOT" | "SYSTEM";
+  authorType: "USER" | "AGENT" | "SYSTEM";
   content: string;
   type: "STANDARD" | "STREAMING" | "SYSTEM";
   streamingStatus: StreamStatus | null;

@@ -9,8 +9,8 @@ import { validateInternalSecret } from "@/lib/internal-auth";
  * up to the checkpoint offset. The actual new streaming message is created
  * by the Gateway via the normal stream_start flow. (TASK-0021)
  *
- * Body: { channelId, originalMessageId, checkpointIndex, botId }
- * Returns: { originalMessageId, channelId, botId, botName, checkpointIndex, partialContent }
+ * Body: { channelId, originalMessageId, checkpointIndex, agentId }
+ * Returns: { originalMessageId, channelId, agentId, agentName, checkpointIndex, partialContent }
  */
 export async function POST(request: NextRequest) {
   if (!validateInternalSecret(request)) {
@@ -24,18 +24,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { channelId, originalMessageId, checkpointIndex, botId } = body;
+  const { channelId, originalMessageId, checkpointIndex, agentId } = body;
 
   if (
     !channelId ||
     !originalMessageId ||
     checkpointIndex === undefined ||
-    !botId
+    !agentId
   ) {
     return NextResponse.json(
       {
         error:
-          "Missing required fields: channelId, originalMessageId, checkpointIndex, botId",
+          "Missing required fields: channelId, originalMessageId, checkpointIndex, agentId",
       },
       { status: 400 },
     );
@@ -79,15 +79,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate bot exists
-    const bot = await prisma.bot.findUnique({
-      where: { id: botId },
+    // Validate agent exists
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
       select: { id: true, name: true, isActive: true },
     });
 
-    if (!bot || !bot.isActive) {
+    if (!agent || !agent.isActive) {
       return NextResponse.json(
-        { error: "Bot not found or inactive" },
+        { error: "Agent not found or inactive" },
         { status: 404 },
       );
     }
@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       originalMessageId,
       channelId,
-      botId,
-      botName: bot.name,
+      agentId,
+      agentName: agent.name,
       checkpointIndex,
       checkpointLabel: checkpoint.label,
       partialContent,

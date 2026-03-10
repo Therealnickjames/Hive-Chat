@@ -6,7 +6,7 @@ import { Presence } from "phoenix";
 import { getSocket } from "@/lib/socket";
 
 /**
- * TASK-0019: DM message payload (simplified — no streaming, no bots).
+ * TASK-0019: DM message payload (simplified — no streaming, no agents).
  */
 export interface DmMessagePayload {
   id: string;
@@ -62,7 +62,7 @@ interface UseDmChannelReturn {
  * Topic: "dm:{dmId}"
  *
  * Handles messages, typing, presence, history, and reconnection sync.
- * No streaming/bot support — DMs are human-only. (TASK-0019)
+ * No streaming/agent support — DMs are human-only. (TASK-0019)
  */
 export function useDmChannel(dmId: string | null): UseDmChannelReturn {
   const [messages, setMessages] = useState<DmMessagePayload[]>([]);

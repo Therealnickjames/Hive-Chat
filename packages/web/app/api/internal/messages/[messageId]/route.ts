@@ -116,7 +116,7 @@ export async function PUT(
  *
  * Body: { userId: string, content: string }
  * Returns: { messageId, content, editedAt } (200)
- * Errors: 400 (bad input), 403 (not author / bot message), 404, 409 (active stream)
+ * Errors: 400 (bad input), 403 (not author / agent message), 404, 409 (active stream)
  */
 export async function PATCH(
   request: NextRequest,
@@ -176,9 +176,9 @@ export async function PATCH(
       );
     }
 
-    if (message.authorType === "BOT") {
+    if (message.authorType === "AGENT") {
       return NextResponse.json(
-        { error: "Cannot edit bot messages" },
+        { error: "Cannot edit agent messages" },
         { status: 403 },
       );
     }

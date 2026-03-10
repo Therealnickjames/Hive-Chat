@@ -13,7 +13,7 @@ Token streaming is Tavok's differentiator. When an AI agent responds in a channe
 The streaming system involves all three services:
 1. **Gateway** (Elixir): Detects trigger, creates placeholder message, broadcasts stream events
 2. **Streaming Proxy** (Go): Calls LLM API, parses SSE, pushes tokens via Redis
-3. **Web** (Next.js): Persists messages, serves bot config
+3. **Web** (Next.js): Persists messages, serves agent config
 
 ---
 
@@ -32,10 +32,10 @@ Summary:
 
 ## Trigger Flow
 
-1. User sends message in channel with a bot assigned
-2. Gateway checks bot's `triggerMode`:
-   - `ALWAYS`: every message triggers the bot
-   - `MENTION`: only messages containing `@botname`
+1. User sends message in channel with an agent assigned
+2. Gateway checks agent's `triggerMode`:
+   - `ALWAYS`: every message triggers the agent
+   - `MENTION`: only messages containing `@agentname`
    - `KEYWORD`: messages containing configured keywords
 3. Gateway creates a placeholder message: `type=STREAMING, streamingStatus=ACTIVE`
 4. Gateway broadcasts `stream_start` to all clients in the channel
@@ -118,7 +118,7 @@ Headers are applied after standard provider headers, so they can override defaul
 
 **OpenAI-compatible endpoint** (Ollama, vLLM, LiteLLM):
 1. Add entry to `NewRegistry()` in `registry.go`
-2. Add default endpoint/model to `PROVIDER_DEFAULTS` in `manage-bots-modal.tsx`
+2. Add default endpoint/model to `PROVIDER_DEFAULTS` in `manage-agents-modal.tsx`
 
 **New API format** (e.g., Google Gemini):
 1. Create `streaming/internal/provider/gemini.go` implementing `Provider`

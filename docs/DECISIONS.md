@@ -1274,18 +1274,38 @@ model AgentRegistration {
 
 ---
 
-## DEC-0061: Auto-assign agents to all channels via ChannelBot records
+## DEC-0061: Auto-assign agents to all channels via ChannelAgent records
 
 **Date**: 2026-03-09
 **Status**: Accepted
-**Context**: After DEC-0060 (CLI agent setup), agents were created with Bot + AgentRegistration records but no ChannelBot join records. The Gateway discovers which agents to trigger per channel by querying the ChannelBot table (via `GET /api/internal/channels/{channelId}/bots`). Without ChannelBot records, agents were invisible to the trigger system — mentions showed agents in autocomplete but the Gateway couldn't find them to trigger.
+**Context**: After DEC-0060 (CLI agent setup), agents were created with Agent + AgentRegistration records but no ChannelAgent join records. The Gateway discovers which agents to trigger per channel by querying the ChannelAgent table (via `GET /api/internal/channels/{channelId}/agents`). Without ChannelAgent records, agents were invisible to the trigger system — mentions showed agents in autocomplete but the Gateway couldn't find them to trigger.
 
 **Decision**: Auto-assign agents to all channels in their server on creation.
 
-1. **Agent creation** (`agent-factory.ts`, BYOK route, bootstrap route): After creating the Bot + AgentRegistration, query all channels in the server and create ChannelBot records for each.
+1. **Agent creation** (`agent-factory.ts`, BYOK route, bootstrap route): After creating the Agent + AgentRegistration, query all channels in the server and create ChannelAgent records for each.
 
-2. **Channel creation** (`POST /api/servers/{serverId}/channels`): When a new channel is created, query all active bots in the server and create ChannelBot records for each.
+2. **Channel creation** (`POST /api/servers/{serverId}/channels`): When a new channel is created, query all active agents in the server and create ChannelAgent records for each.
 
-3. **Gateway discovery**: No changes needed — the existing `GET /api/internal/channels/{channelId}/bots` endpoint already queries ChannelBot records.
+3. **Gateway discovery**: No changes needed — the existing `GET /api/internal/channels/{channelId}/agents` endpoint already queries ChannelAgent records.
 
 **Consequences**: Agents are discoverable immediately after creation. New channels automatically inherit all agents. No per-channel agent configuration needed (agents join all channels by default). Future: per-channel agent assignment UI can be added to restrict agents to specific channels.
+
+## DEC-0062: Rename Bot → Agent across all services
+
+**Date**: 2026-03-09
+**Status**: Accepted
+**Context**: Live testing revealed a terminology mismatch: the codebase called AI participants "Bots" (Prisma model `Bot`, API routes `/bots/`, UI labels "Manage Bots"). The product vision is agents — autonomous participants in a communication layer, not chat wrappers. Additionally, SDK agents were being incorrectly triggered through the BYOK Go Proxy path (causing "Failed to load bot configuration" errors and dual responses), and channel charters were not being delivered to SDK agents.
+
+**Decision**: Full cross-codebase rename + trigger fix + charter delivery:
+
+1. **Prisma schema**: `model Bot` → `model Agent`, `model ChannelBot` → `model ChannelAgent`, `AuthorType.BOT` → `AuthorType.AGENT`, all `botId` fields → `agentId`, `defaultBotId` → `defaultAgentId`.
+
+2. **Wire format**: `authorType: "BOT"` → `authorType: "AGENT"` everywhere (breaking change for SDK consumers).
+
+3. **API paths**: All `/bots/` → `/agents/`, `/bot` → `/agent` in internal and external APIs.
+
+4. **Gateway trigger routing fix**: SDK agents (`connectionMethod="WEBSOCKET"`) now skip the BYOK Go Proxy trigger — they respond independently via their own WebSocket connection. Only `nil` connectionMethod agents (BYOK) trigger the Go Proxy.
+
+5. **Charter delivery**: SDK agents receive a `charter_update` WebSocket event on channel join (with charter text) and on charter changes (via broadcast).
+
+**Consequences**: Breaking wire format change — SDK clients using `authorType: "BOT"` must update to `"AGENT"`. All API consumers using `/bots/` endpoints must update to `/agents/`. SDK agents no longer receive spurious BYOK errors on @mention. Charter rules are now enforced for SDK agents.

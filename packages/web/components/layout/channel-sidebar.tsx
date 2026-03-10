@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useChatContext } from "@/components/providers/chat-provider";
 import { CreateChannelModal } from "@/components/modals/create-channel-modal";
-import { ManageBotsModal } from "@/components/modals/manage-bots-modal";
+import { ManageAgentsModal } from "@/components/modals/manage-agents-modal";
 import { RoleManagementModal } from "@/components/modals/role-management-modal";
 import { ChannelSettingsModal } from "@/components/modals/channel-settings-modal";
 import { InviteModal } from "@/components/modals/invite-modal";
@@ -23,14 +23,14 @@ export function ChannelSidebar() {
   } = useChatContext();
   const router = useRouter();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-  const [showManageBots, setShowManageBots] = useState(false);
+  const [showManageAgents, setShowManageAgents] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [channelSettingsTarget, setChannelSettingsTarget] = useState<{
     id: string;
     name: string;
-    defaultBotId: string | null;
-    botIds?: string[];
+    defaultAgentId: string | null;
+    agentIds?: string[];
   } | null>(null);
 
   const displayName = session?.user?.displayName || "User";
@@ -94,7 +94,7 @@ export function ChannelSidebar() {
 
           {channels.map((channel) => {
             const isActive = currentChannelId === channel.id;
-            const hasBot = !!channel.defaultBotId;
+            const hasBot = !!channel.defaultAgentId;
             const unread = unreadMap.get(channel.id);
             const hasUnread = !isActive && !!unread?.hasUnread;
             const mentionCount = unread?.mentionCount ?? 0;
@@ -126,7 +126,7 @@ export function ChannelSidebar() {
                   {hasBot && (
                     <span
                       className="flex-shrink-0 text-emerald-400"
-                      title="Bot assigned"
+                      title="Agent assigned"
                     >
                       <svg
                         width="12"
@@ -152,8 +152,8 @@ export function ChannelSidebar() {
                       setChannelSettingsTarget({
                         id: channel.id,
                         name: channel.name,
-                        defaultBotId: channel.defaultBotId,
-                        botIds: channel.botIds,
+                        defaultAgentId: channel.defaultAgentId,
+                        agentIds: channel.agentIds,
                       });
                     }}
                     title="Channel settings"
@@ -177,15 +177,15 @@ export function ChannelSidebar() {
             );
           })}
 
-          {hasPermission(Permissions.MANAGE_BOTS) && currentServerId && (
+          {hasPermission(Permissions.MANAGE_AGENTS) && currentServerId && (
             <div className="mt-4 px-1">
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-xs font-bold uppercase text-text-muted">
-                  AI Bots
+                  AI Agents
                 </span>
               </div>
               <button
-                onClick={() => setShowManageBots(true)}
+                onClick={() => setShowManageAgents(true)}
                 className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-text-secondary transition hover:bg-background-primary hover:text-text-primary"
               >
                 <span className="text-emerald-400">
@@ -198,7 +198,7 @@ export function ChannelSidebar() {
                     <path d="M8 1a2 2 0 012 2v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2h2V3a2 2 0 012-2zm-2 7a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2z" />
                   </svg>
                 </span>
-                <span className="text-sm">Manage Bots</span>
+                <span className="text-sm">Manage Agents</span>
               </button>
             </div>
           )}
@@ -266,9 +266,9 @@ export function ChannelSidebar() {
         onClose={() => setShowCreateChannel(false)}
       />
 
-      <ManageBotsModal
-        isOpen={showManageBots}
-        onClose={() => setShowManageBots(false)}
+      <ManageAgentsModal
+        isOpen={showManageAgents}
+        onClose={() => setShowManageAgents(false)}
       />
 
       <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} />
@@ -284,8 +284,8 @@ export function ChannelSidebar() {
           onClose={() => setChannelSettingsTarget(null)}
           channelId={channelSettingsTarget.id}
           channelName={channelSettingsTarget.name}
-          currentDefaultBotId={channelSettingsTarget.defaultBotId}
-          currentBotIds={channelSettingsTarget.botIds}
+          currentDefaultAgentId={channelSettingsTarget.defaultAgentId}
+          currentAgentIds={channelSettingsTarget.agentIds}
         />
       )}
     </>

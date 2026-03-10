@@ -6,60 +6,60 @@ import type { AgentListItem } from "./types";
 import { getMethodBadgeClasses, getMethodLabel } from "./types";
 
 interface AgentListProps {
-  bots: AgentListItem[];
+  agents: AgentListItem[];
   serverId: string;
   onAddAgent: () => void;
-  onEditBot: (bot: AgentListItem) => void;
+  onEditAgent: (agent: AgentListItem) => void;
   onRefresh: () => void;
 }
 
 export function AgentList({
-  bots,
+  agents,
   serverId,
   onAddAgent,
-  onEditBot,
+  onEditAgent,
   onRefresh,
 }: AgentListProps) {
-  const [deletingBotId, setDeletingBotId] = useState<string | null>(null);
+  const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
 
-  const activeBots = bots.filter((b) => b.isActive);
-  const inactiveBots = bots.filter((b) => !b.isActive);
+  const activeAgents = agents.filter((a) => a.isActive);
+  const inactiveAgents = agents.filter((a) => !a.isActive);
 
-  async function handleDelete(botId: string) {
-    if (deletingBotId !== botId) {
-      setDeletingBotId(botId);
+  async function handleDelete(agentId: string) {
+    if (deletingAgentId !== agentId) {
+      setDeletingAgentId(agentId);
       return;
     }
 
     try {
-      const res = await fetch(`/api/servers/${serverId}/bots/${botId}`, {
+      const res = await fetch(`/api/servers/${serverId}/agents/${agentId}`, {
         method: "DELETE",
       });
       if (res.ok) onRefresh();
     } catch {
-      console.error("Failed to delete bot");
+      console.error("Failed to delete agent");
     } finally {
-      setDeletingBotId(null);
+      setDeletingAgentId(null);
     }
   }
 
   return (
     <div>
       {/* Active Agents */}
-      {activeBots.length > 0 && (
+      {activeAgents.length > 0 && (
         <div className="mb-4">
           <p className="mb-2 text-xs font-bold uppercase text-text-muted">
-            Active Agents — {activeBots.length}
+            Active Agents — {activeAgents.length}
           </p>
           <div className="space-y-2 max-h-60 overflow-y-auto">
-            {activeBots.map((bot) => (
-              <BotRow
-                key={bot.id}
-                bot={bot}
-                deletingBotId={deletingBotId}
-                onEdit={() => onEditBot(bot)}
-                onDelete={() => handleDelete(bot.id)}
-                onBlurDelete={() => setDeletingBotId(null)}
+            {activeAgents.map((agent) => (
+              <AgentRow
+                key={agent.id}
+                agent={agent}
+                deletingAgentId={deletingAgentId}
+                onEdit={() => onEditAgent(agent)}
+                onDelete={() => handleDelete(agent.id)}
+                onBlurDelete={() => setDeletingAgentId(null)}
               />
             ))}
           </div>
@@ -67,27 +67,27 @@ export function AgentList({
       )}
 
       {/* Inactive Agents */}
-      {inactiveBots.length > 0 && (
+      {inactiveAgents.length > 0 && (
         <div className="mb-4">
           <p className="mb-2 text-xs font-bold uppercase text-text-muted">
-            Inactive — {inactiveBots.length}
+            Inactive — {inactiveAgents.length}
           </p>
           <div className="space-y-2 max-h-40 overflow-y-auto opacity-60">
-            {inactiveBots.map((bot) => (
-              <BotRow
-                key={bot.id}
-                bot={bot}
-                deletingBotId={deletingBotId}
-                onEdit={() => onEditBot(bot)}
-                onDelete={() => handleDelete(bot.id)}
-                onBlurDelete={() => setDeletingBotId(null)}
+            {inactiveAgents.map((agent) => (
+              <AgentRow
+                key={agent.id}
+                agent={agent}
+                deletingAgentId={deletingAgentId}
+                onEdit={() => onEditAgent(agent)}
+                onDelete={() => handleDelete(agent.id)}
+                onBlurDelete={() => setDeletingAgentId(null)}
               />
             ))}
           </div>
         </div>
       )}
 
-      {bots.length === 0 && (
+      {agents.length === 0 && (
         <p className="text-sm text-text-muted py-4">
           No agents yet. Add one to bring AI to your server.
         </p>
@@ -100,15 +100,15 @@ export function AgentList({
   );
 }
 
-function BotRow({
-  bot,
-  deletingBotId,
+function AgentRow({
+  agent,
+  deletingAgentId,
   onEdit,
   onDelete,
   onBlurDelete,
 }: {
-  bot: AgentListItem;
-  deletingBotId: string | null;
+  agent: AgentListItem;
+  deletingAgentId: string | null;
   onEdit: () => void;
   onDelete: () => void;
   onBlurDelete: () => void;
@@ -118,23 +118,23 @@ function BotRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-text-primary">
-            {bot.name}
+            {agent.name}
           </span>
-          <MethodBadge method={bot.connectionMethod} />
-          {bot.connectionMethod === null && (
+          <MethodBadge method={agent.connectionMethod} />
+          {agent.connectionMethod === null && (
             <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-600/20 text-emerald-400">
-              {bot.llmProvider}
+              {agent.llmProvider}
             </span>
           )}
         </div>
         <p className="text-xs text-text-muted truncate">
-          {bot.connectionMethod === null
-            ? `${bot.llmModel} \u00b7 ${bot.triggerMode.toLowerCase()}`
-            : `${getMethodLabel(bot.connectionMethod)} agent \u00b7 ${bot.triggerMode.toLowerCase()}`}
+          {agent.connectionMethod === null
+            ? `${agent.llmModel} \u00b7 ${agent.triggerMode.toLowerCase()}`
+            : `${getMethodLabel(agent.connectionMethod)} agent \u00b7 ${agent.triggerMode.toLowerCase()}`}
         </p>
       </div>
       <div className="flex gap-1">
-        {bot.connectionMethod === null && (
+        {agent.connectionMethod === null && (
           <button
             onClick={onEdit}
             className="rounded px-2 py-1 text-xs text-text-secondary hover:bg-background-secondary hover:text-text-primary"
@@ -146,12 +146,12 @@ function BotRow({
           onClick={onDelete}
           onBlur={onBlurDelete}
           className={`rounded px-2 py-1 text-xs ${
-            deletingBotId === bot.id
+            deletingAgentId === agent.id
               ? "bg-status-danger text-white font-semibold"
               : "text-status-danger hover:bg-status-danger/10"
           }`}
         >
-          {deletingBotId === bot.id ? "Confirm?" : "Delete"}
+          {deletingAgentId === agent.id ? "Confirm?" : "Delete"}
         </button>
       </div>
     </div>

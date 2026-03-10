@@ -27,8 +27,8 @@ interface ChannelData {
   type: string;
   topic: string | null;
   position: number;
-  defaultBotId: string | null;
-  botIds?: string[];
+  defaultAgentId: string | null;
+  agentIds?: string[];
 }
 
 interface MemberData {
@@ -39,7 +39,7 @@ interface MemberData {
   avatarUrl: string | null;
 }
 
-interface BotData {
+interface AgentData {
   id: string;
   name: string;
   isActive: boolean;
@@ -50,7 +50,7 @@ interface BotData {
 interface ServerScopedData {
   channels: ChannelData[];
   members: MemberData[];
-  bots: BotData[];
+  agents: AgentData[];
 }
 
 interface ChatContextValue {
@@ -61,12 +61,12 @@ interface ChatContextValue {
   currentServerOwnerId: string | null;
   channels: ChannelData[];
   members: MemberData[];
-  bots: BotData[];
+  agents: AgentData[];
   serverDataById: Record<string, ServerScopedData>;
   refreshServers: () => Promise<void>;
   refreshChannels: () => Promise<void>;
   refreshMembers: () => Promise<void>;
-  refreshBots: () => Promise<void>;
+  refreshAgents: () => Promise<void>;
   ensureServerScopedData: (serverId: string) => Promise<void>;
   refreshServerScopedData: (serverId: string) => Promise<void>;
   userPermissions: bigint;
@@ -110,7 +110,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [servers, setServers] = useState<ServerData[]>([]);
   const [channels, setChannels] = useState<ChannelData[]>([]);
   const [members, setMembers] = useState<MemberData[]>([]);
-  const [bots, setBots] = useState<BotData[]>([]);
+  const [agents, setAgents] = useState<AgentData[]>([]);
   const [serverDataById, setServerDataById] = useState<
     Record<string, ServerScopedData>
   >({});
@@ -162,7 +162,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const refreshChannels = useCallback(async () => {
     if (!serverId) {
       setChannels([]);
-      setBots([]);
+      setAgents([]);
       setCurrentServerName(null);
       setCurrentServerOwnerId(null);
       return;
@@ -180,7 +180,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           [serverId]: {
             channels: nextChannels,
             members: prev[serverId]?.members || [],
-            bots: prev[serverId]?.bots || [],
+            agents: prev[serverId]?.agents || [],
           },
         }));
       }
@@ -205,7 +205,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           [serverId]: {
             channels: prev[serverId]?.channels || [],
             members: nextMembers,
-            bots: prev[serverId]?.bots || [],
+            agents: prev[serverId]?.agents || [],
           },
         }));
       }
@@ -214,28 +214,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [serverId]);
 
-  const refreshBots = useCallback(async () => {
+  const refreshAgents = useCallback(async () => {
     if (!serverId) {
-      setBots([]);
+      setAgents([]);
       return;
     }
     try {
-      const res = await fetch(`/api/servers/${serverId}/bots`);
+      const res = await fetch(`/api/servers/${serverId}/agents`);
       if (res.ok) {
         const data = await res.json();
-        const nextBots = (data.bots || []).filter((b: BotData) => b.isActive);
-        setBots(nextBots);
+        const nextAgents = (data.agents || []).filter(
+          (b: AgentData) => b.isActive,
+        );
+        setAgents(nextAgents);
         setServerDataById((prev) => ({
           ...prev,
           [serverId]: {
             channels: prev[serverId]?.channels || [],
             members: prev[serverId]?.members || [],
-            bots: nextBots,
+            agents: nextAgents,
           },
         }));
       }
     } catch (error) {
-      console.error("Failed to fetch bots:", error);
+      console.error("Failed to fetch agents:", error);
     }
   }, [serverId]);
 
@@ -357,10 +359,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!targetServerId) return;
 
       try {
-        const [serverRes, membersRes, botsRes] = await Promise.all([
+        const [serverRes, membersRes, agentsRes] = await Promise.all([
           fetch(`/api/servers/${targetServerId}`),
           fetch(`/api/servers/${targetServerId}/members`),
-          fetch(`/api/servers/${targetServerId}/bots`),
+          fetch(`/api/servers/${targetServerId}/agents`),
         ]);
 
         if (!serverRes.ok) return;
@@ -369,14 +371,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const membersJson = membersRes.ok
           ? await membersRes.json()
           : { members: [] };
-        const botsJson = botsRes.ok ? await botsRes.json() : { bots: [] };
+        const agentsJson = agentsRes.ok
+          ? await agentsRes.json()
+          : { agents: [] };
 
         setServerDataById((prev) => ({
           ...prev,
           [targetServerId]: {
             channels: serverJson.channels || [],
             members: membersJson.members || [],
-            bots: (botsJson.bots || []).filter((b: BotData) => b.isActive),
+            agents: (agentsJson.agents || []).filter(
+              (b: AgentData) => b.isActive,
+            ),
           },
         }));
       } catch (error) {
@@ -447,9 +453,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshChannels();
     refreshMembers();
-    refreshBots();
+    refreshAgents();
     refreshPermissions();
-  }, [refreshChannels, refreshMembers, refreshBots, refreshPermissions]);
+  }, [refreshChannels, refreshMembers, refreshAgents, refreshPermissions]);
 
   return (
     <ChatContext.Provider
@@ -461,12 +467,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         currentServerOwnerId,
         channels,
         members,
-        bots,
+        agents,
         serverDataById,
         refreshServers,
         refreshChannels,
         refreshMembers,
-        refreshBots,
+        refreshAgents,
         ensureServerScopedData,
         refreshServerScopedData,
         userPermissions,

@@ -93,22 +93,22 @@ export function MessageList({
       (m) => m.streamingStatus === "ACTIVE",
     );
     const latestMessage = messages[messages.length - 1];
-    const typedBotTypes = [
+    const typedAgentTypes = [
       "TOOL_CALL",
       "TOOL_RESULT",
       "CODE_BLOCK",
       "ARTIFACT",
       "STATUS",
     ];
-    const isLatestBotStream = Boolean(
+    const isLatestAgentStream = Boolean(
       latestMessage &&
-      latestMessage.authorType === "BOT" &&
+      latestMessage.authorType === "AGENT" &&
       latestMessage.type === "STREAMING",
     );
-    const isLatestBotTyped = Boolean(
+    const isLatestAgentTyped = Boolean(
       latestMessage &&
-      latestMessage.authorType === "BOT" &&
-      typedBotTypes.includes(latestMessage.type),
+      latestMessage.authorType === "AGENT" &&
+      typedAgentTypes.includes(latestMessage.type),
     );
     const isLatestUserMessage = Boolean(
       latestMessage && latestMessage.authorType === "USER",
@@ -157,12 +157,13 @@ export function MessageList({
         new Date(prevMessage.createdAt).getTime() <
         5 * 60 * 1000,
     );
-    const shouldFollowNewBotStreamOutcome = isNewMessage && isLatestBotStream;
+    const shouldFollowNewAgentStreamOutcome =
+      isNewMessage && isLatestAgentStream;
     const shouldFollowOwnSentMessage = isNewMessage && isLatestOwnUserMessage;
     const shouldFollowIncomingUserMessage =
       hasNewIncomingUserMessage ||
       (isNewMessage && isLatestIncomingUserMessage);
-    const shouldFollowTypedBotMessage = isNewMessage && isLatestBotTyped;
+    const shouldFollowTypedAgentMessage = isNewMessage && isLatestAgentTyped;
     const prioritizedIncomingUserMessageId =
       prioritizedIncomingUserMessageIdRef.current;
     if (
@@ -182,10 +183,10 @@ export function MessageList({
     const willScroll =
       (isNewMessage && isAtBottomRef.current) ||
       shouldFollowActiveStream ||
-      shouldFollowNewBotStreamOutcome ||
+      shouldFollowNewAgentStreamOutcome ||
       shouldFollowOwnSentMessage ||
       shouldFollowIncomingUserMessage ||
-      shouldFollowTypedBotMessage;
+      shouldFollowTypedAgentMessage;
 
     if (willScroll) {
       const pinnedId = prioritizedIncomingUserMessageIdRef.current;
@@ -253,7 +254,7 @@ export function MessageList({
         </div>
       )}
 
-      {/* TASK-0012: Active streams indicator for multi-bot channels */}
+      {/* TASK-0012: Active streams indicator for multi-agent channels */}
       {activeStreamCount > 1 && (
         <div className="sticky top-0 z-10 flex justify-center py-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-3 py-1.5 text-xs font-medium text-accent-cyan shadow-[0_10px_24px_rgba(89,184,255,0.1)]">

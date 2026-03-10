@@ -1,6 +1,6 @@
-// Package config — Bot configuration loader.
+// Package config — Agent configuration loader.
 //
-// Fetches bot configuration from the Next.js internal API
+// Fetches agent configuration from the Next.js internal API
 // and updates message content on stream completion.
 package config
 
@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// Loader fetches bot configs and updates messages via the Web service internal API.
+// Loader fetches agent configs and updates messages via the Web service internal API.
 type Loader struct {
 	webURL         string
 	internalSecret string
@@ -33,16 +33,16 @@ func NewLoader(webURL, internalSecret string) *Loader {
 	}
 }
 
-// GetBot fetches full bot configuration including decrypted API key.
-// GET /api/internal/bots/{botId}
+// GetAgent fetches full agent configuration including decrypted API key.
+// GET /api/internal/agents/{agentId}
 // Now accepts context for cancellation support. (ISSUE-014)
-func (l *Loader) GetBot(botID string) (*BotConfig, error) {
-	return l.GetBotWithContext(context.Background(), botID)
+func (l *Loader) GetAgent(agentID string) (*AgentConfig, error) {
+	return l.GetAgentWithContext(context.Background(), agentID)
 }
 
-// GetBotWithContext fetches bot configuration with context for cancellation.
-func (l *Loader) GetBotWithContext(ctx context.Context, botID string) (*BotConfig, error) {
-	url := fmt.Sprintf("%s/api/internal/bots/%s", l.webURL, botID)
+// GetAgentWithContext fetches agent configuration with context for cancellation.
+func (l *Loader) GetAgentWithContext(ctx context.Context, agentID string) (*AgentConfig, error) {
+	url := fmt.Sprintf("%s/api/internal/agents/%s", l.webURL, agentID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -61,12 +61,12 @@ func (l *Loader) GetBotWithContext(ctx context.Context, botID string) (*BotConfi
 		return nil, fmt.Errorf("web API returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	var bot BotConfig
-	if err := json.NewDecoder(resp.Body).Decode(&bot); err != nil {
+	var agent AgentConfig
+	if err := json.NewDecoder(resp.Body).Decode(&agent); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	return &bot, nil
+	return &agent, nil
 }
 
 // FinalizeMessage updates a streaming message's content and status.
@@ -353,15 +353,15 @@ func (l *Loader) GetChannelCharter(ctx context.Context, channelID string) (*Char
 
 // ClaimCharterTurn atomically claims a charter turn via PUT.
 // PUT /api/internal/channels/{channelId}/charter-turn
-// Body: { "botId": "..." }
+// Body: { "agentId": "..." }
 // The server verifies turn order, max turns, and charter status inside a
 // serializable transaction, then increments the turn counter atomically.
 // Returns a non-error result for all application-level responses (200, 409, 404).
 // Only returns an error for transport/server failures (5xx, network). (P1-Fix 4)
-func (l *Loader) ClaimCharterTurn(ctx context.Context, channelID, botID string) (*ClaimCharterTurnResult, error) {
+func (l *Loader) ClaimCharterTurn(ctx context.Context, channelID, agentID string) (*ClaimCharterTurnResult, error) {
 	url := fmt.Sprintf("%s/api/internal/channels/%s/charter-turn", l.webURL, channelID)
 
-	body := map[string]string{"botId": botID}
+	body := map[string]string{"agentId": agentID}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("marshal body: %w", err)

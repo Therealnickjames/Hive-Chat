@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   createInternalMessagesPostHandler,
-  createServerBotPatchHandler,
+  createServerAgentPatchHandler,
   createServerChannelPatchHandler,
 } from "../route-handlers.js";
 
@@ -170,7 +170,7 @@ describe("createInternalMessagesPostHandler", () => {
             avatarUrl: null,
           }),
         },
-        bot: { findUnique: async () => null },
+        agent: { findUnique: async () => null },
       },
     });
 
@@ -265,7 +265,7 @@ describe("createInternalMessagesPostHandler", () => {
             },
             channel: { updateMany: async () => ({ count: 1 }) },
           }),
-        bot: {
+        agent: {
           findUnique: async () => ({ name: "TestBot", avatarUrl: null }),
         },
         user: { findUnique: async () => null },
@@ -279,7 +279,7 @@ describe("createInternalMessagesPostHandler", () => {
             id: `m-${status}`,
             channelId: "c1",
             authorId: "b1",
-            authorType: "BOT",
+            authorType: "AGENT",
             content: "",
             type: "STREAMING",
             streamingStatus: status,
@@ -311,14 +311,14 @@ describe("createInternalMessagesPostHandler", () => {
   });
 });
 
-describe("createServerBotPatchHandler", () => {
-  const makeBotHandler = (overrides = {}) =>
-    createServerBotPatchHandler({
+describe("createServerAgentPatchHandler", () => {
+  const makeAgentHandler = (overrides = {}) =>
+    createServerAgentPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
       prismaClient: {
         server: { findUnique: async () => ({ ownerId: "owner-1" }) },
-        bot: {
+        agent: {
           findUnique: async () => ({ serverId: "s1" }),
           update: async ({ data }: any) => ({
             id: "b1",
@@ -332,7 +332,7 @@ describe("createServerBotPatchHandler", () => {
     });
 
   it("returns 401 when not authenticated", async () => {
-    const handler = createServerBotPatchHandler({
+    const handler = createServerAgentPatchHandler({
       getServerSession: async () => null,
       authOptions: {},
       prismaClient: {},
@@ -340,13 +340,13 @@ describe("createServerBotPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
+      { params: Promise.resolve({ serverId: "s1", agentId: "b1" }) },
     );
     expect(res.status).toBe(401);
   });
 
   it("returns 403 when user is not server owner", async () => {
-    const handler = createServerBotPatchHandler({
+    const handler = createServerAgentPatchHandler({
       getServerSession: async () => ({ user: { id: "not-owner" } }),
       authOptions: {},
       prismaClient: {
@@ -356,45 +356,45 @@ describe("createServerBotPatchHandler", () => {
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
+      { params: Promise.resolve({ serverId: "s1", agentId: "b1" }) },
     );
     expect(res.status).toBe(403);
   });
 
-  it("returns 404 when bot is not in the server (IDOR prevention)", async () => {
-    const handler = createServerBotPatchHandler({
+  it("returns 404 when agent is not in the server (IDOR prevention)", async () => {
+    const handler = createServerAgentPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
       prismaClient: {
         server: { findUnique: async () => ({ ownerId: "owner-1" }) },
-        bot: { findUnique: async () => ({ serverId: "different-server" }) },
+        agent: { findUnique: async () => ({ serverId: "different-server" }) },
       },
       encrypt: (v: string) => v,
     });
     const res = await handler(
       { json: async () => ({}) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
+      { params: Promise.resolve({ serverId: "s1", agentId: "b1" }) },
     );
     expect(res.status).toBe(404);
   });
 
   it("returns 400 for null JSON body", async () => {
-    const handler = await makeBotHandler();
+    const handler = await makeAgentHandler();
     const res = await handler(
       { json: async () => null },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
+      { params: Promise.resolve({ serverId: "s1", agentId: "b1" }) },
     );
     expect(res.status).toBe(400);
   });
 
   it("encrypts apiKey when provided", async () => {
     let capturedUpdate: any = null;
-    const handler = createServerBotPatchHandler({
+    const handler = createServerAgentPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
       prismaClient: {
         server: { findUnique: async () => ({ ownerId: "owner-1" }) },
-        bot: {
+        agent: {
           findUnique: async () => ({ serverId: "s1" }),
           update: async ({ data }: any) => {
             capturedUpdate = data;
@@ -407,7 +407,7 @@ describe("createServerBotPatchHandler", () => {
 
     await handler(
       { json: async () => ({ apiKey: "sk-secret-key" }) },
-      { params: Promise.resolve({ serverId: "s1", botId: "b1" }) },
+      { params: Promise.resolve({ serverId: "s1", agentId: "b1" }) },
     );
 
     expect(capturedUpdate.apiKeyEncrypted).toBe("encrypted:sk-secret-key");
@@ -446,7 +446,7 @@ describe("createServerChannelPatchHandler", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 400 for invalid defaultBotId type", async () => {
+  it("returns 400 for invalid defaultAgentId type", async () => {
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
@@ -456,13 +456,13 @@ describe("createServerChannelPatchHandler", () => {
       },
     });
     const res = await handler(
-      { json: async () => ({ defaultBotId: 123 }) },
+      { json: async () => ({ defaultAgentId: 123 }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
   });
 
-  it("allows setting defaultBotId to null", async () => {
+  it("allows setting defaultAgentId to null", async () => {
     let capturedUpdate: any = null;
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
@@ -479,16 +479,16 @@ describe("createServerChannelPatchHandler", () => {
       },
     });
     const res = await handler(
-      { json: async () => ({ defaultBotId: null }) },
+      { json: async () => ({ defaultAgentId: null }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(200);
-    expect(capturedUpdate.defaultBotId).toBeNull();
+    expect(capturedUpdate.defaultAgentId).toBeNull();
   });
 
-  // --- TASK-0012: Multi-bot channel assignment tests ---
+  // --- TASK-0012: Multi-agent channel assignment tests ---
 
-  it("returns 400 when botIds is not an array", async () => {
+  it("returns 400 when agentIds is not an array", async () => {
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
@@ -498,14 +498,16 @@ describe("createServerChannelPatchHandler", () => {
       },
     });
     const res = await handler(
-      { json: async () => ({ botIds: "not-an-array" }) },
+      { json: async () => ({ agentIds: "not-an-array" }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("botIds must be an array of strings");
+    expect((await res.json()).error).toBe(
+      "agentIds must be an array of strings",
+    );
   });
 
-  it("returns 400 when botIds contains non-string elements", async () => {
+  it("returns 400 when agentIds contains non-string elements", async () => {
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
@@ -515,14 +517,16 @@ describe("createServerChannelPatchHandler", () => {
       },
     });
     const res = await handler(
-      { json: async () => ({ botIds: ["bot-1", 123, "bot-3"] }) },
+      { json: async () => ({ agentIds: ["agent-1", 123, "agent-3"] }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("botIds must be an array of strings");
+    expect((await res.json()).error).toBe(
+      "agentIds must be an array of strings",
+    );
   });
 
-  it("returns 400 when botIds contains bots not in server", async () => {
+  it("returns 400 when agentIds contains agents not in server", async () => {
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
@@ -536,20 +540,20 @@ describe("createServerChannelPatchHandler", () => {
             ...data,
           }),
         },
-        bot: {
-          findMany: async () => [{ id: "bot-1" }], // Only bot-1 exists
+        agent: {
+          findMany: async () => [{ id: "agent-1" }], // Only agent-1 exists
         },
       },
     });
     const res = await handler(
-      { json: async () => ({ botIds: ["bot-1", "bot-nonexistent"] }) },
+      { json: async () => ({ agentIds: ["agent-1", "agent-nonexistent"] }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toContain("bot-nonexistent");
+    expect((await res.json()).error).toContain("agent-nonexistent");
   });
 
-  it("accepts valid botIds array and proceeds to update", async () => {
+  it("accepts valid agentIds array and proceeds to update", async () => {
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
@@ -561,22 +565,22 @@ describe("createServerChannelPatchHandler", () => {
             id: "c1",
             name: "general",
             topic: null,
-            defaultBotId: "bot-1",
+            defaultAgentId: "agent-1",
           }),
         },
-        bot: {
-          findMany: async () => [{ id: "bot-1" }, { id: "bot-2" }],
+        agent: {
+          findMany: async () => [{ id: "agent-1" }, { id: "agent-2" }],
         },
       },
     });
     const res = await handler(
-      { json: async () => ({ botIds: ["bot-1", "bot-2"] }) },
+      { json: async () => ({ agentIds: ["agent-1", "agent-2"] }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(200);
   });
 
-  it("accepts empty botIds array (remove all bots)", async () => {
+  it("accepts empty agentIds array (remove all agents)", async () => {
     const handler = createServerChannelPatchHandler({
       getServerSession: async () => ({ user: { id: "owner-1" } }),
       authOptions: {},
@@ -588,13 +592,13 @@ describe("createServerChannelPatchHandler", () => {
             id: "c1",
             name: "general",
             topic: null,
-            defaultBotId: null,
+            defaultAgentId: null,
           }),
         },
       },
     });
     const res = await handler(
-      { json: async () => ({ botIds: [] }) },
+      { json: async () => ({ agentIds: [] }) },
       { params: Promise.resolve({ serverId: "s1", channelId: "c1" }) },
     );
     expect(res.status).toBe(200);

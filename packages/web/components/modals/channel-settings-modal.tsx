@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useChatContext } from "@/components/providers/chat-provider";
 
-interface Bot {
+interface Agent {
   id: string;
   name: string;
   llmProvider: string;
@@ -56,8 +56,8 @@ interface ChannelSettingsModalProps {
   onClose: () => void;
   channelId: string;
   channelName: string;
-  currentBotIds?: string[];
-  currentDefaultBotId: string | null;
+  currentAgentIds?: string[];
+  currentDefaultAgentId: string | null;
 }
 
 export function ChannelSettingsModal({
@@ -65,12 +65,14 @@ export function ChannelSettingsModal({
   onClose,
   channelId,
   channelName,
-  currentBotIds,
-  currentDefaultBotId,
+  currentAgentIds,
+  currentDefaultAgentId,
 }: ChannelSettingsModalProps) {
   const { currentServerId } = useChatContext();
-  const [bots, setBots] = useState<Bot[]>([]);
-  const [selectedBotIds, setSelectedBotIds] = useState<Set<string>>(new Set());
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -80,21 +82,21 @@ export function ChannelSettingsModal({
   const [charterRules, setCharterRules] = useState("");
   const [charterMaxTurns, setCharterMaxTurns] = useState(0);
 
-  const fetchBots = useCallback(async () => {
+  const fetchAgents = useCallback(async () => {
     if (!currentServerId) return;
     try {
-      const res = await fetch(`/api/servers/${currentServerId}/bots`);
+      const res = await fetch(`/api/servers/${currentServerId}/agents`);
       if (res.ok) {
         const data = await res.json();
-        const nextBots = Array.isArray(data?.bots)
-          ? data.bots
+        const nextAgents = Array.isArray(data?.agents)
+          ? data.agents
           : Array.isArray(data)
             ? data
             : [];
-        setBots(nextBots);
+        setAgents(nextAgents);
       }
     } catch {
-      console.error("Failed to fetch bots");
+      console.error("Failed to fetch agents");
     }
   }, [currentServerId]);
 
@@ -119,27 +121,33 @@ export function ChannelSettingsModal({
 
   useEffect(() => {
     if (isOpen) {
-      fetchBots();
+      fetchAgents();
       fetchChannelData();
-      // Initialize from currentBotIds or fall back to single defaultBotId
-      if (currentBotIds && currentBotIds.length > 0) {
-        setSelectedBotIds(new Set(currentBotIds));
-      } else if (currentDefaultBotId) {
-        setSelectedBotIds(new Set([currentDefaultBotId]));
+      // Initialize from currentAgentIds or fall back to single defaultAgentId
+      if (currentAgentIds && currentAgentIds.length > 0) {
+        setSelectedAgentIds(new Set(currentAgentIds));
+      } else if (currentDefaultAgentId) {
+        setSelectedAgentIds(new Set([currentDefaultAgentId]));
       } else {
-        setSelectedBotIds(new Set());
+        setSelectedAgentIds(new Set());
       }
       setError("");
     }
-  }, [isOpen, fetchBots, fetchChannelData, currentBotIds, currentDefaultBotId]);
+  }, [
+    isOpen,
+    fetchAgents,
+    fetchChannelData,
+    currentAgentIds,
+    currentDefaultAgentId,
+  ]);
 
-  function toggleBot(botId: string) {
-    setSelectedBotIds((prev) => {
+  function toggleAgent(agentId: string) {
+    setSelectedAgentIds((prev) => {
       const next = new Set(prev);
-      if (next.has(botId)) {
-        next.delete(botId);
+      if (next.has(agentId)) {
+        next.delete(agentId);
       } else {
-        next.add(botId);
+        next.add(agentId);
       }
       return next;
     });
@@ -158,7 +166,7 @@ export function ChannelSettingsModal({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            botIds: Array.from(selectedBotIds),
+            agentIds: Array.from(selectedAgentIds),
             swarmMode,
             charterGoal: charterGoal || null,
             charterRules: charterRules || null,
@@ -193,34 +201,34 @@ export function ChannelSettingsModal({
             agents can stream simultaneously.
           </p>
 
-          {bots.length === 0 ? (
+          {agents.length === 0 ? (
             <p className="text-xs text-text-muted py-2">
-              No bots created yet. Use &quot;Manage Bots&quot; to create one
+              No agents created yet. Use &quot;Manage Agents&quot; to create one
               first.
             </p>
           ) : (
             <div className="space-y-1 max-h-48 overflow-y-auto">
-              {bots.map((bot) => (
+              {agents.map((agent) => (
                 <label
-                  key={bot.id}
+                  key={agent.id}
                   className={`flex items-center gap-3 rounded px-3 py-2 cursor-pointer transition-colors ${
-                    selectedBotIds.has(bot.id)
+                    selectedAgentIds.has(agent.id)
                       ? "bg-accent-cyan/10 border border-accent-cyan/30"
                       : "bg-background-primary border border-background-tertiary hover:border-text-dim"
                   }`}
                 >
                   <input
                     type="checkbox"
-                    checked={selectedBotIds.has(bot.id)}
-                    onChange={() => toggleBot(bot.id)}
+                    checked={selectedAgentIds.has(agent.id)}
+                    onChange={() => toggleAgent(agent.id)}
                     className="rounded border-text-dim text-accent-cyan focus:ring-accent-cyan"
                   />
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-mono text-text-primary">
-                      {bot.name}
+                      {agent.name}
                     </span>
                     <span className="ml-2 text-[10px] text-text-muted">
-                      {bot.llmProvider}/{bot.llmModel}
+                      {agent.llmProvider}/{agent.llmModel}
                     </span>
                   </div>
                 </label>
@@ -229,8 +237,8 @@ export function ChannelSettingsModal({
           )}
         </div>
 
-        {/* TASK-0020: Swarm Mode Settings — only visible when 2+ bots selected */}
-        {selectedBotIds.size >= 2 && (
+        {/* TASK-0020: Swarm Mode Settings — only visible when 2+ agents selected */}
+        {selectedAgentIds.size >= 2 && (
           <div className="border-t border-background-tertiary pt-4">
             <label className="mb-2 block text-sm font-medium text-text-primary">
               Swarm Mode

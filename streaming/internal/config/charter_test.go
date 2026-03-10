@@ -107,58 +107,58 @@ func TestHasReachedMaxTurns_Table(t *testing.T) {
 
 func TestIsAgentTurn_EmptyOrder(t *testing.T) {
 	c := &CharterConfig{AgentOrder: nil, CurrentTurn: 0}
-	if !c.IsAgentTurn("any-bot") {
+	if !c.IsAgentTurn("any-agent") {
 		t.Error("expected IsAgentTurn()=true when AgentOrder is empty")
 	}
 }
 
 func TestIsAgentTurn_EmptySliceOrder(t *testing.T) {
 	c := &CharterConfig{AgentOrder: []string{}, CurrentTurn: 0}
-	if !c.IsAgentTurn("any-bot") {
+	if !c.IsAgentTurn("any-agent") {
 		t.Error("expected IsAgentTurn()=true when AgentOrder is an empty slice")
 	}
 }
 
 func TestIsAgentTurn_Table(t *testing.T) {
-	agents := []string{"bot-A", "bot-B", "bot-C"}
+	agents := []string{"agent-A", "agent-B", "agent-C"}
 
 	tests := []struct {
 		name        string
 		currentTurn int
-		botID       string
+		agentID     string
 		want        bool
 	}{
-		{"turn 0 correct agent", 0, "bot-A", true},
-		{"turn 0 wrong agent", 0, "bot-B", false},
-		{"turn 1 correct agent", 1, "bot-B", true},
-		{"turn 1 wrong agent", 1, "bot-C", false},
-		{"turn 2 correct agent", 2, "bot-C", true},
-		{"turn 3 wraps to bot-A", 3, "bot-A", true},
-		{"turn 3 wrong agent", 3, "bot-B", false},
-		{"turn 6 wraps to bot-A", 6, "bot-A", true},
-		{"turn 7 wraps to bot-B", 7, "bot-B", true},
-		{"turn 8 wraps to bot-C", 8, "bot-C", true},
-		{"unknown bot never matches", 5, "bot-X", false},
+		{"turn 0 correct agent", 0, "agent-A", true},
+		{"turn 0 wrong agent", 0, "agent-B", false},
+		{"turn 1 correct agent", 1, "agent-B", true},
+		{"turn 1 wrong agent", 1, "agent-C", false},
+		{"turn 2 correct agent", 2, "agent-C", true},
+		{"turn 3 wraps to agent-A", 3, "agent-A", true},
+		{"turn 3 wrong agent", 3, "agent-B", false},
+		{"turn 6 wraps to agent-A", 6, "agent-A", true},
+		{"turn 7 wraps to agent-B", 7, "agent-B", true},
+		{"turn 8 wraps to agent-C", 8, "agent-C", true},
+		{"unknown agent never matches", 5, "agent-X", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &CharterConfig{AgentOrder: agents, CurrentTurn: tt.currentTurn}
-			if got := c.IsAgentTurn(tt.botID); got != tt.want {
+			if got := c.IsAgentTurn(tt.agentID); got != tt.want {
 				t.Errorf("IsAgentTurn(%q) = %v, want %v (currentTurn=%d, order=%v)",
-					tt.botID, got, tt.want, tt.currentTurn, agents)
+					tt.agentID, got, tt.want, tt.currentTurn, agents)
 			}
 		})
 	}
 }
 
 func TestIsAgentTurn_SingleAgent(t *testing.T) {
-	c := &CharterConfig{AgentOrder: []string{"only-bot"}, CurrentTurn: 99}
-	if !c.IsAgentTurn("only-bot") {
+	c := &CharterConfig{AgentOrder: []string{"only-agent"}, CurrentTurn: 99}
+	if !c.IsAgentTurn("only-agent") {
 		t.Error("expected IsAgentTurn()=true for single agent at any turn")
 	}
-	if c.IsAgentTurn("other-bot") {
-		t.Error("expected IsAgentTurn()=false for wrong bot with single agent order")
+	if c.IsAgentTurn("other-agent") {
+		t.Error("expected IsAgentTurn()=false for wrong agent with single agent order")
 	}
 }
 
@@ -381,7 +381,7 @@ func TestCharterConfigJSONTags(t *testing.T) {
 		"swarmMode": "ROUND_ROBIN",
 		"charterGoal": "Ship v2",
 		"charterRules": "No breaking changes",
-		"charterAgentOrder": ["bot-1", "bot-2"],
+		"charterAgentOrder": ["agent-1", "agent-2"],
 		"charterMaxTurns": 20,
 		"charterCurrentTurn": 7,
 		"charterStatus": "ACTIVE"
@@ -400,8 +400,8 @@ func TestCharterConfigJSONTags(t *testing.T) {
 	if c.Rules != "No breaking changes" {
 		t.Errorf("Rules = %q, want 'No breaking changes'", c.Rules)
 	}
-	if len(c.AgentOrder) != 2 || c.AgentOrder[0] != "bot-1" || c.AgentOrder[1] != "bot-2" {
-		t.Errorf("AgentOrder = %v, want [bot-1, bot-2]", c.AgentOrder)
+	if len(c.AgentOrder) != 2 || c.AgentOrder[0] != "agent-1" || c.AgentOrder[1] != "agent-2" {
+		t.Errorf("AgentOrder = %v, want [agent-1, agent-2]", c.AgentOrder)
 	}
 	if c.MaxTurns != 20 {
 		t.Errorf("MaxTurns = %d, want 20", c.MaxTurns)

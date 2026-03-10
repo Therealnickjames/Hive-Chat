@@ -45,8 +45,8 @@ export async function GET(
             type: true,
             topic: true,
             position: true,
-            defaultBotId: true,
-            channelBots: { select: { botId: true } },
+            defaultAgentId: true,
+            channelAgents: { select: { agentId: true } },
           },
         },
         _count: { select: { members: true } },
@@ -64,8 +64,8 @@ export async function GET(
       ownerId: server.ownerId,
       channels: server.channels.map((ch) => ({
         ...ch,
-        botIds: ch.channelBots.map((cb: { botId: string }) => cb.botId),
-        channelBots: undefined,
+        agentIds: ch.channelAgents.map((ca: { agentId: string }) => ca.agentId),
+        channelAgents: undefined,
       })),
       memberCount: server._count.members,
     });

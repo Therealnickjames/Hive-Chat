@@ -28,7 +28,7 @@ CHANNEL_ID = os.environ.get("TAVOK_CHANNEL_ID", "YOUR_CHANNEL_ID")
 echo_agent = Agent(
     url=os.environ.get("TAVOK_WS_URL", "ws://localhost:4001"),
     api_url=os.environ.get("TAVOK_API_URL", "http://localhost:5555"),
-    name="Echo Bot",
+    name="Echo Agent",
     capabilities=["chat", "echo"],
 )
 
@@ -71,7 +71,7 @@ async def main() -> None:
         echo_agent.start(server_id=SERVER_ID, channel_ids=[CHANNEL_ID]),
         counter_agent.start(server_id=SERVER_ID, channel_ids=[CHANNEL_ID]),
     )
-    print(f"Echo Bot running (id={echo_agent.agent_id})")
+    print(f"Echo Agent running (id={echo_agent.agent_id})")
     print(f"Word Counter running (id={counter_agent.agent_id})")
     print("Press Ctrl+C to stop.")
 

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
   createInternalMessagesPostHandler,
-  createServerBotPatchHandler,
+  createServerAgentPatchHandler,
   createServerChannelPatchHandler,
 } from "./route-handlers.js";
 
@@ -100,7 +100,7 @@ test("internal POST uses monotonic channel lastSequence update guard", async () 
       user: {
         findUnique: async () => ({ displayName: "Alice", avatarUrl: null }),
       },
-      bot: {
+      agent: {
         findUnique: async () => null,
       },
     },
@@ -135,15 +135,15 @@ test("internal POST uses monotonic channel lastSequence update guard", async () 
   process.env.INTERNAL_API_SECRET = originalSecret;
 });
 
-test("bot PATCH returns 400 for invalid JSON body", async () => {
-  const handler = createServerBotPatchHandler({
+test("agent PATCH returns 400 for invalid JSON body", async () => {
+  const handler = createServerAgentPatchHandler({
     getServerSession: async () => ({ user: { id: "owner-1" } }),
     authOptions: {},
     prismaClient: {
       server: {
         findUnique: async () => ({ ownerId: "owner-1" }),
       },
-      bot: {
+      agent: {
         findUnique: async () => ({ serverId: "s1" }),
         update: async () => {
           throw new Error("should not update");
@@ -157,7 +157,7 @@ test("bot PATCH returns 400 for invalid JSON body", async () => {
     {
       json: async () => null,
     },
-    { params: Promise.resolve({ serverId: "s1", botId: "b1" }) }
+    { params: Promise.resolve({ serverId: "s1", agentId: "b1" }) }
   );
   const payload = await response.json();
 
@@ -179,7 +179,7 @@ test("channel PATCH returns 400 for invalid JSON body", async () => {
           throw new Error("should not update");
         },
       },
-      bot: {
+      agent: {
         findUnique: async () => null,
       },
     },

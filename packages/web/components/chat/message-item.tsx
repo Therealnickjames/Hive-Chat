@@ -31,15 +31,15 @@ export function MessageItem({
   onEdit,
   onDelete,
 }: MessageItemProps) {
-  const { members, bots } = useChatContext();
+  const { members, agents } = useChatContext();
   const [isEditing, setIsEditing] = useState(false);
 
   const mentionNames = useMemo(
     () => [
       ...members.map((member) => member.displayName),
-      ...bots.map((bot) => bot.name),
+      ...agents.map((agent) => agent.name),
     ],
-    [members, bots],
+    [members, agents],
   );
   const { text, files } = useMemo(
     () => parseFileReferences(message.content || ""),
@@ -52,11 +52,11 @@ export function MessageItem({
     [message.id, onReactionsChange],
   );
 
-  const isBot = message.authorType === "BOT";
+  const isAgent = message.authorType === "AGENT";
   const isAuthor = currentUserId === message.authorId;
 
-  // Edit: only author of non-bot, non-deleted messages
-  const canEdit = isAuthor && !isBot && !message.isDeleted;
+  // Edit: only author of non-agent, non-deleted messages
+  const canEdit = isAuthor && !isAgent && !message.isDeleted;
   // Delete: author OR has MANAGE_MESSAGES, not already deleted
   const canDelete = (isAuthor || !!canManageMessages) && !message.isDeleted;
 
@@ -107,7 +107,7 @@ export function MessageItem({
   if (isGrouped) {
     return (
       <div
-        className={`group relative mx-2 flex gap-4 rounded-xl px-4 py-1 transition-colors hover:bg-background-secondary/36 ${!isBot ? "bg-transparent" : "bg-transparent"}`}
+        className={`group relative mx-2 flex gap-4 rounded-xl px-4 py-1 transition-colors hover:bg-background-secondary/36 ${!isAgent ? "bg-transparent" : "bg-transparent"}`}
       >
         <div className="w-10 flex-shrink-0" />
         <div className="min-w-0 flex-1">
@@ -157,7 +157,7 @@ export function MessageItem({
 
   return (
     <div
-      className={`group relative mx-2 mt-3 flex gap-4 rounded-[22px] border px-4 py-3 shadow-[0_12px_30px_rgba(3,9,22,0.18)] transition-colors hover:bg-background-floating/46 ${!isBot ? "border-brand/20 bg-brand/10" : "border-accent-cyan/20 bg-background-floating/35"}`}
+      className={`group relative mx-2 mt-3 flex gap-4 rounded-[22px] border px-4 py-3 shadow-[0_12px_30px_rgba(3,9,22,0.18)] transition-colors hover:bg-background-floating/46 ${!isAgent ? "border-brand/20 bg-brand/10" : "border-accent-cyan/20 bg-background-floating/35"}`}
     >
       {/* Avatar */}
       <div className="flex-shrink-0 pt-0.5">
@@ -173,7 +173,7 @@ export function MessageItem({
           />
         ) : (
           <div
-            className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold ${isBot ? "border border-accent-cyan/20 bg-accent-cyan/10 text-accent-cyan" : "border border-brand/24 bg-brand/10 text-brand"}`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold ${isAgent ? "border border-accent-cyan/20 bg-accent-cyan/10 text-accent-cyan" : "border border-brand/24 bg-brand/10 text-brand"}`}
           >
             {message.authorName?.charAt(0)?.toUpperCase() || "?"}
           </div>
@@ -184,12 +184,12 @@ export function MessageItem({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 mb-1">
           <span
-            className={`text-sm font-semibold ${isBot ? "text-accent-cyan" : "text-orange-100"}`}
+            className={`text-sm font-semibold ${isAgent ? "text-accent-cyan" : "text-orange-100"}`}
           >
-            {!isBot && <span className="mr-1 text-brand/80">&gt;</span>}
+            {!isAgent && <span className="mr-1 text-brand/80">&gt;</span>}
             {message.authorName}
           </span>
-          {isBot && (
+          {isAgent && (
             <span className="inline-flex items-center rounded-full border border-accent-cyan/20 bg-accent-cyan/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-accent-cyan">
               AGENT
             </span>

@@ -4,10 +4,10 @@ import { prisma } from "@/lib/db";
 
 /**
  * Shared agent creation logic — used by both:
- * - POST /api/servers/{serverId}/bots (UI-initiated, session auth)
+ * - POST /api/servers/{serverId}/agents (UI-initiated, session auth)
  * - POST /api/v1/bootstrap/agents (CLI-initiated, admin token auth)
  *
- * Creates a Bot + AgentRegistration in a transaction, returns
+ * Creates an Agent + AgentRegistration in a transaction, returns
  * the raw API key (shown once, never stored).
  */
 
@@ -33,14 +33,14 @@ export interface CreateAgentOptions {
 }
 
 export interface CreateAgentResult {
-  bot: { id: string; name: string };
+  agent: { id: string; name: string };
   apiKey: string; // raw key — shown once, never stored
   connectionMethod: ConnectionMethodValue;
   webhookSecret?: string; // for WEBHOOK method only
 }
 
 /**
- * Create an agent (Bot + AgentRegistration) with a generated API key.
+ * Create an agent (Agent + AgentRegistration) with a generated API key.
  *
  * The raw API key is returned in the result and must be shown to the user
  * exactly once. Only the SHA-256 hash is stored in the database.
@@ -50,7 +50,7 @@ export interface CreateAgentResult {
 export async function createAgent(
   opts: CreateAgentOptions,
 ): Promise<CreateAgentResult> {
-  const botId = ulid();
+  const agentId = ulid();
   const registrationId = ulid();
 
   // Generate API key: sk-tvk- prefix + 32 random bytes base64url
@@ -65,9 +65,9 @@ export async function createAgent(
       : undefined;
 
   const result = await prisma.$transaction(async (tx) => {
-    const bot = await tx.bot.create({
+    const agent = await tx.agent.create({
       data: {
-        id: botId,
+        id: agentId,
         name: opts.name,
         serverId: opts.serverId,
         llmProvider: "custom",
@@ -89,7 +89,7 @@ export async function createAgent(
     await tx.agentRegistration.create({
       data: {
         id: registrationId,
-        botId: bot.id,
+        agentId: agent.id,
         apiKeyHash,
         capabilities: Array.isArray(opts.capabilities) ? opts.capabilities : [],
         webhookUrl: opts.webhookUrl,
@@ -105,20 +105,20 @@ export async function createAgent(
     });
 
     if (channels.length > 0) {
-      await tx.channelBot.createMany({
+      await tx.channelAgent.createMany({
         data: channels.map((ch) => ({
           id: ulid(),
           channelId: ch.id,
-          botId: bot.id,
+          agentId: agent.id,
         })),
       });
     }
 
-    return { bot };
+    return { agent };
   });
 
   return {
-    bot: { id: result.bot.id, name: result.bot.name },
+    agent: { id: result.agent.id, name: result.agent.name },
     apiKey,
     connectionMethod: opts.connectionMethod,
     webhookSecret,
@@ -128,7 +128,7 @@ export async function createAgent(
 /**
  * Build method-specific connection URLs for an agent.
  *
- * Used by both the bots route and the bootstrap/agents route
+ * Used by both the agents route and the bootstrap/agents route
  * to return connection info after agent creation.
  */
 export function buildConnectionInfo(

@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: webhookId,
         channelId,
-        botId: agent.botId,
+        agentId: agent.agentId,
         token,
         name: name.trim(),
         avatarUrl: (avatarUrl as string) || null,
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const webhooks = await prisma.inboundWebhook.findMany({
-      where: { botId: agent.botId },
+      where: { agentId: agent.agentId },
       select: {
         id: true,
         channelId: true,
@@ -176,14 +176,14 @@ export async function DELETE(request: NextRequest) {
   try {
     const webhook = await prisma.inboundWebhook.findUnique({
       where: { id: webhookId },
-      select: { botId: true },
+      select: { agentId: true },
     });
 
     if (!webhook) {
       return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
     }
 
-    if (webhook.botId !== agent.botId) {
+    if (webhook.agentId !== agent.agentId) {
       return NextResponse.json(
         { error: "Not authorized to delete this webhook" },
         { status: 403 },

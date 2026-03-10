@@ -23,10 +23,10 @@ defmodule TavokGateway.Application do
       # Redis connection — for cross-service communication
       {Redix, {redis_url, [name: :redix]}},
 
-      # Task supervisor — for async bot trigger work (ISSUE-007)
+      # Task supervisor — for async agent trigger work (ISSUE-007)
       {Task.Supervisor, name: TavokGateway.TaskSupervisor},
 
-      # Config cache — ETS-backed cache for bot config and membership (DEC-0029)
+      # Config cache — ETS-backed cache for agent config and membership (DEC-0029)
       TavokGateway.ConfigCache,
 
       # Message buffer — ETS-backed recent message cache for sync gap (DEC-0051)

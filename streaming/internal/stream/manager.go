@@ -55,7 +55,7 @@ type checkpointEntry struct {
 type streamRequest struct {
 	ChannelID       string                   `json:"channelId"`
 	MessageID       string                   `json:"messageId"`
-	BotID           string                   `json:"botId"`
+	AgentID         string                   `json:"agentId"`
 	TriggerMsgID    string                   `json:"triggerMessageId"`
 	ContextMessages []provider.StreamMessage `json:"contextMessages"`
 }
@@ -130,7 +130,7 @@ func (m *Manager) Start(ctx context.Context) error {
 			m.logger.Info("Stream request received",
 				"channelId", req.ChannelID,
 				"messageId", req.MessageID,
-				"botId", req.BotID,
+				"agentId", req.AgentID,
 			)
 
 			if m.tryAcquireSlot() {
@@ -143,7 +143,7 @@ func (m *Manager) Start(ctx context.Context) error {
 				m.logger.Warn("Stream request rejected: concurrency limit reached",
 					"channelId", req.ChannelID,
 					"messageId", req.MessageID,
-					"botId", req.BotID,
+					"agentId", req.AgentID,
 					"activeStreams", m.ActiveCount(),
 					"maxStreams", m.maxConcurrentStreams,
 				)
@@ -187,25 +187,25 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 
 	startTime := time.Now()
 
-	// 1. Fetch bot config
-	botConfig, err := m.loader.GetBot(req.BotID)
+	// 1. Fetch agent config
+	agentConfig, err := m.loader.GetAgent(req.AgentID)
 	if err != nil {
-		m.logger.Error("Failed to load bot config",
-			"botId", req.BotID,
+		m.logger.Error("Failed to load agent config",
+			"agentId", req.AgentID,
 			"error", err,
 		)
-		m.publishError(ctx, req, "", "Failed to load bot configuration", 0, startTime)
+		m.publishError(ctx, req, "", "Failed to load agent configuration", 0, startTime)
 		return
 	}
 
 	// Fail fast on missing/demo placeholder API keys to avoid opaque provider 401s.
-	apiKey := strings.TrimSpace(botConfig.APIKey)
+	apiKey := strings.TrimSpace(agentConfig.APIKey)
 	if apiKey == "" || strings.Contains(apiKey, "placeholder-key-not-real") {
-		m.logger.Warn("Bot API key is missing or placeholder",
-			"botId", req.BotID,
-			"provider", botConfig.LLMProvider,
+		m.logger.Warn("Agent API key is missing or placeholder",
+			"agentId", req.AgentID,
+			"provider", agentConfig.LLMProvider,
 		)
-		m.publishError(ctx, req, "", "Bot API key is not configured. Update the bot API key in settings.", 0, startTime)
+		m.publishError(ctx, req, "", "Agent API key is not configured. Update the agent API key in settings.", 0, startTime)
 		return
 	}
 
@@ -226,11 +226,11 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	// turn check on a stale snapshot.
 	var charterClaimCompleted bool
 	if charter != nil && charter.IsEnforced() {
-		claim, claimErr := m.loader.ClaimCharterTurn(ctx, req.ChannelID, req.BotID)
+		claim, claimErr := m.loader.ClaimCharterTurn(ctx, req.ChannelID, req.AgentID)
 		if claimErr != nil {
 			m.logger.Error("Failed to claim charter turn",
 				"channelId", req.ChannelID,
-				"botId", req.BotID,
+				"agentId", req.AgentID,
 				"error", claimErr,
 			)
 			m.publishError(ctx, req, "", "Failed to claim charter turn", 0, startTime)
@@ -239,7 +239,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		if !claim.Granted {
 			m.logger.Info("Charter turn claim rejected",
 				"channelId", req.ChannelID,
-				"botId", req.BotID,
+				"agentId", req.AgentID,
 				"reason", claim.Reason,
 			)
 			m.publishError(ctx, req, "", claim.Reason, 0, startTime)
@@ -250,7 +250,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		charter.CurrentTurn = claim.CurrentTurn
 		m.logger.Info("Charter turn claimed",
 			"channelId", req.ChannelID,
-			"botId", req.BotID,
+			"agentId", req.AgentID,
 			"currentTurn", claim.CurrentTurn,
 			"maxTurns", claim.MaxTurns,
 			"completed", claim.Completed,
@@ -261,7 +261,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	if charter != nil {
 		charterInjection := charter.SystemPromptInjection()
 		if charterInjection != "" {
-			botConfig.SystemPrompt += charterInjection
+			agentConfig.SystemPrompt += charterInjection
 			m.logger.Info("Charter injected into system prompt",
 				"channelId", req.ChannelID,
 				"swarmMode", charter.SwarmMode,
@@ -271,15 +271,15 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	}
 
 	// 2. Get the right provider
-	p := m.registry.Get(botConfig.LLMProvider)
+	p := m.registry.Get(agentConfig.LLMProvider)
 	m.logger.Info("Starting stream",
 		"messageId", req.MessageID,
 		"provider", p.Name(),
-		"model", botConfig.LLMModel,
+		"model", agentConfig.LLMModel,
 	)
 
-	// Emit configurable thinking phase — bot config loaded, about to call LLM (TASK-0011)
-	thinkingPhase0 := botConfig.GetThinkingPhase(0)
+	// Emit configurable thinking phase — agent config loaded, about to call LLM (TASK-0011)
+	thinkingPhase0 := agentConfig.GetThinkingPhase(0)
 	m.publishThinking(ctx, req, thinkingPhase0)
 
 	// Accumulate thinking timeline for post-completion replay (TASK-0011)
@@ -287,10 +287,10 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		{Phase: thinkingPhase0, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)},
 	}
 
-	// 3. Resolve available tools for this bot (TASK-0018)
+	// 3. Resolve available tools for this agent (TASK-0018)
 	var toolDefs []provider.ToolDefinition
 	if m.toolRegistry != nil && m.toolRegistry.HasTools() {
-		rawDefs := m.toolRegistry.List(botConfig.EnabledTools)
+		rawDefs := m.toolRegistry.List(agentConfig.EnabledTools)
 		for _, d := range rawDefs {
 			toolDefs = append(toolDefs, provider.ToolDefinition{
 				Name:        d.Name,
@@ -306,13 +306,13 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 
 	// 4. Build initial provider request
 	streamReq := provider.StreamRequest{
-		BotID:           req.BotID,
-		Model:           botConfig.LLMModel,
-		APIEndpoint:     botConfig.APIEndpoint,
-		APIKey:          botConfig.APIKey,
-		SystemPrompt:    botConfig.SystemPrompt,
-		Temperature:     botConfig.Temperature,
-		MaxTokens:       botConfig.MaxTokens,
+		AgentID:         req.AgentID,
+		Model:           agentConfig.LLMModel,
+		APIEndpoint:     agentConfig.APIEndpoint,
+		APIKey:          agentConfig.APIKey,
+		SystemPrompt:    agentConfig.SystemPrompt,
+		Temperature:     agentConfig.Temperature,
+		MaxTokens:       agentConfig.MaxTokens,
 		ContextMessages: req.ContextMessages,
 		Tools:           toolDefs,
 	}
@@ -363,7 +363,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 
 		// Run one provider iteration
 		iterContent, iterTokens, pr, timedOut := m.runProviderIteration(
-			streamCtx, ctx, req, streamReq, botConfig,
+			streamCtx, ctx, req, streamReq, agentConfig,
 			&firstTokenEverSeen, &thinkingTimeline, &tokenHistory, startTime,
 		)
 
@@ -506,7 +506,7 @@ func (m *Manager) runProviderIteration(
 	streamCtx, parentCtx context.Context,
 	req streamRequest,
 	streamReq provider.StreamRequest,
-	botConfig *config.BotConfig,
+	agentConfig *config.AgentConfig,
 	firstTokenEverSeen *bool,
 	thinkingTimeline *[]timelineEntry,
 	tokenHistory *[]tokenHistoryEntry,
@@ -516,7 +516,7 @@ func (m *Manager) runProviderIteration(
 
 	resultCh := make(chan providerResult, 1)
 	go func() {
-		result, err := m.registry.Get(botConfig.LLMProvider).Stream(streamCtx, streamReq, tokens)
+		result, err := m.registry.Get(agentConfig.LLMProvider).Stream(streamCtx, streamReq, tokens)
 		resultCh <- providerResult{result: result, err: err}
 	}()
 
@@ -573,7 +573,7 @@ func (m *Manager) runProviderIteration(
 			// Emit "Writing" phase on first token ever (TASK-0011)
 			if !*firstTokenEverSeen {
 				*firstTokenEverSeen = true
-				writingPhase := botConfig.GetThinkingPhase(1)
+				writingPhase := agentConfig.GetThinkingPhase(1)
 				m.publishThinking(parentCtx, req, writingPhase)
 				*thinkingTimeline = append(*thinkingTimeline, timelineEntry{
 					Phase:     writingPhase,
@@ -768,7 +768,7 @@ func (m *Manager) publishError(ctx context.Context, req streamRequest, partialCo
 }
 
 // publishThinking emits a thinking phase change to Redis.
-// Phase labels are configurable via bot's ThinkingSteps (default: ["Thinking","Writing"]).
+// Phase labels are configurable via agent's ThinkingSteps (default: ["Thinking","Writing"]).
 // The frontend clears the phase on stream_complete/stream_error. (TASK-0011, DEC-0037)
 func (m *Manager) publishThinking(ctx context.Context, req streamRequest, phase string) {
 	payload, _ := json.Marshal(map[string]interface{}{
