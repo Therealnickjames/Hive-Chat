@@ -4,24 +4,7 @@ import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import type { ReactionData } from "@/lib/hooks/use-channel";
 
-const EMOJI_PRESETS = [
-  "👍",
-  "👎",
-  "❤️",
-  "😂",
-  "😮",
-  "😢",
-  "🎉",
-  "🔥",
-  "👀",
-  "🚀",
-  "💯",
-  "✅",
-  "❌",
-  "🤔",
-  "👏",
-  "💜",
-];
+const EMOJI_PRESETS = ["👍", "👎", "✅", "❌", "🚀"];
 
 interface ReactionBarProps {
   messageId: string;
@@ -169,7 +152,7 @@ export function ReactionBar({
               onClick={() => setShowPicker(false)}
             />
             <div className="absolute bottom-full left-0 z-50 mb-1 rounded-lg border border-background-tertiary bg-background-floating p-2 shadow-xl">
-              <div className="grid grid-cols-8 gap-1">
+              <div className="grid grid-cols-5 gap-1">
                 {EMOJI_PRESETS.map((emoji) => (
                   <button
                     key={emoji}

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { generateId } from "@/lib/ulid";
 import { broadcastToChannel } from "@/lib/gateway-client";
 
+const ALLOWED_EMOJIS = ["👍", "👎", "✅", "❌", "🚀"];
+
 /**
  * GET /api/dms/[dmId]/messages/[messageId]/reactions
  * Returns aggregated DM reactions: [{ emoji, count, userIds, hasReacted }]
@@ -60,7 +62,7 @@ export async function POST(
     const body = await request.json();
     const emoji = body?.emoji?.trim();
 
-    if (!emoji || emoji.length > 32) {
+    if (!emoji || !ALLOWED_EMOJIS.includes(emoji)) {
       return NextResponse.json({ error: "Invalid emoji" }, { status: 400 });
     }
 
@@ -125,7 +127,7 @@ export async function DELETE(
     const body = await request.json();
     const emoji = body?.emoji?.trim();
 
-    if (!emoji || emoji.length > 32) {
+    if (!emoji || !ALLOWED_EMOJIS.includes(emoji)) {
       return NextResponse.json({ error: "Invalid emoji" }, { status: 400 });
     }
 

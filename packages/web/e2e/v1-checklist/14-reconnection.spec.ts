@@ -1,12 +1,15 @@
 import { test, expect } from "@playwright/test";
 import {
   login,
+  DEMO_USER,
   ALICE,
   selectServer,
   openChannel,
   waitForWebSocket,
   sendMessage,
   uniqueMsg,
+  createTwoUserContexts,
+  cleanupContexts,
 } from "./helpers";
 
 test.describe("Section 14: Reconnection & Resilience", () => {
@@ -54,6 +57,40 @@ test.describe("Section 14: Reconnection & Resilience", () => {
 
     // Message should appear
     await expect(page.getByText(msg)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("two users — Bob reloads, Alice sends, Bob sees new message", async ({
+    browser,
+  }) => {
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      DEMO_USER,
+      ALICE,
+    );
+
+    try {
+      await selectServer(pageA);
+      await selectServer(pageB);
+      await openChannel(pageA, "general");
+      await openChannel(pageB, "general");
+      await waitForWebSocket(pageA, "general");
+      await waitForWebSocket(pageB, "general");
+
+      // Bob (pageB) reloads — simulates reconnection
+      await pageB.reload({ waitUntil: "domcontentloaded" });
+      await selectServer(pageB);
+      await openChannel(pageB, "general");
+      await waitForWebSocket(pageB, "general");
+
+      // Alice sends a message AFTER Bob's reload
+      const msg = uniqueMsg("Reconnect-proof");
+      await sendMessage(pageA, "general", msg);
+
+      // Bob should see it via live WebSocket (not just history)
+      await expect(pageB.getByText(msg)).toBeVisible({ timeout: 15_000 });
+    } finally {
+      await cleanupContexts(contextA, contextB);
+    }
   });
 
   // Container-level resilience is tested by the regression harness (K-series tests)

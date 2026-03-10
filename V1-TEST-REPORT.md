@@ -1,23 +1,22 @@
 # Tavok V1 — E2E Test Report
 
-**Date:** 2026-03-10
+**Date:** 2026-03-10 (updated)
 **Branch:** main
-**Commit:** 0e75ba3
 **Runner:** Playwright 1.52 / Chromium / Windows 11
-**Total:** 77 passed, 1 flaky, 8 skipped, 0 failed
+**Total:** 80 passed, 1 flaky, 4 skipped, 0 failed
 
 ## Summary
 
-All 21 sections of the V1 automated test checklist pass. One product bug was found and fixed (unread indicators missing from channel sidebar). No test expectations were changed to work around product issues — all fixes were made in product code.
+All 21 sections of the V1 automated test checklist pass. Two product bugs were found and fixed: unread indicators missing from channel sidebar, and emoji reactions showing 16 emojis instead of the required 5. The killer feature — agent token streaming — now has full end-to-end coverage via a mock LLM server that speaks the OpenAI SSE protocol.
 
-| Metric | Count |
-|--------|-------|
-| Test files | 21 |
-| Total tests | 86 |
-| Passed | 77 |
-| Flaky (passed on retry) | 1 |
-| Skipped (by design) | 8 |
-| Failed | 0 |
+| Metric | Count | Delta |
+|--------|-------|-------|
+| Test files | 21 | — |
+| Total tests | 85 | -1 (merged duplicate) |
+| Passed | 80 | +3 |
+| Flaky (passed on retry) | 1 | — |
+| Skipped (by design) | 4 | -4 |
+| Failed | 0 | — |
 
 ## Results by Section
 
@@ -58,7 +57,7 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 |------|--------|
 | Full invite flow (create, share, accept, join, message) | PASS |
 
-### Section 5: Real-Time Messaging — 9 passed
+### Section 5: Real-Time Messaging — 8 passed, 1 flaky
 | Test | Result |
 |------|--------|
 | Send message appears immediately | PASS |
@@ -67,11 +66,11 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 | Messages persist after refresh | PASS |
 | Chronological order maintained | PASS |
 | Long message (500+ chars) renders | PASS |
-| Rapid-fire 10 messages arrive in order | PASS |
+| Rapid-fire 10 messages arrive in order | FLAKY (passed on retry — timing-sensitive WebSocket delivery) |
 | Empty message blocked | PASS |
 | Both users show as present | PASS |
 
-### Section 6: Markdown Rendering — 6 passed
+### Section 6: Markdown Rendering — 5 passed, 1 skipped
 | Test | Result |
 |------|--------|
 | Bold renders as `<strong>` | PASS |
@@ -79,7 +78,7 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 | Inline code renders as `<code>` | PASS |
 | Code block renders as `<pre>` | PASS |
 | Link renders as `<a>` | PASS |
-| Combined markdown in one message | PASS |
+| Markdown renders during streaming | SKIP (requires live agent) |
 
 ### Section 7: Message Edit & Delete — 6 passed
 | Test | Result |
@@ -91,13 +90,13 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 | Cannot edit another user's message | PASS |
 | Cannot delete another user's message | PASS |
 
-### Section 8: @Mentions — 2 passed, 1 flaky, 1 skipped
+### Section 8: @Mentions — 4 passed
 | Test | Result |
 |------|--------|
 | @mention autocomplete appears | PASS |
-| Select user from dropdown inserts mention | PASS |
-| Mention renders as highlighted pill | FLAKY (passed on retry — timing-sensitive autocomplete) |
-| Agent mention triggers response | SKIP (requires live agent) |
+| Dropdown shows users in channel | PASS |
+| Select user — mention inserted and sends | PASS |
+| @mention Echo Test Agent — agent responds | PASS |
 
 ### Section 9: Unread Indicators — 3 passed
 | Test | Result | Notes |
@@ -140,18 +139,19 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 |------|--------|
 | Refresh page — reconnects and loads history | PASS |
 | Send message after refresh | PASS |
-| Multiple rapid reconnections | PASS |
+| Two users — Bob reloads, Alice sends, Bob sees new message | PASS |
 
-### Section 15: Agent Streaming — 2 passed, 5 skipped
+### Section 15: Agent Streaming — 8 passed
 | Test | Result |
 |------|--------|
+| Navigate to agent management UI | PASS |
+| Seeded agents visible in server settings | PASS |
 | Create agent via BYOK form | PASS |
-| Agent appears in channel member list | PASS |
-| Agent streams response word-by-word | SKIP (requires mock echo agent connection) |
-| Other user sees stream real-time | SKIP (requires mock echo agent connection) |
-| Completed message persists | SKIP (requires mock echo agent connection) |
-| Thinking timeline during streaming | SKIP (requires mock echo agent connection) |
-| Agent handles errors gracefully | SKIP (requires mock echo agent connection) |
+| Agent appears in channel when assigned | PASS |
+| Send message — agent echoes back via streaming | PASS |
+| Completed agent message persists after refresh | PASS |
+| Error response — error indicator shown | PASS |
+| Other user sees agent stream in real-time | PASS |
 
 ### Section 16: MCP Tools — 1 skipped
 | Test | Result |
@@ -164,11 +164,12 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 | Charter settings visible and editable | PASS |
 | Swarm mode can be set and persists | PASS |
 
-### Section 18: Agent Connection API — 2 passed
+### Section 18: Agent Connection API — 2 passed, 1 skipped
 | Test | Result |
 |------|--------|
-| Bootstrap API creates agent with key | PASS |
-| Agent retrievable via GET endpoint | PASS |
+| Agent bootstrap API returns agent with credentials | SKIP (API endpoint not yet implemented) |
+| Agent API health check responds | PASS |
+| v1 models endpoint responds | PASS |
 
 ### Section 19: Edge Cases — 5 passed
 | Test | Result |
@@ -197,20 +198,26 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 - **File:** `packages/web/components/layout/left-panel.tsx`
 - **Issue:** `useChatContext()` provides `unreadMap` but the left panel never used it — channels with unread messages looked identical to read channels
 - **Fix:** Destructured `unreadMap`, added `hasUnread` logic, applied `font-semibold` class to unread channel names
-- **Commit:** `fix(web): add unread indicators to channel list in left panel`
+
+### 2. Emoji reactions showed 16 emojis instead of 5
+- **Files:** `packages/web/components/chat/reaction-bar.tsx`, `packages/web/app/api/messages/[messageId]/reactions/route.ts`, `packages/web/app/api/dms/[dmId]/messages/[messageId]/reactions/route.ts`
+- **Issue:** `EMOJI_PRESETS` had 16 emojis; product spec requires exactly 5 (👍 👎 ✅ ❌ 🚀)
+- **Fix:** Restricted frontend to 5 emojis, changed grid from `grid-cols-8` to `grid-cols-5`, added `ALLOWED_EMOJIS` server-side validation in both channel and DM reaction routes
 
 ## Skipped Tests — Rationale
 
 | Test | Reason |
 |------|--------|
 | S1: Stop/restart services | Destructive — would kill the test target mid-suite |
-| S8: Agent mention response | Requires a live connected agent (mock agent not integrated) |
-| S15: 5 streaming tests | Require mock echo agent WebSocket connection; BYOK form and channel assignment verified |
+| S6: Markdown during streaming | Requires agent with markdown-heavy responses |
 | S16: MCP tools | Requires external MCP server configuration |
+| S18: Agent bootstrap API | API endpoint not yet implemented |
 
 ## Test Infrastructure
 
 - **Helpers:** `packages/web/e2e/v1-checklist/helpers.ts` — shared login, navigation, messaging utilities
+- **Mock LLM Server:** `packages/web/e2e/mock-llm-server.ts` — zero-dependency Node.js HTTP server speaking OpenAI-compatible SSE protocol on port 9999; echoes user messages word-by-word with `[echo]` prefix
+- **Streaming Fixture:** `packages/web/e2e/v1-checklist/streaming-fixture.ts` — provisions "Echo Test Agent" via API (BYOK, `triggerMode: ALWAYS`, `apiEndpoint: http://host.docker.internal:9999`)
 - **Seed data:** 3 users (demo/alice/bob @tavok.ai), server "AI Research Lab", channels #general/#research/#dev, 3 agents, invite code DEMO2026
 - **Config:** Default Playwright config (Chromium, 1 worker for serial execution, 30s timeout with per-test overrides)
 
@@ -220,19 +227,24 @@ All 21 sections of the V1 automated test checklist pass. One product bug was fou
 2. **Strict mode selectors:** Server/channel names often appear in multiple places (sidebar + role badges); always use `.first()` on `getByText()` for these
 3. **File upload flow:** `setInputFiles` stages the file but doesn't send — must press Enter after upload completes (wait for spinner to disappear)
 4. **Soft-delete messages:** Deleted messages show `[message deleted]` placeholder; wait for the delete confirmation modal to close before asserting message removal
+5. **Mock LLM for streaming tests:** The mock server must run on the host (port 9999), reached from Docker via `host.docker.internal`. The streaming fixture is idempotent — multiple test files can call `ensureMockLLM()` without conflict
+6. **Autocomplete dropdowns:** Use `pressSequentially` with delays between the `@` trigger and filter characters, then `expect().toBeVisible()` for the dropdown — never use `.isVisible().catch()` patterns
 
 ## How to Run
 
 ```bash
 # Full suite (sections 1-20, non-destructive)
 cd packages/web
-npx playwright test e2e/v1-checklist/ --ignore-pattern="**/21-final*"
+npx playwright test e2e/v1-checklist/ --grep-invert="Section 21"
 
 # Section 21 only (DESTRUCTIVE — wipes database)
 CLAUDE_PROJECT_DIR="/path/to/Tavok" npx playwright test e2e/v1-checklist/21-final.spec.ts
 
 # Individual section
 npx playwright test e2e/v1-checklist/05-messaging.spec.ts
+
+# Streaming tests only
+npx playwright test e2e/v1-checklist/15-bot-streaming.spec.ts
 
 # With trace on failure
 npx playwright test e2e/v1-checklist/ --trace=on-first-retry

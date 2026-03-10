@@ -27,7 +27,7 @@ async function openEmojiPicker(
     'button[title="Add reaction"]',
   );
   await addReactionButton.click({ force: true, timeout: 5_000 });
-  await expect(page.locator(".grid.grid-cols-8")).toBeVisible({
+  await expect(page.locator(".grid.grid-cols-5")).toBeVisible({
     timeout: 3_000,
   });
 }
@@ -44,7 +44,7 @@ test.describe("Section 10: Emoji Reactions", () => {
     await openEmojiPicker(page, msg);
 
     // Verify emoji picker has buttons
-    const emojiButtons = page.locator(".grid.grid-cols-8 button");
+    const emojiButtons = page.locator(".grid.grid-cols-5 button");
     await expect(emojiButtons.first()).toBeVisible();
   });
 
@@ -62,8 +62,8 @@ test.describe("Section 10: Emoji Reactions", () => {
 
     // Click fire emoji
     await page
-      .locator(".grid.grid-cols-8 button")
-      .filter({ hasText: "🔥" })
+      .locator(".grid.grid-cols-5 button")
+      .filter({ hasText: "🚀" })
       .click({ force: true });
     await page.waitForTimeout(1_500);
 
@@ -101,8 +101,8 @@ test.describe("Section 10: Emoji Reactions", () => {
 
       await openEmojiPicker(pageA, msg);
       await pageA
-        .locator(".grid.grid-cols-8 button")
-        .filter({ hasText: "🔥" })
+        .locator(".grid.grid-cols-5 button")
+        .filter({ hasText: "🚀" })
         .click({ force: true });
       await pageA.waitForTimeout(1_500);
 
@@ -138,7 +138,7 @@ test.describe("Section 10: Emoji Reactions", () => {
 
     // Add reaction
     await page
-      .locator(".grid.grid-cols-8 button")
+      .locator(".grid.grid-cols-5 button")
       .filter({ hasText: "👍" })
       .click({ force: true });
     await page.waitForTimeout(1_500);

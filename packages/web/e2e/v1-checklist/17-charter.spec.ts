@@ -7,98 +7,59 @@ test.describe("Section 17: Channel Charter & Swarm Modes", () => {
     await selectServer(page);
   });
 
-  test("open channel settings — charter options visible", async ({ page }) => {
+  test("open channel settings — swarm mode visible", async ({ page }) => {
     await openChannel(page, "general");
 
-    // Look for channel settings button (gear icon in the top bar)
-    const channelSettings = page
-      .locator('button[title*="etting"], button[aria-label*="etting"]')
-      .or(page.locator("button").filter({ hasText: /settings/i }));
+    // Open channel settings via the "Channel Settings" button in the top bar
+    const settingsBtn = page.locator('button[title="Channel Settings"]');
+    await expect(settingsBtn).toBeVisible({ timeout: 5_000 });
+    await settingsBtn.click();
 
-    // Try the channel-specific settings (usually in the top bar area)
-    const topBar = page.locator('[class*="top-bar"], header').first();
-    const settingsInTopBar = topBar
-      .locator("button")
-      .filter({ hasText: /settings|gear/i })
-      .or(topBar.locator('button[title*="etting"]'));
-
-    const settingsBtn = settingsInTopBar.first().or(channelSettings.first());
-    await settingsBtn.click({ timeout: 5_000 }).catch(async () => {
-      // Fallback: open server settings → channels → general
-      const serverSettings = page
-        .locator('button[title*="etting"]')
-        .or(page.locator("button").filter({ hasText: /settings/i }));
-      await serverSettings.first().click();
-      await page.waitForTimeout(1_000);
-
-      // Find channels section
-      await page
-        .getByText(/channels/i)
-        .or(page.locator("button, a").filter({ hasText: /channels/i }))
-        .first()
-        .click();
-    });
-
-    await page.waitForTimeout(1_000);
-
-    // Look for charter/swarm options
-    const hasCharter = await page
-      .getByText(/charter|swarm|mode/i)
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
-
-    // If charter options exist, we pass. If not, this feature may need the
-    // channel settings modal to be opened differently.
-    expect(hasCharter).toBe(true);
+    // The modal should show "Swarm Mode" label (#general has 2+ agents: Claude + GPT-4)
+    await expect(page.getByText("Swarm Mode")).toBeVisible({ timeout: 5_000 });
   });
 
   test("set swarm mode — mode is saved", async ({ page }) => {
     await openChannel(page, "general");
 
     // Open channel settings
-    const topBar = page.locator('[class*="top-bar"], header').first();
-    const settingsBtn = topBar
-      .locator('button[title*="etting"]')
-      .or(page.locator('button[title*="etting"]').first());
-    await settingsBtn.click({ timeout: 5_000 }).catch(() => {});
+    await page.locator('button[title="Channel Settings"]').click();
     await page.waitForTimeout(1_000);
 
-    // Look for swarm mode selector
-    const swarmSelect = page
-      .locator("select")
-      .filter({ hasText: /round.robin|human|lead|freeform/i })
-      .or(page.locator('[name*="swarm"], [data-field*="swarm"]'));
+    // The swarm mode select should be visible (2+ agents on #general)
+    const swarmSelect = page.locator("select").first();
+    await expect(swarmSelect).toBeVisible({ timeout: 5_000 });
 
-    if (
-      await swarmSelect
-        .first()
-        .isVisible({ timeout: 3_000 })
-        .catch(() => false)
-    ) {
-      // Get all options and find one matching round robin
-      const options = swarmSelect.first().locator("option");
-      const count = await options.count();
-      let targetValue = "";
-      for (let i = 0; i < count; i++) {
-        const text = (await options.nth(i).textContent()) || "";
-        if (/round.robin/i.test(text)) {
-          targetValue = (await options.nth(i).getAttribute("value")) || text;
-          break;
-        }
-      }
-      if (targetValue) {
-        await swarmSelect.first().selectOption(targetValue);
-      }
-      await page.waitForTimeout(1_000);
-
-      // Save
-      const saveButton = page
-        .getByRole("button", { name: /save|update|apply/i })
-        .last();
-      if (await saveButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await saveButton.click();
-        await page.waitForTimeout(2_000);
+    // Find and select "Round Robin"
+    const options = swarmSelect.locator("option");
+    const count = await options.count();
+    let roundRobinValue = "";
+    for (let i = 0; i < count; i++) {
+      const text = (await options.nth(i).textContent()) || "";
+      if (/round.robin/i.test(text)) {
+        roundRobinValue = (await options.nth(i).getAttribute("value")) || text;
+        break;
       }
     }
+
+    expect(roundRobinValue).toBeTruthy();
+    await swarmSelect.selectOption(roundRobinValue);
+
+    // Save
+    const saveButton = page
+      .getByRole("button", { name: /save|update|apply/i })
+      .last();
+    await expect(saveButton).toBeVisible({ timeout: 3_000 });
+    await saveButton.click();
+    await page.waitForTimeout(2_000);
+
+    // Reopen settings and verify the value persisted
+    await page.locator('button[title="Channel Settings"]').click();
+    await page.waitForTimeout(1_000);
+
+    const reopenedSelect = page.locator("select").first();
+    await expect(reopenedSelect).toBeVisible({ timeout: 5_000 });
+    const selectedValue = await reopenedSelect.inputValue();
+    expect(selectedValue).toBe("ROUND_ROBIN");
   });
 });
