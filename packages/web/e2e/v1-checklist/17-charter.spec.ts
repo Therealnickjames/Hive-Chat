@@ -75,7 +75,20 @@ test.describe("Section 17: Channel Charter & Swarm Modes", () => {
         .isVisible({ timeout: 3_000 })
         .catch(() => false)
     ) {
-      await swarmSelect.first().selectOption({ label: /round.robin/i });
+      // Get all options and find one matching round robin
+      const options = swarmSelect.first().locator("option");
+      const count = await options.count();
+      let targetValue = "";
+      for (let i = 0; i < count; i++) {
+        const text = (await options.nth(i).textContent()) || "";
+        if (/round.robin/i.test(text)) {
+          targetValue = (await options.nth(i).getAttribute("value")) || text;
+          break;
+        }
+      }
+      if (targetValue) {
+        await swarmSelect.first().selectOption(targetValue);
+      }
       await page.waitForTimeout(1_000);
 
       // Save
