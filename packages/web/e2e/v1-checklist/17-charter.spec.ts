@@ -7,9 +7,7 @@ test.describe("Section 17: Channel Charter & Swarm Modes", () => {
     await selectServer(page);
   });
 
-  test("open channel settings — charter options visible", async ({
-    page,
-  }) => {
+  test("open channel settings — charter options visible", async ({ page }) => {
     await openChannel(page, "general");
 
     // Look for channel settings button (gear icon in the top bar)
@@ -71,7 +69,12 @@ test.describe("Section 17: Channel Charter & Swarm Modes", () => {
       .filter({ hasText: /round.robin|human|lead|freeform/i })
       .or(page.locator('[name*="swarm"], [data-field*="swarm"]'));
 
-    if (await swarmSelect.first().isVisible({ timeout: 3_000 }).catch(() => false)) {
+    if (
+      await swarmSelect
+        .first()
+        .isVisible({ timeout: 3_000 })
+        .catch(() => false)
+    ) {
       await swarmSelect.first().selectOption({ label: /round.robin/i });
       await page.waitForTimeout(1_000);
 

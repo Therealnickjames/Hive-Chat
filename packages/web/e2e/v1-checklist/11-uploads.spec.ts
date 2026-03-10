@@ -20,15 +20,75 @@ test.describe("Section 11: File Uploads", () => {
 
     // Create a minimal PNG image (1x1 red pixel)
     const pngHeader = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, // 8-bit RGB
-      0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, // IDAT chunk
-      0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00, // compressed data
-      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, // ...
-      0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, // IEND chunk
-      0x44, 0xae, 0x42, 0x60, 0x82,
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a, // PNG signature
+      0x00,
+      0x00,
+      0x00,
+      0x0d,
+      0x49,
+      0x48,
+      0x44,
+      0x52, // IHDR chunk
+      0x00,
+      0x00,
+      0x00,
+      0x01,
+      0x00,
+      0x00,
+      0x00,
+      0x01, // 1x1
+      0x08,
+      0x02,
+      0x00,
+      0x00,
+      0x00,
+      0x90,
+      0x77,
+      0x53, // 8-bit RGB
+      0xde,
+      0x00,
+      0x00,
+      0x00,
+      0x0c,
+      0x49,
+      0x44,
+      0x41, // IDAT chunk
+      0x54,
+      0x08,
+      0xd7,
+      0x63,
+      0xf8,
+      0xcf,
+      0xc0,
+      0x00, // compressed data
+      0x00,
+      0x00,
+      0x02,
+      0x00,
+      0x01,
+      0xe2,
+      0x21,
+      0xbc, // ...
+      0x33,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x49,
+      0x45,
+      0x4e, // IEND chunk
+      0x44,
+      0xae,
+      0x42,
+      0x60,
+      0x82,
     ]);
     testImagePath = path.join(tmpDir, "test-upload.png");
     fs.writeFileSync(testImagePath, pngHeader);
@@ -55,15 +115,19 @@ test.describe("Section 11: File Uploads", () => {
 
     // Look for file upload button (usually a paperclip or + icon)
     const uploadButton = page
-      .locator('button[title*="pload"], button[title*="ttach"], button[aria-label*="file"]')
+      .locator(
+        'button[title*="pload"], button[title*="ttach"], button[aria-label*="file"]',
+      )
       .or(page.locator('input[type="file"]').locator(".."))
       .or(page.locator("button").filter({ hasText: /📎|attach/i }));
 
     // At least the file input should exist (may be hidden)
     const fileInput = page.locator('input[type="file"]');
     const hasUpload =
-      (await uploadButton.first().isVisible().catch(() => false)) ||
-      (await fileInput.count()) > 0;
+      (await uploadButton
+        .first()
+        .isVisible()
+        .catch(() => false)) || (await fileInput.count()) > 0;
     expect(hasUpload).toBe(true);
   });
 
@@ -109,9 +173,9 @@ test.describe("Section 11: File Uploads", () => {
     await msgInput.press("Enter");
 
     // Should show as a file card with the filename
-    await expect(
-      page.getByText(/test-upload\.txt/i).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/test-upload\.txt/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("file persists after refresh", async ({ page }) => {
@@ -129,9 +193,9 @@ test.describe("Section 11: File Uploads", () => {
     await msgInput.press("Enter");
 
     // Wait for message to appear
-    await expect(
-      page.getByText(/test-upload\.txt/i).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/test-upload\.txt/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Refresh page
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -139,8 +203,8 @@ test.describe("Section 11: File Uploads", () => {
     await openChannel(page, "general");
 
     // File should still be visible after refresh
-    await expect(
-      page.getByText(/test-upload\.txt/i).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/test-upload\.txt/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });

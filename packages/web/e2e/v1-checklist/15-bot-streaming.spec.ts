@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { login, DEMO_USER, selectServer, openChannel, waitForWebSocket } from "./helpers";
+import {
+  login,
+  DEMO_USER,
+  selectServer,
+  openChannel,
+  waitForWebSocket,
+} from "./helpers";
 
 // Note: This test requires an active agent with streaming capabilities.
 // For full streaming validation, run the mock echo agent (scripts/mock-echo-agent.py)
@@ -24,9 +30,9 @@ test.describe("Section 15: Agent Streaming", () => {
     await agentsTab.first().click({ timeout: 5_000 });
 
     // Should see agent management UI
-    await expect(
-      page.getByText(/claude|gpt|agent/i).first(),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/claude|gpt|agent/i).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("seeded agents are visible in server settings", async ({ page }) => {
@@ -63,7 +69,10 @@ test.describe("Section 15: Agent Streaming", () => {
     await page.waitForTimeout(1_000);
 
     // Click "Agents" in the settings sidebar (exact match to avoid the AGENTS panel)
-    await page.locator("button").filter({ hasText: /^Agents$/ }).click();
+    await page
+      .locator("button")
+      .filter({ hasText: /^Agents$/ })
+      .click();
     await page.waitForTimeout(1_000);
 
     // The Agents section should show existing agents and a create/add button
@@ -76,7 +85,9 @@ test.describe("Section 15: Agent Streaming", () => {
 
     // If there's an "Add Agent" button, verify it's clickable
     const addButton = page.getByRole("button", { name: /add agent/i });
-    const hasAddButton = await addButton.isVisible({ timeout: 3_000 }).catch(() => false);
+    const hasAddButton = await addButton
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false);
 
     // At least the section should be visible with agent-related content
     expect(agentsSectionVisible || hasAddButton).toBe(true);
@@ -89,9 +100,9 @@ test.describe("Section 15: Agent Streaming", () => {
 
     // The seeded server has Claude assigned to #general
     // Check for agent name in the AGENTS panel on the right
-    await expect(
-      page.getByText("Claude").first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Claude").first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   // Full streaming tests (tokens word-by-word, thinking timeline) require

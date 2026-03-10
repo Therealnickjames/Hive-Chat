@@ -25,9 +25,9 @@ test.describe("Section 13: Roles & Permissions", () => {
     await rolesTab.first().click({ timeout: 5_000 });
 
     // Should show role management UI
-    await expect(
-      page.getByText(/admin|member|role/i).first(),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/admin|member|role/i).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("create a new role with name", async ({ page }) => {
@@ -53,7 +53,8 @@ test.describe("Section 13: Roles & Permissions", () => {
     await page.waitForTimeout(1_000);
 
     // Fill in role name
-    const nameInput = page.getByPlaceholder(/role name/i)
+    const nameInput = page
+      .getByPlaceholder(/role name/i)
       .or(page.getByLabel(/name/i))
       .or(page.locator("input").last());
     await nameInput.first().fill(`TestRole${ts}`);

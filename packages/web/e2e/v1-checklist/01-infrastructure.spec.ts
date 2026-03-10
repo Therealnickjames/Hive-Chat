@@ -4,7 +4,9 @@ import { execSync } from "child_process";
 test.describe("Section 1: Infrastructure & Startup", () => {
   test("all Docker containers are running", () => {
     const output = execSync("docker compose ps --format json", {
-      cwd: process.env.CLAUDE_PROJECT_DIR || process.cwd().replace(/packages[/\\]web$/, ""),
+      cwd:
+        process.env.CLAUDE_PROJECT_DIR ||
+        process.cwd().replace(/packages[/\\]web$/, ""),
       encoding: "utf-8",
       timeout: 10_000,
     });
@@ -42,7 +44,8 @@ test.describe("Section 1: Infrastructure & Startup", () => {
 
   test("no crash loops in recent logs", () => {
     const projectDir =
-      process.env.CLAUDE_PROJECT_DIR || process.cwd().replace(/packages[/\\]web$/, "");
+      process.env.CLAUDE_PROJECT_DIR ||
+      process.cwd().replace(/packages[/\\]web$/, "");
 
     const logs = execSync("docker compose logs --tail=50 --no-color 2>&1", {
       cwd: projectDir,
@@ -60,10 +63,7 @@ test.describe("Section 1: Infrastructure & Startup", () => {
 
     for (const pattern of crashPatterns) {
       const match = logs.match(pattern);
-      expect(
-        match,
-        `Found crash indicator in logs: ${match?.[0]}`,
-      ).toBeNull();
+      expect(match, `Found crash indicator in logs: ${match?.[0]}`).toBeNull();
     }
   });
 

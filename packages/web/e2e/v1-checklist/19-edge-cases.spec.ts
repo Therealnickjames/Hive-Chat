@@ -26,9 +26,7 @@ test.describe("Section 19: Edge Cases", () => {
 
     // The input should still contain whitespace or be empty (message was not sent)
     // No new message with just spaces should appear in the chat
-    const messages = await page
-      .locator("div.group.flex.gap-4.px-4")
-      .count();
+    const messages = await page.locator("div.group.flex.gap-4.px-4").count();
 
     // Send a real message to verify chat still works
     const realMsg = `After-whitespace-${Date.now()}`;
@@ -46,9 +44,7 @@ test.describe("Section 19: Edge Cases", () => {
     await page.waitForTimeout(2_000);
 
     // The script tag should NOT be in the DOM as an actual script element
-    const scriptCount = await page
-      .locator(`script:text("xss")`)
-      .count();
+    const scriptCount = await page.locator(`script:text("xss")`).count();
     expect(scriptCount).toBe(0);
 
     // The text content should be escaped/sanitized (shown as text, not executed)

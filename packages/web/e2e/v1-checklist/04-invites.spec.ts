@@ -30,9 +30,9 @@ test.describe("Section 4: Invite Links", () => {
       await registerUser(pageB, userB);
 
       // Wait for dashboard
-      await expect(
-        pageB.getByRole("tab", { name: "SERVERS" }),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(pageB.getByRole("tab", { name: "SERVERS" })).toBeVisible({
+        timeout: 15_000,
+      });
 
       // Navigate to invite URL using seeded invite code
       await pageB.goto("/invite/DEMO2026");

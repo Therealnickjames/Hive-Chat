@@ -1,6 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { execSync } from "child_process";
-import { registerUser, login, createServerViaUI, selectServer, openChannel, waitForWebSocket, sendMessage, uniqueMsg } from "./helpers";
+import {
+  registerUser,
+  login,
+  createServerViaUI,
+  selectServer,
+  openChannel,
+  waitForWebSocket,
+  sendMessage,
+  uniqueMsg,
+} from "./helpers";
 
 // This test MUST run last — it wipes the database.
 test.describe("Section 21: Final Sanity", () => {

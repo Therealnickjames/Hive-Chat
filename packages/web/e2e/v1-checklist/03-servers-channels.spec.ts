@@ -22,13 +22,17 @@ test.describe("Section 3: Servers & Channels", () => {
 
     // Server should appear in sidebar
     await page.getByRole("tab", { name: "SERVERS" }).click();
-    await expect(page.getByText(serverName).first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(serverName).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("server appears in left sidebar", async ({ page }) => {
     await page.getByRole("tab", { name: "SERVERS" }).click();
     // The seeded server should be visible
-    await expect(page.getByText(SEED_SERVER).first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(SEED_SERVER).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("default channel exists after server creation", async ({ page }) => {
@@ -59,15 +63,11 @@ test.describe("Section 3: Servers & Channels", () => {
 
     // Open #general
     await openChannel(page, "general");
-    await expect(
-      page.getByPlaceholder("Message #general"),
-    ).toBeVisible();
+    await expect(page.getByPlaceholder("Message #general")).toBeVisible();
 
     // Open #research
     await openChannel(page, "research");
-    await expect(
-      page.getByPlaceholder("Message #research"),
-    ).toBeVisible();
+    await expect(page.getByPlaceholder("Message #research")).toBeVisible();
   });
 
   test("create second server — both in sidebar", async ({ page }) => {
@@ -76,8 +76,12 @@ test.describe("Section 3: Servers & Channels", () => {
 
     await page.getByRole("tab", { name: "SERVERS" }).click();
     // Both servers should be visible
-    await expect(page.getByText(SEED_SERVER).first()).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText(server2).first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(SEED_SERVER).first()).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.getByText(server2).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("switch between servers — channels update", async ({ page }) => {

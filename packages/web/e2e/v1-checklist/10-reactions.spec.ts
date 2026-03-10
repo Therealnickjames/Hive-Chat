@@ -80,8 +80,11 @@ test.describe("Section 10: Emoji Reactions", () => {
   test("second user clicks same reaction — count goes to 2", async ({
     browser,
   }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, DEMO_USER, ALICE);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      DEMO_USER,
+      ALICE,
+    );
 
     try {
       await selectServer(pageA);
@@ -109,7 +112,9 @@ test.describe("Section 10: Emoji Reactions", () => {
         .locator("div.group.flex.gap-4.px-4")
         .filter({ hasText: msg })
         .first();
-      const reactionBadge = msgContainerB.locator("button.rounded-full.px-2").first();
+      const reactionBadge = msgContainerB
+        .locator("button.rounded-full.px-2")
+        .first();
       await expect(reactionBadge).toBeVisible({ timeout: 10_000 });
       await reactionBadge.click();
       await pageB.waitForTimeout(1_500);
@@ -143,7 +148,9 @@ test.describe("Section 10: Emoji Reactions", () => {
       .locator("div.group.flex.gap-4.px-4")
       .filter({ hasText: msg })
       .first();
-    const reactionBadge = msgContainer.locator("button.rounded-full.px-2").first();
+    const reactionBadge = msgContainer
+      .locator("button.rounded-full.px-2")
+      .first();
     await expect(reactionBadge).toBeVisible({ timeout: 5_000 });
 
     // Click to toggle off
@@ -151,8 +158,9 @@ test.describe("Section 10: Emoji Reactions", () => {
     await page.waitForTimeout(1_500);
 
     // Badge should disappear
-    await expect(
-      msgContainer.locator("button.rounded-full.px-2"),
-    ).toHaveCount(0, { timeout: 5_000 });
+    await expect(msgContainer.locator("button.rounded-full.px-2")).toHaveCount(
+      0,
+      { timeout: 5_000 },
+    );
   });
 });

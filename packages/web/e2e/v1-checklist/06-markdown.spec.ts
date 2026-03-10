@@ -21,7 +21,9 @@ test.describe("Section 6: Markdown Rendering", () => {
     await input.fill("**bold text here**");
     await input.press("Enter");
 
-    await expect(page.locator("strong").filter({ hasText: "bold text here" })).toBeVisible({
+    await expect(
+      page.locator("strong").filter({ hasText: "bold text here" }),
+    ).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -31,7 +33,9 @@ test.describe("Section 6: Markdown Rendering", () => {
     await input.fill("*italic text here*");
     await input.press("Enter");
 
-    await expect(page.locator("em").filter({ hasText: "italic text here" })).toBeVisible({
+    await expect(
+      page.locator("em").filter({ hasText: "italic text here" }),
+    ).toBeVisible({
       timeout: 10_000,
     });
   });

@@ -16,8 +16,11 @@ test.describe("Section 9: Unread Indicators", () => {
   test("unread indicator appears when message sent in another channel", async ({
     browser,
   }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -64,8 +67,11 @@ test.describe("Section 9: Unread Indicators", () => {
   });
 
   test("navigating to channel clears unread", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -103,8 +109,11 @@ test.describe("Section 9: Unread Indicators", () => {
   });
 
   test("unread persists across page refresh", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);

@@ -25,11 +25,12 @@ test.describe("Section 5: Real-Time Messaging", () => {
     await expect(page.getByText(msg)).toBeVisible({ timeout: 5_000 });
   });
 
-  test("User B sees message in real time (no refresh)", async ({
-    browser,
-  }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+  test("User B sees message in real time (no refresh)", async ({ browser }) => {
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -49,11 +50,12 @@ test.describe("Section 5: Real-Time Messaging", () => {
     }
   });
 
-  test("User B replies — User A sees it in real time", async ({
-    browser,
-  }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+  test("User B replies — User A sees it in real time", async ({ browser }) => {
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -133,11 +135,12 @@ test.describe("Section 5: Real-Time Messaging", () => {
     });
   });
 
-  test("rapid-fire 10 messages — all arrive in order", async ({
-    browser,
-  }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+  test("rapid-fire 10 messages — all arrive in order", async ({ browser }) => {
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -170,8 +173,13 @@ test.describe("Section 5: Real-Time Messaging", () => {
       let lastIdx = -1;
       for (const msg of messages) {
         const idx = html.indexOf(msg);
-        expect(idx, `Message "${msg}" should be in the page`).toBeGreaterThan(-1);
-        expect(idx, `Message "${msg}" should be after the previous one`).toBeGreaterThan(lastIdx);
+        expect(idx, `Message "${msg}" should be in the page`).toBeGreaterThan(
+          -1,
+        );
+        expect(
+          idx,
+          `Message "${msg}" should be after the previous one`,
+        ).toBeGreaterThan(lastIdx);
         lastIdx = idx;
       }
     } finally {
@@ -197,8 +205,11 @@ test.describe("Section 5: Real-Time Messaging", () => {
   });
 
   test("presence shows both users online", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -213,9 +224,9 @@ test.describe("Section 5: Real-Time Messaging", () => {
 
       // Check for online indicators — look for presence dots or online status
       // The member list should show users as online
-      const memberList = pageA.locator('[class*="member"]').or(
-        pageA.getByText(BOB.displayName),
-      );
+      const memberList = pageA
+        .locator('[class*="member"]')
+        .or(pageA.getByText(BOB.displayName));
 
       // At minimum, both users should be able to exchange messages (proving presence)
       const msg = uniqueMsg("Presence check");

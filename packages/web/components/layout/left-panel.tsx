@@ -263,7 +263,11 @@ export function LeftPanel() {
                                   : "text-text-muted group-hover:text-text-primary"
                               }`}
                             />
-                            <span className={`truncate ${hasUnread ? "font-semibold" : ""}`}>{channel.name}</span>
+                            <span
+                              className={`truncate ${hasUnread ? "font-semibold" : ""}`}
+                            >
+                              {channel.name}
+                            </span>
                           </div>
                           {isStreaming && (
                             <span className="relative mr-1 flex h-2.5 w-2.5 shrink-0">

@@ -23,7 +23,9 @@ test.describe("Section 8: @Mentions", () => {
     // The dropdown renders as buttons with user names (e.g., "Alice Chen", "Bob Martinez")
     // Wait for at least one user button to appear near the input
     await expect(
-      page.getByRole("button", { name: /Alice Chen|Bob Martinez|Demo User/i }).first(),
+      page
+        .getByRole("button", { name: /Alice Chen|Bob Martinez|Demo User/i })
+        .first(),
     ).toBeVisible({ timeout: 5_000 });
   });
 
@@ -34,9 +36,9 @@ test.describe("Section 8: @Mentions", () => {
     await page.waitForTimeout(1_000);
 
     // Should show users and agents in the dropdown buttons
-    await expect(
-      page.getByRole("button", { name: /Alice Chen/i }),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: /Alice Chen/i })).toBeVisible(
+      { timeout: 5_000 },
+    );
     await expect(
       page.getByRole("button", { name: /Bob Martinez/i }),
     ).toBeVisible({ timeout: 5_000 });

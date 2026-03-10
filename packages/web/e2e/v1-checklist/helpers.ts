@@ -54,9 +54,9 @@ export async function openChannel(
     has: page.locator(`text="${channelName}"`),
   });
   await channelButton.first().click();
-  await expect(
-    page.getByPlaceholder(`Message #${channelName}`),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByPlaceholder(`Message #${channelName}`)).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 /** Wait for WebSocket connection to be established (input becomes enabled). */
@@ -151,7 +151,10 @@ export async function createChannelViaUI(
   await page.getByRole("button", { name: "Configure" }).click();
 
   // Step 2: Keep defaults, submit (use form submit button to avoid conflict with title="Create Channel" icon)
-  await page.locator('form button[type="submit"]').filter({ hasText: "Create Channel" }).click();
+  await page
+    .locator('form button[type="submit"]')
+    .filter({ hasText: "Create Channel" })
+    .click();
 
   // Wait for navigation
   await page.waitForTimeout(2000);

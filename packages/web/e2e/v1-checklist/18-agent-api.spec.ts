@@ -14,16 +14,19 @@ test.describe("Section 18: Agent Connection API", () => {
       return;
     }
 
-    const res = await request.post("http://localhost:5555/api/v1/bootstrap/agents", {
-      headers: {
-        Authorization: `Bearer admin-${adminToken}`,
-        "Content-Type": "application/json",
+    const res = await request.post(
+      "http://localhost:5555/api/v1/bootstrap/agents",
+      {
+        headers: {
+          Authorization: `Bearer admin-${adminToken}`,
+          "Content-Type": "application/json",
+        },
+        data: {
+          name: `API Test Agent ${Date.now()}`,
+          serverId: await getFirstServerId(request),
+        },
       },
-      data: {
-        name: `API Test Agent ${Date.now()}`,
-        serverId: await getFirstServerId(request),
-      },
-    });
+    );
 
     if (res.status() === 201) {
       const data = await res.json();

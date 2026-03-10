@@ -12,8 +12,11 @@ test.describe("Section 12: Direct Messages", () => {
   test("start a DM and send message — received in real time", async ({
     browser,
   }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       // Alice opens DMs tab
@@ -36,7 +39,9 @@ test.describe("Section 12: Direct Messages", () => {
           .getByPlaceholder(/search|user/i)
           .or(pageA.locator('input[type="text"]').last());
 
-        if (await searchInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        if (
+          await searchInput.isVisible({ timeout: 2_000 }).catch(() => false)
+        ) {
           await searchInput.fill(BOB.username);
           await pageA.waitForTimeout(1_000);
           // Click on Bob in results
@@ -81,7 +86,12 @@ test.describe("Section 12: Direct Messages", () => {
         const dmEntry = pageB
           .getByText(ALICE.displayName)
           .or(pageB.getByText(ALICE.username));
-        if (await dmEntry.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+        if (
+          await dmEntry
+            .first()
+            .isVisible({ timeout: 5_000 })
+            .catch(() => false)
+        ) {
           await dmEntry.first().click();
           await pageB.waitForTimeout(2_000);
 
@@ -125,8 +135,6 @@ test.describe("Section 12: Direct Messages", () => {
 
     // If there were DMs, they should still be visible
     // This is a basic check that the DM list loads
-    await expect(
-      page.getByRole("tab", { name: /DM/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: /DM/i })).toBeVisible();
   });
 });

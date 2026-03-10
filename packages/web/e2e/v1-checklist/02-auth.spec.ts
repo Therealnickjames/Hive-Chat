@@ -23,17 +23,30 @@ test.describe("Section 2: Auth & Accounts", () => {
     await login(page, DEMO_USER.email, DEMO_USER.password);
 
     // Open user profile dropdown
-    const profileButton = page.locator('[data-testid="user-profile-button"]').or(
-      page.locator("button").filter({ hasText: DEMO_USER.displayName }).first(),
-    );
+    const profileButton = page
+      .locator('[data-testid="user-profile-button"]')
+      .or(
+        page
+          .locator("button")
+          .filter({ hasText: DEMO_USER.displayName })
+          .first(),
+      );
 
     // Click the user area at the bottom of the sidebar
     await profileButton
-      .or(page.locator(".flex.items-center.gap-2").filter({ hasText: /demo/i }).first())
+      .or(
+        page
+          .locator(".flex.items-center.gap-2")
+          .filter({ hasText: /demo/i })
+          .first(),
+      )
       .click({ timeout: 5_000 })
       .catch(async () => {
         // Fallback: try clicking the avatar/user button at the bottom
-        await page.locator("button").filter({ hasText: /log out/i }).click();
+        await page
+          .locator("button")
+          .filter({ hasText: /log out/i })
+          .click();
       });
 
     // Click "Log Out"
@@ -119,9 +132,9 @@ test.describe("Section 2: Auth & Accounts", () => {
     });
 
     // Should show error about duplicate email
-    await expect(
-      page.getByText(/already|exists|taken|in use/i),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/already|exists|taken|in use/i)).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("duplicate username shows clear error", async ({ page }) => {
@@ -132,8 +145,8 @@ test.describe("Section 2: Auth & Accounts", () => {
       password: "TestPass123!",
     });
 
-    await expect(
-      page.getByText(/already|exists|taken|in use/i),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/already|exists|taken|in use/i)).toBeVisible({
+      timeout: 5_000,
+    });
   });
 });

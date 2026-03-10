@@ -32,7 +32,9 @@ test.describe("Section 7: Message Edit & Delete", () => {
     await msgContainer.hover();
 
     // Click edit button (title="Edit message")
-    await msgContainer.locator('button[title="Edit message"]').click({ force: true, timeout: 5_000 });
+    await msgContainer
+      .locator('button[title="Edit message"]')
+      .click({ force: true, timeout: 5_000 });
 
     // The editing area should appear with a textbox
     const editInput = msgContainer.getByRole("textbox").first();
@@ -49,13 +51,19 @@ test.describe("Section 7: Message Edit & Delete", () => {
 
     // "(edited)" indicator should show
     await expect(
-      page.locator("span").filter({ hasText: /edited/i }).first(),
+      page
+        .locator("span")
+        .filter({ hasText: /edited/i })
+        .first(),
     ).toBeVisible({ timeout: 5_000 });
   });
 
   test("other user sees edit in real time", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -75,7 +83,9 @@ test.describe("Section 7: Message Edit & Delete", () => {
         .filter({ hasText: original })
         .first();
       await msgContainer.hover();
-      await msgContainer.locator('button[title="Edit message"]').click({ force: true });
+      await msgContainer
+        .locator('button[title="Edit message"]')
+        .click({ force: true });
 
       const updated = uniqueMsg("RT-edit-updated");
       const editInput = msgContainer.getByRole("textbox").first();
@@ -110,9 +120,9 @@ test.describe("Section 7: Message Edit & Delete", () => {
       .dispatchEvent("click");
 
     // Verify the confirmation modal appears with the correct message
-    await expect(
-      page.getByText("Are you sure you want to delete"),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Are you sure you want to delete")).toBeVisible(
+      { timeout: 5_000 },
+    );
     await page.getByRole("button", { name: "Delete", exact: true }).click();
 
     // Wait for modal to close (confirms delete succeeded)
@@ -125,8 +135,11 @@ test.describe("Section 7: Message Edit & Delete", () => {
   });
 
   test("other user sees deletion in real time", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -168,8 +181,11 @@ test.describe("Section 7: Message Edit & Delete", () => {
   });
 
   test("cannot edit another user's message", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -199,8 +215,11 @@ test.describe("Section 7: Message Edit & Delete", () => {
   });
 
   test("cannot delete another user's message", async ({ browser }) => {
-    const { contextA, contextB, pageA, pageB } =
-      await createTwoUserContexts(browser, ALICE, BOB);
+    const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
+      browser,
+      ALICE,
+      BOB,
+    );
 
     try {
       await selectServer(pageA);
@@ -222,7 +241,9 @@ test.describe("Section 7: Message Edit & Delete", () => {
       await msgContainer.hover();
 
       // Delete button should NOT be visible for other user's message
-      const deleteButton = msgContainer.locator('button[title="Delete message"]');
+      const deleteButton = msgContainer.locator(
+        'button[title="Delete message"]',
+      );
       await expect(deleteButton).not.toBeVisible({ timeout: 3_000 });
     } finally {
       await cleanupContexts(contextA, contextB);
