@@ -144,6 +144,15 @@ All providers produce the same output: `{messageId, token, index}`
 | Token timeout (30s gap) | Gateway sets `stream_error` |
 | Redis connection lost | Gateway sets `stream_error`, logs for investigation |
 | Client disconnects mid-stream | Stream continues server-side, final message persisted normally |
+| Lost `stream_complete` event (BUG-006) | Client-side 60s timeout — see below |
+
+### Client-Side Stream Timeout (BUG-006)
+
+If the `stream_complete` or `stream_error` event is lost (network issue, Gateway crash, Redis failure), messages can stay `streamingStatus: "ACTIVE"` forever and the "N agents responding" indicator never clears.
+
+**Fix**: The client tracks `lastTokenReceivedAt` per active stream. A 10-second interval checks for streams with no token activity for 60 seconds and transitions them to `streamingStatus: "ERROR"` with content preserved (appending `"[Stream timed out]"` if empty).
+
+**Why 60s**: Go Proxy's per-token timeout is 30s. The client timeout is a safety net for lost WebSocket events only — normal streams always resolve well before this threshold.
 
 ---
 
@@ -164,6 +173,7 @@ When modifying streaming code, verify:
 - [ ] Happy path: message → stream_start → tokens → stream_complete
 - [ ] Error path: message → stream_start → tokens → stream_error (partial content preserved)
 - [ ] Timeout: message → stream_start → 30s silence → stream_error
+- [ ] Client timeout: kill Go Proxy mid-stream → indicator clears after 60s (BUG-006)
 - [ ] Channel switch mid-stream: client clears old stream, new channel loads correctly
 - [ ] Reconnect mid-stream: client sees final state (COMPLETE or ERROR), not a stuck ACTIVE
 - [ ] Concurrent streams: multiple channels streaming simultaneously, no cross-talk

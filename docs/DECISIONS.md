@@ -1271,3 +1271,21 @@ model AgentRegistration {
 4. **Removed**: `POST /api/v1/agents/register` endpoint, approve/reject endpoints, agent-settings endpoint, `ApprovalStatus` enum, `allowAgentRegistration`/`registrationApprovalRequired` server fields, approval UI components.
 
 **Consequences**: Zero-friction agent setup — name the agent, done. No copying keys, no editing config files. Self-registration and approval flow completely removed. Protocol bumped to v4.0.
+
+---
+
+## DEC-0061: Auto-assign agents to all channels via ChannelBot records
+
+**Date**: 2026-03-09
+**Status**: Accepted
+**Context**: After DEC-0060 (CLI agent setup), agents were created with Bot + AgentRegistration records but no ChannelBot join records. The Gateway discovers which agents to trigger per channel by querying the ChannelBot table (via `GET /api/internal/channels/{channelId}/bots`). Without ChannelBot records, agents were invisible to the trigger system — mentions showed agents in autocomplete but the Gateway couldn't find them to trigger.
+
+**Decision**: Auto-assign agents to all channels in their server on creation.
+
+1. **Agent creation** (`agent-factory.ts`, BYOK route, bootstrap route): After creating the Bot + AgentRegistration, query all channels in the server and create ChannelBot records for each.
+
+2. **Channel creation** (`POST /api/servers/{serverId}/channels`): When a new channel is created, query all active bots in the server and create ChannelBot records for each.
+
+3. **Gateway discovery**: No changes needed — the existing `GET /api/internal/channels/{channelId}/bots` endpoint already queries ChannelBot records.
+
+**Consequences**: Agents are discoverable immediately after creation. New channels automatically inherit all agents. No per-channel agent configuration needed (agents join all channels by default). Future: per-channel agent assignment UI can be added to restrict agents to specific channels.

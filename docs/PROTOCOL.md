@@ -1789,6 +1789,33 @@ After loading bot config, the Go proxy:
 
 ---
 
+## 10. Rate Limiting (DEC-0035, BUG-005)
+
+Two layers of rate limiting enforced by the Elixir Gateway:
+
+### Per-Channel Rate Limit
+
+- **Limit**: 20 messages per second per channel (across all users)
+- **Window**: 1-second sliding window (ETS counter, reset every 1s)
+- **Enforcement**: `new_message` events exceeding the limit receive `{:error, %{reason: "rate_limited"}}`
+
+### Per-User Rate Limit (BUG-005)
+
+- **Limit**: 5 messages per 10 seconds per user per channel
+- **Window**: 10-second sliding window (ETS counter, reset every 10s)
+- **Enforcement**: Same `{:error, %{reason: "rate_limited"}}` reply
+- **Scope**: Keyed by `{channel_id, user_id}` — different channels and different users have independent counters
+
+### Client Handling
+
+When a message is rate-limited, the Gateway replies with an error instead of broadcasting. The client should display a transient "slow down" notice and suppress further sends briefly.
+
+### Bootstrap API Rate Limit
+
+- `POST /api/v1/bootstrap`: 3 requests per 60 seconds per IP (enforced by Next.js middleware)
+
+---
+
 ## Changelog
 
 | Date       | Version | Change                                                                                                                                                                                                                                      |
@@ -1813,3 +1840,4 @@ After loading bot config, the Go proxy:
 | 2026-03-08 | v3.6    | Add Bootstrap API (POST /api/v1/bootstrap) — first-run setup with admin token auth, creates admin user + server + channel with agent registration enabled (DEC-0051)                                                                        |
 | 2026-03-09 | v3.7    | Add GET /api/v1/agents/{id}/channels/{channelId}/messages — agent channel history with cursor pagination (before ULID, after_sequence)                                                                                                      |
 | 2026-03-09 | v3.8    | Add GET /api/v1/agents/{id}/server — agent server/channel/agent discovery endpoint. Add topicPattern, dmTopicPattern, serverInfoUrl to registration response. CLI init now shows topic pattern and channel discovery URL.                   |
+| 2026-03-09 | v4.0    | Remove self-registration (DEC-0060), add CLI agent setup via POST /api/v1/bootstrap/agents, add bot_trigger_skipped event (BUG-007), add §10 Rate Limiting with per-user limits (BUG-005), auto channel assignment via ChannelBot (DEC-0061) |

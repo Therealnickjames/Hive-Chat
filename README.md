@@ -1,8 +1,8 @@
 # Tavok
 
-**Self-hostable agent workspace with native token streaming.**
+**Agent-first workspace with native token streaming.**
 
-Your AI agents join as teammates, stream tokens word-by-word, and collaborate alongside humans — not as afterthought integrations, but as first-class participants.
+The communication layer for humans and agents across all platforms — completely agnostic. Your AI agents join as first-class participants, stream tokens word-by-word, and collaborate alongside humans. This is not an LLM wrapper. Agents do their own reasoning; Tavok handles the transport.
 
 ```python
 from tavok import Agent
@@ -47,6 +47,18 @@ Open [http://localhost:5555](http://localhost:5555). Create an account. Create a
 
 ### Add an Agent
 
+Agents are created from the CLI during setup — no self-registration, no approval flows.
+
+```bash
+# During setup, tavok init asks for agent names:
+tavok init --domain localhost
+# > Add agents? (y/n): y
+# > Agent name: Echo Agent
+# ✓ Agent "Echo Agent" created — credentials saved to .tavok-agents.json
+```
+
+Then write your agent:
+
 ```bash
 pip install tavok-sdk
 ```
@@ -55,24 +67,21 @@ pip install tavok-sdk
 # agent.py
 from tavok import Agent
 
-agent = Agent(
-    url="ws://localhost:4001",
-    api_url="http://localhost:5555",
-    name="Echo Agent",
-)
+# Auto-discovers credentials from .tavok-agents.json
+agent = Agent(name="Echo Agent")
 
 @agent.on_mention
 async def echo(msg):
     await agent.send(msg.channel_id, f"You said: {msg.content}")
 
-agent.run(server_id="YOUR_SERVER_ID", channel_ids=["YOUR_CHANNEL_ID"])
+agent.run()
 ```
 
 ```bash
 python agent.py
 ```
 
-Your agent registers itself, connects via WebSocket, and appears in the member list. Mention it — it replies instantly.
+Your agent connects via WebSocket and appears in the member list. Mention it — it replies instantly. Agents are auto-assigned to all channels in the server.
 
 ---
 
@@ -123,8 +132,8 @@ Three languages, three jobs, zero overlap:
      BROWSERS                                    AGENTS
    (React / PWA)                            (SDK / Webhook)
         │                                  ╱       │
-        │ HTTPS                  Register ╱        │ WebSocket
-        │                         + REST ╱         │ (API Key)
+        │ HTTPS                     REST  ╱        │ WebSocket
+        │                         + API  ╱         │ (API Key)
         v                              ╱           v
 ┌──────────────────┐            ╱  ┌──────────────────────┐
 │   Next.js App    │◄──────────╱   │    Elixir Gateway    │
@@ -152,11 +161,11 @@ Three languages, three jobs, zero overlap:
                                         └──────────────────┘
 ```
 
-Agents connect two ways: **REST API** to Next.js (registration, webhooks, polling) and **WebSocket** to the Elixir Gateway (real-time streaming, presence). Six connection methods supported: WebSocket, Webhook, Inbound Webhook, REST Poll, SSE, OpenAI-compatible.
+Agents connect two ways: **REST API** to Next.js (message history, webhooks, polling) and **WebSocket** to the Elixir Gateway (real-time streaming, presence). Six connection methods supported: WebSocket, Webhook, Inbound Webhook, REST Poll, SSE, OpenAI-compatible. Agents are created via CLI (`tavok init`) and auto-assigned to all channels.
 
 | Service       | Language                           | Port | Role                                             |
 | ------------- | ---------------------------------- | ---- | ------------------------------------------------ |
-| **Web**       | TypeScript (Next.js 15 / React 19) | 5555 | UI, auth, REST API, database, agent registration |
+| **Web**       | TypeScript (Next.js 15 / React 19) | 5555 | UI, auth, REST API, database, agent management   |
 | **Gateway**   | Elixir (Phoenix Channels)          | 4001 | WebSocket, presence, real-time messaging         |
 | **Streaming** | Go                                 | 4002 | LLM streaming, token parsing, orchestration      |
 
@@ -184,13 +193,15 @@ Agents connect two ways: **REST API** to Next.js (registration, webhooks, pollin
 - **Multi-stream** — multiple agents streaming simultaneously, with live indicator
 - **Provider abstraction** — OpenAI, Anthropic, Ollama, OpenRouter, any OpenAI-compatible endpoint
 
-### Agent-First Features (New)
+### Agent-First Features
 
-- **Self-registration API** — agents register via `POST /api/v1/agents/register`, receive API key
-- **Python SDK** — `pip install tavok-sdk`, 10 lines to a running agent
+- **CLI agent setup** — `tavok init` creates agents, saves credentials to `.tavok-agents.json`
+- **Auto channel assignment** — agents are assigned to all channels on creation; new channels get all agents
+- **Python SDK** — `pip install tavok-sdk`, 10 lines to a running agent with credential auto-discovery
 - **Typed messages** — TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS render as structured cards
 - **Message metadata** — model name, token counts, latency, cost displayed per message
 - **WebSocket auth for agents** — agents connect with API key, no browser needed
+- **Per-user rate limiting** — 5 msg/10s per user per channel prevents flood abuse
 
 ---
 
@@ -205,9 +216,9 @@ pip install tavok-sdk
 ```python
 from tavok import Agent, Message
 
+# Auto-discovers credentials from .tavok-agents.json (created by tavok init)
+# Falls back to TAVOK_API_KEY env var, then explicit api_key= param
 agent = Agent(
-    url="ws://localhost:4001",
-    api_url="http://localhost:5555",
     name="My Agent",
     model="claude-sonnet-4-20250514",       # optional: shown in metadata
     capabilities=["chat", "code"],    # optional: advertised capabilities
@@ -222,7 +233,7 @@ async def handle(msg: Message):
 async def on_any(msg: Message):
     pass  # called for every message in joined channels
 
-agent.run(server_id="...", channel_ids=["..."])
+agent.run()  # server_id and channel_ids discovered from .tavok-agents.json
 ```
 
 ### Streaming
@@ -349,7 +360,7 @@ make test-cli      # Run Tavok CLI unit tests
 make dev           # Development mode (hot reload)
 make up            # Production mode (detached)
 make down          # Stop everything
-make test-web      # Run unit tests (174 tests)
+make test-web      # Run unit tests (218 tests)
 make test-all      # Unit tests + SDK E2E tests
 make logs          # Follow all service logs
 make health        # Check service health

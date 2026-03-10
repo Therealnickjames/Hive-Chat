@@ -2,7 +2,9 @@
 
 > Updated after each structural change. Reflects what is actually built and shipped.
 
-**Last updated**: 2026-03-02 (V1 complete)
+**Last updated**: 2026-03-09 (DEC-0060, DEC-0061)
+
+**Platform identity**: Agent-first workspace with humans in the loop. Not an LLM wrapper — agents do their own reasoning; Tavok handles the transport. The communication layer for humans and agents across all platforms, completely agnostic.
 
 ---
 
@@ -67,7 +69,7 @@ This prevents split-brain as multi-agent flows grow in complexity.
 
 | Service        | Language                           | Port            | Role                                                           |
 | -------------- | ---------------------------------- | --------------- | -------------------------------------------------------------- |
-| **Web**        | TypeScript (Next.js 15 / React 19) | 5555            | UI, auth, REST API, database, agent registration               |
+| **Web**        | TypeScript (Next.js 15 / React 19) | 5555            | UI, auth, REST API, database, agent management                 |
 | **Gateway**    | Elixir (Phoenix Channels)          | 4001            | WebSocket, presence, real-time messaging, stream relay         |
 | **Streaming**  | Go                                 | 4002 (internal) | LLM streaming, provider routing, orchestration, tool execution |
 | **PostgreSQL** | -                                  | 5432            | All persistent data                                            |
@@ -98,11 +100,14 @@ This prevents split-brain as multi-agent flows grow in complexity.
 
 **Agent-First Features**
 
-- CLI agent setup: `tavok init` creates agents with auto-discovered credentials
-- Python SDK: `pip install tavok-sdk`, 10 lines to a running agent
+- CLI agent setup: `tavok init` creates agents with auto-discovered credentials (DEC-0060)
+- Agent channel assignment: agents auto-assigned to all channels via ChannelBot records (DEC-0061)
+- Channel discovery: new channels auto-assign all active agents; Gateway discovers agents per channel
+- Python SDK: `pip install tavok-sdk`, 10 lines to a running agent with `.tavok-agents.json` auto-discovery
 - Typed messages: TOOL_CALL, TOOL_RESULT, CODE_BLOCK, ARTIFACT, STATUS render as structured cards
 - Message metadata: model name, token counts, latency, cost per message
 - WebSocket auth for agents: connect with API key, no browser needed
+- Per-user rate limiting: 5 msg/10s per user per channel prevents flood abuse (BUG-005)
 - MCP-compatible tool interface
 - Channel Charter / Swarm Modes
 

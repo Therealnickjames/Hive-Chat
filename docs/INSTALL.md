@@ -173,6 +173,23 @@ If any required variable is missing, `docker compose up` will fail immediately w
 
 **Error handling:** If `openssl` is missing, the script exits with a clear error and install instructions. If any secret generation fails, the script prints the failing line number and a debug hint.
 
+### Agent Setup (Phase 6.5 in `tavok init`)
+
+After generating secrets and starting services, `tavok init` optionally creates agents:
+
+```
+Add agents? (y/n): y
+Agent name: Echo Agent
+✓ Agent "Echo Agent" created — credentials saved to .tavok-agents.json
+```
+
+- Agents are created via `POST /api/v1/bootstrap/agents` (admin token auth)
+- Credentials saved to `.tavok-agents.json` (mode 0600, gitignored)
+- Agents are auto-assigned to all channels in the server via ChannelBot records
+- The Python SDK auto-discovers credentials: `Agent(name="Echo Agent")` finds the key automatically
+- You can skip this phase and add agents later via the Web UI (Server Settings → Bots)
+- Supports declarative `tavok-agents.yml` for repeatable deployments
+
 ### PowerShell (Windows)
 
 ```powershell
