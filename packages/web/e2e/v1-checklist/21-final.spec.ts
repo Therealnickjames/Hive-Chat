@@ -36,10 +36,14 @@ test.describe("Section 21: Final Sanity", () => {
       encoding: "utf-8",
     });
 
-    // Step 3: Wait for services to be healthy
+    // Step 3: Wait for services to be healthy (adaptive polling)
     let healthy = false;
-    for (let i = 0; i < 12; i++) {
-      await page.waitForTimeout(10_000);
+    const healthStart = Date.now();
+    const maxWaitMs = 120_000; // 2 min max
+    let pollMs = 2_000; // Start at 2s, back off to 8s
+
+    while (Date.now() - healthStart < maxWaitMs) {
+      await page.waitForTimeout(pollMs);
       try {
         const res = await page.request.get("http://localhost:5555/api/health");
         const data = await res.json();
@@ -50,8 +54,12 @@ test.describe("Section 21: Final Sanity", () => {
       } catch {
         // Services not ready yet
       }
+      pollMs = Math.min(pollMs * 1.5, 8_000); // Back off: 2→3→4.5→6.75→8→8…
     }
-    expect(healthy, "Services should be healthy after restart").toBe(true);
+    expect(
+      healthy,
+      `Services should be healthy after restart (waited ${Date.now() - healthStart}ms)`,
+    ).toBe(true);
 
     // Step 4: Run migrations from host
     try {

@@ -47,7 +47,24 @@ export async function login(
       throw new Error(`API auth returned error URL: ${authData.url}`);
     }
 
-    // Step 3: Navigate to the app (session cookie is in the shared jar)
+    // Step 3: Wait for cookie jar to sync before navigating.
+    // NextAuth writes the session cookie asynchronously — without this
+    // the browser may navigate before the cookie is in the jar.
+    await page.waitForTimeout(300);
+
+    // Verify session cookie exists in the jar before navigating
+    const cookies = await page.context().cookies();
+    const hasSession = cookies.some(
+      (c) =>
+        c.name.includes("next-auth.session-token") ||
+        c.name.includes("__Secure-next-auth.session-token"),
+    );
+    if (!hasSession) {
+      // Cookie not yet in jar — wait longer and retry
+      await page.waitForTimeout(1_000);
+    }
+
+    // Step 4: Navigate to the app (session cookie is in the shared jar)
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     // If we landed on /login, the session cookie wasn't accepted

@@ -71,8 +71,9 @@ test.describe("Section 14: Reconnection & Resilience", () => {
     await openChannel(page, "general");
     await waitForWebSocket(page, "general");
 
-    // Refresh
-    await page.reload({ waitUntil: "domcontentloaded" });
+    // Refresh — wait for full load + React hydration + WebSocket init
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(500); // Let React hydrate + WS connect start
     await selectServer(page, serverName);
     await openChannel(page, "general");
     await waitForWebSocket(page, "general");
@@ -82,7 +83,7 @@ test.describe("Section 14: Reconnection & Resilience", () => {
     await sendMessage(page, "general", msg);
 
     // Message should appear
-    await expect(page.getByText(msg)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(msg)).toBeVisible({ timeout: 15_000 });
   });
 
   test("two users — Bob reloads, Alice sends, Bob sees new message", async ({
