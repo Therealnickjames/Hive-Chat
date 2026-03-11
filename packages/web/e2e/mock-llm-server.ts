@@ -76,9 +76,13 @@ export function startMockLLM(port = 9999): Promise<void> {
 
             // TOOL_TEST trigger: return a tool_call for current_time
             // On the second call (with tool result in context), return final text.
-            // Note: The Go proxy sends tool results as role:"user" with
-            // content like "[Tool result for current_time (call ...)]:"
-            if (userContent.includes("TOOL_TEST")) {
+            // Check ALL messages for the trigger — on the second call the last
+            // user message is the tool result, not the original TOOL_TEST message.
+            const hasToolTestTrigger = messages.some(
+              (m: { role: string; content: string }) =>
+                m.content && m.content.includes("TOOL_TEST"),
+            );
+            if (hasToolTestTrigger) {
               const hasToolResult = messages.some(
                 (m: { role: string; content: string }) =>
                   m.role === "tool" ||

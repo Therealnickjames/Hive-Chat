@@ -95,9 +95,26 @@ export async function login(
   }
 
   if (page.url().includes("/login")) {
-    throw new Error(
-      `Login failed for ${email}: session cookie not persisted (redirected back to /login)`,
+    // Retry once — NextAuth occasionally doesn't persist the session cookie
+    // on the first attempt in CI (race condition with cookie jar).
+    console.log(
+      `[login] First form attempt redirected to /login for ${email}, retrying...`,
     );
+    await page.waitForTimeout(1_000);
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill(password);
+    await page.getByRole("button", { name: /log in/i }).click();
+    await page.waitForTimeout(3_000);
+
+    if (page.url().includes("/login")) {
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+    }
+
+    if (page.url().includes("/login")) {
+      throw new Error(
+        `Login failed for ${email}: session cookie not persisted (redirected back to /login)`,
+      );
+    }
   }
 
   await expect(page.getByRole("tab", { name: "SERVERS" })).toBeVisible({

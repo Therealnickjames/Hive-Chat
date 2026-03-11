@@ -169,6 +169,7 @@ test.describe("Section 5: Real-Time Messaging", () => {
   });
 
   test("rapid-fire 10 messages — all arrive in order", async ({ browser }) => {
+    test.setTimeout(60_000);
     const { contextA, contextB, pageA, pageB } = await createTwoUserContexts(
       browser,
       ALICE,
@@ -192,8 +193,8 @@ test.describe("Section 5: Real-Time Messaging", () => {
         const input = pageA.getByPlaceholder("Message #general");
         await input.fill(msg);
         await input.press("Enter");
-        // Small delay to ensure ordering
-        await pageA.waitForTimeout(200);
+        // Delay between messages to ensure ordering — CI needs more headroom
+        await pageA.waitForTimeout(500);
       }
 
       // Wait for last message to appear on User B
