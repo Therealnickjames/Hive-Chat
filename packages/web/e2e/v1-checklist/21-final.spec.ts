@@ -100,7 +100,12 @@ test.describe("Section 21: Final Sanity", () => {
         },
       },
     );
-    expect(createRes.ok(), "Server creation API should succeed").toBe(true);
+    if (!createRes.ok()) {
+      const body = await createRes.text().catch(() => "no body");
+      throw new Error(
+        `Server creation failed: ${createRes.status()} ${createRes.statusText()} — ${body}`,
+      );
+    }
 
     // Reload so the workspace sees the new server and exits onboarding
     await page.reload({ waitUntil: "domcontentloaded" });
