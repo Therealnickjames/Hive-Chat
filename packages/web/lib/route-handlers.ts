@@ -94,7 +94,7 @@ interface ServerAgentPatchDeps extends SessionDeps {
 export function createInternalMessagesPostHandler({
   prismaClient,
 }: PrismaClientDep) {
-  return async function internalMessagesPostHandler(request: RequestLike) {
+  return async function internalMessagesPostHandler(request: NextRequest) {
     const secret = request.headers.get("x-internal-secret");
     if (!validateInternalSecretValue(secret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
