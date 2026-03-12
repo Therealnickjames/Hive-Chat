@@ -78,7 +78,12 @@ test.describe("Section 18: Agent Sharing via Config Templates", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ template: args.tpl }),
         });
-        return { status: res.status, body: await res.json() };
+        const text = await res.text();
+        try {
+          return { status: res.status, body: JSON.parse(text) };
+        } catch {
+          return { status: res.status, body: { _raw: text } };
+        }
       },
       { sid: serverId, tpl: template },
     );
@@ -107,34 +112,25 @@ test.describe("Section 18: Agent Sharing via Config Templates", () => {
     expect(result.body.error).toContain("name");
   });
 
-  test("export button visible in manage agents modal", async ({ page }) => {
+  test("export and import buttons visible in manage agents modal", async ({
+    page,
+  }) => {
     await login(page, DEMO_USER.email, DEMO_USER.password);
     await selectServer(page, serverName);
 
-    // Open manage agents modal via server settings
-    await page
-      .getByRole("button", { name: /settings/i })
-      .first()
-      .click();
-    await page.getByText("Manage Agents").click();
-    await page.waitForTimeout(500);
+    // The "Manage Agents" button is in the channel sidebar
+    const manageBtn = page.locator("button").filter({
+      has: page.locator('text="Manage Agents"'),
+    });
+    await expect(manageBtn.first()).toBeVisible({ timeout: 10_000 });
+    await manageBtn.first().click();
+    await page.waitForTimeout(1_000);
 
-    // The export button should be visible for each agent
+    // Export button should be visible for each agent
     const exportBtn = page.locator(`[data-testid^="agent-export-btn-"]`);
     await expect(exportBtn.first()).toBeVisible({ timeout: 5_000 });
-  });
 
-  test("import button visible in manage agents modal", async ({ page }) => {
-    await login(page, DEMO_USER.email, DEMO_USER.password);
-    await selectServer(page, serverName);
-
-    await page
-      .getByRole("button", { name: /settings/i })
-      .first()
-      .click();
-    await page.getByText("Manage Agents").click();
-    await page.waitForTimeout(500);
-
+    // Import button should be visible in the footer
     const importBtn = page.locator('[data-testid="agent-import-btn"]');
     await expect(importBtn).toBeVisible({ timeout: 5_000 });
   });
@@ -162,13 +158,13 @@ test.describe("Section 18: Agent Sharing via Config Templates", () => {
     fs.writeFileSync(tmpFile, JSON.stringify(template, null, 2));
 
     try {
-      // Open manage agents modal
-      await page
-        .getByRole("button", { name: /settings/i })
-        .first()
-        .click();
-      await page.getByText("Manage Agents").click();
-      await page.waitForTimeout(500);
+      // Open manage agents modal from sidebar
+      const manageBtn = page.locator("button").filter({
+        has: page.locator('text="Manage Agents"'),
+      });
+      await expect(manageBtn.first()).toBeVisible({ timeout: 10_000 });
+      await manageBtn.first().click();
+      await page.waitForTimeout(1_000);
 
       // Upload the file via hidden input
       const fileInput = page.locator('[data-testid="agent-import-input"]');
@@ -216,7 +212,12 @@ test.describe("Section 18: Agent Sharing via Config Templates", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ template: args.tpl }),
         });
-        return res.json();
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return { _raw: text };
+        }
       },
       { sid: serverId, tpl: exported },
     );

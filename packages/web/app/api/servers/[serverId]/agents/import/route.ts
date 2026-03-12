@@ -89,9 +89,12 @@ export async function POST(
   const thinkingSteps = template.thinkingSteps ?? null;
   const enabledTools = template.enabledTools ?? null;
 
-  // Build agent data
+  // Build agent data — match existing creation pattern (explicit id + serverId)
+  const agentId = generateId();
   const agentData: Record<string, unknown> = {
+    id: agentId,
     name,
+    serverId,
     llmProvider,
     llmModel,
     apiEndpoint,
@@ -102,7 +105,6 @@ export async function POST(
     thinkingSteps,
     enabledTools,
     isActive: true,
-    server: { connect: { id: serverId } },
   };
 
   // Optional API key from the importing user
