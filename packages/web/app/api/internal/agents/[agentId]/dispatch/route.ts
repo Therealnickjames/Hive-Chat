@@ -15,10 +15,6 @@ import {
 import { parseSseChunk } from "@/lib/parse-sse-chunk";
 import type { SseTokenEvent } from "@/lib/parse-sse-chunk";
 
-// Re-export for backwards compatibility
-export { parseSseChunk };
-export type { SseTokenEvent };
-
 /**
  * POST /api/internal/agents/{agentId}/dispatch — Webhook dispatch (DEC-0043)
  *
