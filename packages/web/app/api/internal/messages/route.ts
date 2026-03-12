@@ -210,14 +210,7 @@ export async function GET(request: NextRequest) {
         thinkingTimeline: m.thinkingTimeline
           ? JSON.parse(m.thinkingTimeline)
           : undefined, // TASK-0011
-        tokenHistory: m.tokenHistory
-          ? (JSON.parse(m.tokenHistory) as Array<Record<string, number>>).map(
-              (e) => ({
-                contentOffset: e.contentOffset ?? e.o,
-                elapsedMs: e.elapsedMs ?? e.t,
-              }),
-            )
-          : undefined, // TASK-0021
+        tokenHistory: m.tokenHistory ? JSON.parse(m.tokenHistory) : undefined, // TASK-0021
         checkpoints: m.checkpoints ? JSON.parse(m.checkpoints) : undefined, // TASK-0021
         metadata: m.metadata || undefined, // TASK-0039
         reactions,
