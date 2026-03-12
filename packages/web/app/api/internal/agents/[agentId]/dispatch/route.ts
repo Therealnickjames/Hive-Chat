@@ -12,41 +12,12 @@ import {
   fetchChannelSequence,
 } from "@/lib/gateway-client";
 
-/** Parsed SSE event from an agent webhook stream. */
-interface SseTokenEvent {
-  token?: string;
-  done?: boolean;
-  finalContent?: string;
-  metadata?: Record<string, unknown>;
-}
+import { parseSseChunk } from "@/lib/parse-sse-chunk";
+import type { SseTokenEvent } from "@/lib/parse-sse-chunk";
 
-/**
- * Parse SSE data lines from a buffered chunk, returning parsed events and
- * the remaining (incomplete) buffer.
- */
-export function parseSseChunk(
-  buffer: string,
-  chunk: string,
-): { events: SseTokenEvent[]; remaining: string } {
-  const combined = buffer + chunk;
-  const lines = combined.split("\n");
-  const remaining = lines.pop() || "";
-  const events: SseTokenEvent[] = [];
-
-  for (const line of lines) {
-    if (!line.startsWith("data: ")) continue;
-    const data = line.slice(6).trim();
-    if (data === "[DONE]") continue;
-
-    try {
-      events.push(JSON.parse(data) as SseTokenEvent);
-    } catch {
-      // Skip malformed SSE data
-    }
-  }
-
-  return { events, remaining };
-}
+// Re-export for backwards compatibility
+export { parseSseChunk };
+export type { SseTokenEvent };
 
 /**
  * POST /api/internal/agents/{agentId}/dispatch — Webhook dispatch (DEC-0043)

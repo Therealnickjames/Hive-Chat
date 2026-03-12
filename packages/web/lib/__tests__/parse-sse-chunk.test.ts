@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSseChunk } from "@/app/api/internal/agents/[agentId]/dispatch/route";
+import { parseSseChunk } from "@/lib/parse-sse-chunk";
 
 describe("parseSseChunk", () => {
   it("parses a complete SSE data line with token", () => {
