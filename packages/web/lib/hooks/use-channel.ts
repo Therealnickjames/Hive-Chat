@@ -41,7 +41,7 @@ export interface MessagePayload {
   thinkingPhase?: string;
   thinkingTimeline?: Array<{ phase: string; timestamp: string }>; // TASK-0011
   metadata?: Record<string, unknown> | null; // Agent execution metadata: model, tokens, latency (TASK-0039)
-  tokenHistory?: Array<{ contentOffset: number; elapsedMs: number }>;
+  tokenHistory?: Array<{ o: number; t: number }>;
   checkpoints?: Array<{
     index: number;
     label: string;
