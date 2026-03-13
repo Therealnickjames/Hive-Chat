@@ -180,12 +180,12 @@ test.describe("Section 23: Server Settings", () => {
     const overlay = page.locator('[data-testid="server-settings-overlay"]');
 
     // Wait for member names to appear (the fetch populates the member list)
-    await expect(
-      overlay.getByText(`@${DEMO_USER.username}`),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(
-      overlay.getByText(`@${ALICE.username}`),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(overlay.getByText(`@${DEMO_USER.username}`)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(overlay.getByText(`@${ALICE.username}`)).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("Invites tab — create invite shows in list", async ({ page }) => {
