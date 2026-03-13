@@ -152,7 +152,12 @@ export function InvitesSection({ serverId }: InvitesSectionProps) {
             </select>
           </div>
         </div>
-        <Button onClick={handleCreate} loading={creating} className="w-full">
+        <Button
+          onClick={handleCreate}
+          loading={creating}
+          className="w-full"
+          data-testid="settings-create-invite-btn"
+        >
           Generate Invite Link
         </Button>
       </div>

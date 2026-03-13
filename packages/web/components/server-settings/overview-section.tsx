@@ -199,12 +199,17 @@ export function OverviewSection({
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={50}
+          data-testid="settings-server-name-input"
         />
 
         {error && <p className="text-xs text-status-error">{error}</p>}
         {success && <p className="text-xs text-status-success">{success}</p>}
 
-        <Button onClick={handleSave} loading={saving}>
+        <Button
+          onClick={handleSave}
+          loading={saving}
+          data-testid="settings-save-btn"
+        >
           Save Changes
         </Button>
       </div>

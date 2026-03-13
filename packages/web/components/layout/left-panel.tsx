@@ -221,6 +221,7 @@ export function LeftPanel() {
                           onClick={() => setShowServerSettings(true)}
                           className="rounded-lg p-1 text-text-muted transition-colors hover:bg-background-floating/60 hover:text-text-primary"
                           title="Server Settings"
+                          data-testid="server-settings-btn"
                         >
                           <Settings2 className="h-3.5 w-3.5" />
                         </button>

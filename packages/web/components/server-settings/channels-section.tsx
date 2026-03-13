@@ -204,7 +204,11 @@ export function ChannelsSection({ serverId }: ChannelsSectionProps) {
           </div>
         </div>
       ) : (
-        <Button onClick={() => setShowCreate(true)} className="w-full">
+        <Button
+          onClick={() => setShowCreate(true)}
+          className="w-full"
+          data-testid="settings-create-channel-btn"
+        >
           <Plus className="mr-1.5 h-4 w-4 inline" />
           Create Channel
         </Button>

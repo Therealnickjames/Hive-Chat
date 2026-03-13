@@ -14,12 +14,14 @@ interface MemberOption {
 
 interface DangerZoneSectionProps {
   serverId: string;
+  serverName: string;
   isOwner: boolean;
   onClose: () => void;
 }
 
 export function DangerZoneSection({
   serverId,
+  serverName,
   isOwner,
   onClose,
 }: DangerZoneSectionProps) {
@@ -83,7 +85,7 @@ export function DangerZoneSection({
   }
 
   async function handleDelete() {
-    if (deleteConfirm !== "DELETE") return;
+    if (deleteConfirm !== serverName) return;
     if (
       !window.confirm(
         "This is your final confirmation. Delete this server permanently?",
@@ -182,14 +184,16 @@ export function DangerZoneSection({
             type="text"
             value={deleteConfirm}
             onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder='Type "DELETE" to confirm'
+            placeholder="Type server name to confirm"
             className="flex-1 rounded bg-background-tertiary px-3 py-2 text-sm text-text-primary outline-none ring-1 ring-transparent transition focus:ring-status-error"
+            data-testid="settings-delete-confirm-input"
           />
           <Button
             onClick={handleDelete}
             loading={deleting}
-            disabled={deleteConfirm !== "DELETE"}
+            disabled={deleteConfirm !== serverName}
             className="bg-status-error hover:bg-status-error/80 text-white"
+            data-testid="settings-delete-server-btn"
           >
             Delete Server
           </Button>

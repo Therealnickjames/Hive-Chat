@@ -66,7 +66,10 @@ export function ServerSettingsOverlay({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-background-primary">
+    <div
+      className="fixed inset-0 z-50 flex bg-background-primary"
+      data-testid="server-settings-overlay"
+    >
       {/* Left sidebar navigation */}
       <div className="w-56 shrink-0 border-r border-border bg-background-secondary flex flex-col">
         <div className="p-4 border-b border-border">
@@ -80,6 +83,7 @@ export function ServerSettingsOverlay({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
+              data-testid={`settings-tab-${tab.key}`}
               className={`flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors mb-0.5 ${
                 activeTab === tab.key
                   ? "bg-brand/10 text-brand"
@@ -105,6 +109,7 @@ export function ServerSettingsOverlay({
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-background-secondary hover:text-text-primary"
             title="Close (Esc)"
+            data-testid="settings-close-btn"
           >
             <X className="h-5 w-5" />
           </button>
@@ -129,6 +134,7 @@ export function ServerSettingsOverlay({
             {activeTab === "danger" && (
               <DangerZoneSection
                 serverId={serverId}
+                serverName={serverName}
                 isOwner={isOwner}
                 onClose={onClose}
               />
