@@ -29,6 +29,12 @@ export async function GET(
       return NextResponse.json({ error: "Not a member" }, { status: 403 });
     }
 
+    // Fetch server to determine owner
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+
     const members = await prisma.member.findMany({
       where: { serverId },
       include: {
@@ -39,6 +45,9 @@ export async function GET(
             displayName: true,
             avatarUrl: true,
           },
+        },
+        roles: {
+          select: { id: true, name: true, color: true },
         },
       },
       orderBy: { joinedAt: "asc" },
@@ -52,6 +61,8 @@ export async function GET(
       avatarUrl: m.user.avatarUrl,
       nickname: m.nickname,
       joinedAt: m.joinedAt.toISOString(),
+      roles: m.roles,
+      isOwner: m.user.id === server?.ownerId,
     }));
 
     return NextResponse.json({ members: payload });
