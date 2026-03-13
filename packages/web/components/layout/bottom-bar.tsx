@@ -41,9 +41,7 @@ export function BottomBar() {
           <Server className="h-3 w-3" />
           Redis 7
         </div>
-        <div className="text-[9px] tracking-[0.1em] text-text-dim">
-          v1.0.0
-        </div>
+        <div className="text-[9px] tracking-[0.1em] text-text-dim">v1.0.0</div>
       </div>
     </div>
   );

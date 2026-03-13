@@ -50,8 +50,12 @@ function LoginForm() {
   return (
     <div className="rounded-lg border border-white/[0.04] bg-background-floating p-8 panel-shadow">
       <div className="mb-6 text-center">
-        <div className="mb-3 font-display text-sm font-bold tracking-[0.18em] text-brand">TAVOK</div>
-        <h1 className="text-xl font-semibold text-text-primary">Welcome back</h1>
+        <div className="mb-3 font-display text-sm font-bold tracking-[0.18em] text-brand">
+          TAVOK
+        </div>
+        <h1 className="text-xl font-semibold text-text-primary">
+          Welcome back
+        </h1>
         <p className="mt-1 text-[12.5px] text-text-muted">
           Sign in to continue
         </p>

@@ -102,9 +102,7 @@ export function StreamingMessage({
               {formatTime(message.createdAt)}
             </span>
           </div>
-          <p className="text-[12px] text-text-dim italic">
-            [message deleted]
-          </p>
+          <p className="text-[12px] text-text-dim italic">[message deleted]</p>
         </div>
       </div>
     );
@@ -125,9 +123,7 @@ export function StreamingMessage({
           )}
           <div className="text-[12.5px] text-text-secondary leading-[1.65]">
             <MarkdownContent content={text} mentionNames={mentionNames} />
-            {isActive && (
-              <span className="streaming-cursor" />
-            )}
+            {isActive && <span className="streaming-cursor" />}
             {message.editedAt && (
               <span className="text-[10px] text-text-muted font-mono ml-1">
                 (edited)
@@ -296,16 +292,12 @@ export function StreamingMessage({
             </span>
           )}
           {message.editedAt && (
-            <span className="text-[10px] text-text-dim">
-              (edited)
-            </span>
+            <span className="text-[10px] text-text-dim">(edited)</span>
           )}
         </div>
         <div className="text-[12.5px] text-text-secondary leading-[1.65]">
           <MarkdownContent content={text} mentionNames={mentionNames} />
-          {isActive && (
-            <span className="streaming-cursor" />
-          )}
+          {isActive && <span className="streaming-cursor" />}
         </div>
         {files.map((file) => (
           <FileAttachment

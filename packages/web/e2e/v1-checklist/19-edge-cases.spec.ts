@@ -40,7 +40,7 @@ test.describe("Section 19: Edge Cases", () => {
 
     // The input should still contain whitespace or be empty (message was not sent)
     // No new message with just spaces should appear in the chat
-    const messages = await page.locator("div.group.flex.gap-4.px-4").count();
+    const messages = await page.locator("div.group.flex.gap-3.px-4").count();
 
     // Send a real message to verify chat still works
     const realMsg = `After-whitespace-${Date.now()}`;

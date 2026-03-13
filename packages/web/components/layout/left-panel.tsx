@@ -158,7 +158,9 @@ export function LeftPanel() {
               </div>
 
               {dmsLoading ? (
-                <div className="px-2.5 text-[11px] text-text-dim">Loading...</div>
+                <div className="px-2.5 text-[11px] text-text-dim">
+                  Loading...
+                </div>
               ) : dmConversations.length === 0 ? (
                 <div className="mx-2 rounded-md bg-background-primary/50 px-3 py-4 text-center text-[11px] text-text-dim">
                   No direct messages yet.
@@ -290,9 +292,7 @@ export function LeftPanel() {
                 <div className="mx-2 rounded-md bg-background-primary/50 px-3 py-6 text-center text-[12px] text-text-dim">
                   <ServerIcon className="mx-auto mb-2 h-6 w-6 text-text-dim/60" />
                   Select a server from the{" "}
-                  <span className="font-medium text-text-muted">
-                    SERVERS
-                  </span>{" "}
+                  <span className="font-medium text-text-muted">SERVERS</span>{" "}
                   tab to view channels.
                 </div>
               )}

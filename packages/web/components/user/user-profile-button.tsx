@@ -106,7 +106,9 @@ export function UserProfileButton() {
             <div className="truncate text-[12px] font-medium text-text-secondary">
               {displayName}
             </div>
-            <div className="truncate text-[10px] text-text-dim">@{username}</div>
+            <div className="truncate text-[10px] text-text-dim">
+              @{username}
+            </div>
           </div>
         </button>
 

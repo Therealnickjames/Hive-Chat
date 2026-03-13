@@ -44,7 +44,7 @@ async function openEmojiPicker(
   messageText: string,
 ): Promise<void> {
   const msgContainer = page
-    .locator("div.group.flex.gap-4.px-4")
+    .locator("div.group.flex.gap-3.px-4")
     .filter({ hasText: messageText })
     .first();
   await msgContainer.hover();
@@ -95,7 +95,7 @@ test.describe("Section 10: Emoji Reactions", () => {
 
     // Verify reaction badge with count 1
     const msgContainer = page
-      .locator("div.group.flex.gap-4.px-4")
+      .locator("div.group.flex.gap-3.px-4")
       .filter({ hasText: msg })
       .first();
     const reactionBadge = msgContainer.locator("button.rounded-full.px-2");
@@ -135,7 +135,7 @@ test.describe("Section 10: Emoji Reactions", () => {
       // User B clicks the same reaction badge
       await pageB.waitForTimeout(2_000);
       const msgContainerB = pageB
-        .locator("div.group.flex.gap-4.px-4")
+        .locator("div.group.flex.gap-3.px-4")
         .filter({ hasText: msg })
         .first();
       const reactionBadge = msgContainerB
@@ -171,7 +171,7 @@ test.describe("Section 10: Emoji Reactions", () => {
 
     // Verify badge appeared
     const msgContainer = page
-      .locator("div.group.flex.gap-4.px-4")
+      .locator("div.group.flex.gap-3.px-4")
       .filter({ hasText: msg })
       .first();
     const reactionBadge = msgContainer

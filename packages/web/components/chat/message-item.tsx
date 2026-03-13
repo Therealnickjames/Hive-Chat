@@ -91,7 +91,9 @@ export function MessageItem({
         <div className="group mx-2 flex gap-3 rounded-md px-4 py-1">
           <div className="w-9 flex-shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] italic text-text-dim">[message deleted]</p>
+            <p className="text-[12px] italic text-text-dim">
+              [message deleted]
+            </p>
           </div>
         </div>
       );
@@ -120,9 +122,7 @@ export function MessageItem({
 
   if (isGrouped) {
     return (
-      <div
-        className="group relative mx-2 flex gap-3 rounded-md px-4 py-0.5 transition-colors hover:bg-white/[0.01]"
-      >
+      <div className="group relative mx-2 flex gap-3 rounded-md px-4 py-0.5 transition-colors hover:bg-white/[0.01]">
         <div className="w-9 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           {isEditing ? (
@@ -170,9 +170,7 @@ export function MessageItem({
   }
 
   return (
-    <div
-      className="group relative mx-2 mt-[14px] flex gap-3 rounded-md px-4 py-2 transition-colors hover:bg-white/[0.01]"
-    >
+    <div className="group relative mx-2 mt-[14px] flex gap-3 rounded-md px-4 py-2 transition-colors hover:bg-white/[0.01]">
       {/* Avatar */}
       <div
         className={`flex-shrink-0 pt-0.5 ${!isAgent ? "cursor-pointer" : ""}`}
@@ -216,9 +214,7 @@ export function MessageItem({
             {formatTime(message.createdAt)}
           </span>
           {message.editedAt && (
-            <span className="text-[10px] text-text-dim">
-              (edited)
-            </span>
+            <span className="text-[10px] text-text-dim">(edited)</span>
           )}
         </div>
         {isEditing ? (
