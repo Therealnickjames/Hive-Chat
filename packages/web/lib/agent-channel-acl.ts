@@ -62,7 +62,11 @@ export async function verifyAgentChannelsAccess(
     channels.length !== uniqueChannelIds.length ||
     channels.some((channel) => channel.serverId !== agent.serverId)
   ) {
-    return { ok: false, status: 404, error: "One or more channels were not found" };
+    return {
+      ok: false,
+      status: 404,
+      error: "One or more channels were not found",
+    };
   }
 
   const assignments = await prisma.channelAgent.findMany({

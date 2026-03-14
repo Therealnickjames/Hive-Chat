@@ -71,7 +71,10 @@ const {
   function matchesChannelWhere(channel: any, where: any = {}) {
     if (!where) return true;
 
-    if (typeof where.serverId === "string" && channel.serverId !== where.serverId) {
+    if (
+      typeof where.serverId === "string" &&
+      channel.serverId !== where.serverId
+    ) {
       return false;
     }
 
@@ -122,7 +125,9 @@ const {
         );
 
         if (orderBy?.position === "asc") {
-          channels = channels.toSorted((left, right) => left.position - right.position);
+          channels = channels.toSorted(
+            (left, right) => left.position - right.position,
+          );
         }
 
         return channels.map((channel) => selectFields(channel, select));
@@ -179,7 +184,9 @@ const {
     },
     channelAgent: {
       findFirst: vi.fn(async ({ where }: any) => {
-        const channel = fixtures.channels.find((candidate) => candidate.id === where.channelId);
+        const channel = fixtures.channels.find(
+          (candidate) => candidate.id === where.channelId,
+        );
         if (!channel || !channel.assignedAgentIds.includes(where.agentId)) {
           return null;
         }
@@ -188,7 +195,10 @@ const {
       findMany: vi.fn(async ({ where, select }: any) => {
         const rows = fixtures.channels
           .filter((channel) => {
-            if (where?.channelId?.in && !where.channelId.in.includes(channel.id)) {
+            if (
+              where?.channelId?.in &&
+              !where.channelId.in.includes(channel.id)
+            ) {
               return false;
             }
             return channel.assignedAgentIds.includes(where.agentId);
@@ -281,7 +291,9 @@ beforeEach(() => {
 
 describe("agent route ACL normalization", () => {
   it("lists only assigned channels in OpenAI model discovery", async () => {
-    const response = await getModels(makeRequest("http://localhost/api/v1/models"));
+    const response = await getModels(
+      makeRequest("http://localhost/api/v1/models"),
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -311,7 +323,9 @@ describe("agent route ACL normalization", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       server: { id: "server-1", name: "Tavok Test" },
-      channels: [{ id: "channel-assigned", websocketTopic: "room:channel-assigned" }],
+      channels: [
+        { id: "channel-assigned", websocketTopic: "room:channel-assigned" },
+      ],
       agents: [{ id: "agent-1" }, { id: "agent-2" }],
     });
   });
