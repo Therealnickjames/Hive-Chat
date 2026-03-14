@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getCreatedDmIdFromResponse, getDmListFromResponse } from "@/lib/dm-api";
+import {
+  getCreatedDmIdFromResponse,
+  getDmListFromResponse,
+} from "@/lib/dm-api";
 
 /**
  * TASK-0019: DM conversation list item.
