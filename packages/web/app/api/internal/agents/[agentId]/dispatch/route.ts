@@ -199,7 +199,9 @@ export async function POST(
             }
             if (evt.done) {
               const resolvedFinalContent = evt.finalContent || fullContent;
-              const metadataResult = validateOptionalMessageMetadata(evt.metadata);
+              const metadataResult = validateOptionalMessageMetadata(
+                evt.metadata,
+              );
               if (!metadataResult.ok) {
                 throw new Error(metadataResult.error);
               }

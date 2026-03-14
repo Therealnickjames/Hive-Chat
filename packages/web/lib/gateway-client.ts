@@ -168,9 +168,7 @@ export async function broadcastTypedMessage(
 /**
  * Fetch the next Gateway-owned monotonic sequence for a channel.
  */
-export async function fetchChannelSequence(
-  channelId: string,
-): Promise<string> {
+export async function fetchChannelSequence(channelId: string): Promise<string> {
   const secret = getInternalApiSecret();
   if (!secret) {
     throw new Error("INTERNAL_API_SECRET is not configured");
@@ -193,9 +191,9 @@ export async function fetchChannelSequence(
     );
   }
 
-  const body = (await response.json().catch(() => null)) as
-    | { sequence?: unknown }
-    | null;
+  const body = (await response.json().catch(() => null)) as {
+    sequence?: unknown;
+  } | null;
 
   if (typeof body?.sequence !== "string" || !/^\d+$/.test(body.sequence)) {
     throw new Error("Gateway sequence response missing numeric sequence");

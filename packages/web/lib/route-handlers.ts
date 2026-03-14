@@ -156,7 +156,10 @@ export function createInternalMessagesPostHandler({
 
     const metadataResult = validateOptionalMessageMetadata(body.metadata);
     if (!metadataResult.ok) {
-      return NextResponse.json({ error: metadataResult.error }, { status: 400 });
+      return NextResponse.json(
+        { error: metadataResult.error },
+        { status: 400 },
+      );
     }
 
     const metadata = metadataResult.metadata; // TASK-0039: agent execution metadata (optional)

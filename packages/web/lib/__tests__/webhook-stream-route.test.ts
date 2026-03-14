@@ -82,14 +82,17 @@ describe("POST /api/v1/webhooks/[token]/stream", () => {
       latencyMs: 2300,
     };
 
-    const response = await POST(makeRequest({
-      messageId: "message-1",
-      done: true,
-      finalContent: "done",
-      metadata,
-    }), {
-      params: Promise.resolve({ token: "whk_test" }),
-    });
+    const response = await POST(
+      makeRequest({
+        messageId: "message-1",
+        done: true,
+        finalContent: "done",
+        metadata,
+      }),
+      {
+        params: Promise.resolve({ token: "whk_test" }),
+      },
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -113,14 +116,17 @@ describe("POST /api/v1/webhooks/[token]/stream", () => {
   });
 
   it("rejects non-object metadata before broadcasting or persisting", async () => {
-    const response = await POST(makeRequest({
-      messageId: "message-1",
-      done: true,
-      finalContent: "done",
-      metadata: "{\"model\":\"bad\"}",
-    }), {
-      params: Promise.resolve({ token: "whk_test" }),
-    });
+    const response = await POST(
+      makeRequest({
+        messageId: "message-1",
+        done: true,
+        finalContent: "done",
+        metadata: '{"model":"bad"}',
+      }),
+      {
+        params: Promise.resolve({ token: "whk_test" }),
+      },
+    );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({

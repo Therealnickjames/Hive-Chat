@@ -339,7 +339,7 @@ describe("TASK-0039: Metadata Persistence", () => {
         body: makeTypedMessageBody(
           "STATUS",
           JSON.stringify({ state: "thinking", detail: "Working" }),
-          { metadata: "{\"model\":\"bad\"}" },
+          { metadata: '{"model":"bad"}' },
         ),
       }),
     );

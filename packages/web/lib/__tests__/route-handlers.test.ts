@@ -815,7 +815,7 @@ describe("PUT /api/internal/messages/{messageId} — finalization", () => {
         body: {
           content: "response",
           streamingStatus: "COMPLETE",
-          metadata: "{\"model\":\"bad\"}",
+          metadata: '{"model":"bad"}',
         },
       }),
       routeCtx,
