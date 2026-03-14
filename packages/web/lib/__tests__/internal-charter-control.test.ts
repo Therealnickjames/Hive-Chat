@@ -1,20 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Permissions } from "@/lib/permissions";
 
-const {
-  mockPrisma,
-  mockValidateInternalSecret,
-  mockCheckMemberPermission,
-} = vi.hoisted(() => ({
-  mockPrisma: {
-    channel: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
+const { mockPrisma, mockValidateInternalSecret, mockCheckMemberPermission } =
+  vi.hoisted(() => ({
+    mockPrisma: {
+      channel: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+      },
     },
-  },
-  mockValidateInternalSecret: vi.fn(() => true),
-  mockCheckMemberPermission: vi.fn(),
-}));
+    mockValidateInternalSecret: vi.fn(() => true),
+    mockCheckMemberPermission: vi.fn(),
+  }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/internal-auth", () => ({
@@ -31,11 +28,14 @@ const routeParams = {
 };
 
 function makeRequest(body: unknown) {
-  return new Request("http://localhost/api/internal/channels/channel-1/charter-control", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }) as any;
+  return new Request(
+    "http://localhost/api/internal/channels/channel-1/charter-control",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  ) as any;
 }
 
 describe("internal charter control auth", () => {
