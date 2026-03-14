@@ -4,6 +4,7 @@ import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { serializeSequence } from "@/lib/api-safety";
 import { checkAgentRateLimit } from "@/lib/rate-limit";
 import { logAgentAction } from "@/lib/agent-audit";
+import { verifyAgentChannelAccess } from "@/lib/agent-channel-acl";
 
 /**
  * GET /api/v1/agents/{id}/channels/{channelId}/messages — Channel history
@@ -32,29 +33,11 @@ export async function GET(
     );
   }
 
-  // Verify channel belongs to agent's server
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: { serverId: true },
-  });
-
-  if (!channel || channel.serverId !== agent.serverId) {
+  const channelAccess = await verifyAgentChannelAccess(agent, channelId);
+  if (!channelAccess.ok) {
     return NextResponse.json(
-      { error: "Channel not found or not in agent's server" },
-      { status: 403 },
-    );
-  }
-
-  // ── Channel ACL: verify agent is assigned to this channel ──
-  const channelAgent = await prisma.channelAgent.findFirst({
-    where: { channelId, agentId: agent.agentId },
-    select: { id: true },
-  });
-
-  if (!channelAgent) {
-    return NextResponse.json(
-      { error: "Agent is not assigned to this channel" },
-      { status: 403 },
+      { error: channelAccess.error },
+      { status: channelAccess.status },
     );
   }
 

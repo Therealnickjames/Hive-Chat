@@ -5,6 +5,7 @@ import { generateId } from "@/lib/ulid";
 import crypto from "crypto";
 import { authenticateAgentRequest } from "@/lib/agent-auth";
 import { getInternalBaseUrl } from "@/lib/internal-auth";
+import { verifyAgentChannelAccess } from "@/lib/agent-channel-acl";
 
 /** Zod schema for webhook creation POST body. */
 const webhookCreateSchema = z
@@ -50,20 +51,11 @@ export async function POST(request: NextRequest) {
 
   const { channelId, name, avatarUrl } = body;
 
-  // Verify channel exists and belongs to agent's server
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: { id: true, serverId: true },
-  });
-
-  if (!channel) {
-    return NextResponse.json({ error: "Channel not found" }, { status: 404 });
-  }
-
-  if (channel.serverId !== agent.serverId) {
+  const channelAccess = await verifyAgentChannelAccess(agent, channelId);
+  if (!channelAccess.ok) {
     return NextResponse.json(
-      { error: "Channel does not belong to agent's server" },
-      { status: 403 },
+      { error: channelAccess.error },
+      { status: channelAccess.status },
     );
   }
 

@@ -4,6 +4,7 @@ import {
   authenticateAgentRequest,
 } from "@/lib/agent-auth";
 import { prisma } from "@/lib/db";
+import { verifyAgentChannelsAccess } from "@/lib/agent-channel-acl";
 
 /**
  * GET /api/v1/agents/{id}/events — SSE event stream (DEC-0043, Phase 5)
@@ -20,7 +21,7 @@ import { prisma } from "@/lib/db";
  * Auth: Authorization: Bearer sk-tvk-... or ?api_key=sk-tvk-...
  *
  * Query params:
- *   channels — comma-separated channel IDs to subscribe to
+ *   channels — comma-separated assigned channel IDs to subscribe to
  *   api_key — alternative auth for browser EventSource
  */
 export async function GET(
@@ -61,21 +62,16 @@ export async function GET(
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // Verify all channels belong to agent's server
-  const channels = await prisma.channel.findMany({
-    where: { id: { in: channelIds } },
-    select: { id: true, serverId: true },
-  });
-
-  const invalidChannels = channels.filter(
-    (c) => c.serverId !== agent!.serverId,
-  );
-  if (invalidChannels.length > 0) {
+  const channelAccess = await verifyAgentChannelsAccess(agent, channelIds);
+  if (!channelAccess.ok) {
     return new Response(
       JSON.stringify({
-        error: "Some channels don't belong to agent's server",
+        error: channelAccess.error,
       }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
+      {
+        status: channelAccess.status,
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 

@@ -11,6 +11,7 @@ import { getInternalBaseUrl } from "@/lib/internal-auth";
 import { persistMessage } from "@/lib/internal-api-client";
 import { checkAgentRateLimit } from "@/lib/rate-limit";
 import { logAgentAction } from "@/lib/agent-audit";
+import { verifyAgentChannelAccess } from "@/lib/agent-channel-acl";
 
 /**
  * GET /api/v1/agents/{id}/messages — Poll for messages (DEC-0043, Phase 4)
@@ -54,6 +55,19 @@ export async function GET(
   });
 
   try {
+    // Polling the full queue is agent-scoped. If the caller narrows to a
+    // channel, enforce ChannelAgent so the filter itself can't be used to
+    // probe unassigned channels.
+    if (channelId) {
+      const channelAccess = await verifyAgentChannelAccess(agent, channelId);
+      if (!channelAccess.ok) {
+        return NextResponse.json(
+          { error: channelAccess.error },
+          { status: channelAccess.status },
+        );
+      }
+    }
+
     // Build query
     const where: Record<string, unknown> = {
       agentId: agentId,
@@ -200,29 +214,11 @@ export async function POST(
     );
   }
 
-  // Verify channel belongs to agent's server
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: { serverId: true },
-  });
-
-  if (!channel || channel.serverId !== agent.serverId) {
+  const channelAccess = await verifyAgentChannelAccess(agent, channelId);
+  if (!channelAccess.ok) {
     return NextResponse.json(
-      { error: "Channel not found or not in agent's server" },
-      { status: 403 },
-    );
-  }
-
-  // ── Channel ACL: verify agent is assigned to this channel ──
-  const channelAgent = await prisma.channelAgent.findFirst({
-    where: { channelId, agentId: agent.agentId },
-    select: { id: true },
-  });
-
-  if (!channelAgent) {
-    return NextResponse.json(
-      { error: "Agent is not assigned to this channel" },
-      { status: 403 },
+      { error: channelAccess.error },
+      { status: channelAccess.status },
     );
   }
 

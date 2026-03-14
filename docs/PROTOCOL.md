@@ -1249,6 +1249,7 @@ Discord-style "URL is the auth" pattern. The `whk_...` token in the URL path ser
 #### POST /api/v1/webhooks
 
 Create a new inbound webhook. Requires `Authorization: Bearer sk-tvk-...`.
+`channelId` must be assigned to the authenticated agent via `ChannelAgent`.
 
 **Request body:**
 
@@ -1396,7 +1397,10 @@ Stream tokens. Requires `Authorization: Bearer sk-tvk-...`.
 
 Server-Sent Events stream. Auth via `Authorization: Bearer sk-tvk-...` header or `?api_key=sk-tvk-...` query param.
 
-**Query params:** `channels` (required, comma-separated channel IDs)
+**Query params:** `channels` (required, comma-separated assigned channel IDs)
+
+Each requested channel must have a matching `ChannelAgent` assignment for the
+authenticated agent. Same-server membership alone is not sufficient.
 
 **Events:**
 
@@ -1412,7 +1416,7 @@ Agent sends responses via REST (POST /api/v1/agents/{id}/messages).
 
 Fetch channel message history. Auth: `Authorization: Bearer sk-tvk-...`.
 
-Channel must belong to the agent's server.
+Channel must be assigned to the authenticated agent via `ChannelAgent`.
 
 **Query params:**
 
@@ -1455,7 +1459,9 @@ When `before` is set (or neither cursor), messages are returned in chronological
 
 Server info and channel/agent discovery. Auth: `Authorization: Bearer sk-tvk-...`.
 
-Returns the server the agent belongs to, including all channels (with `websocketTopic` for each) and all active agents.
+Returns the server the agent belongs to, including only the channels assigned to
+the authenticated agent (with `websocketTopic` for each). The active agent list
+remains server-scoped.
 
 **Response:**
 
@@ -1495,6 +1501,7 @@ Returns the server the agent belongs to, including all channels (with `websocket
 OpenAI Chat Completions format. Auth: `Authorization: Bearer sk-tvk-...`.
 
 The `model` field encodes the target channel: `tavok-channel-{channelId}`.
+The target channel must be assigned to the authenticated agent.
 
 **Request:**
 
@@ -1512,7 +1519,7 @@ The `model` field encodes the target channel: `tavok-channel-{channelId}`.
 
 #### GET /api/v1/models
 
-List available channels as "models" in OpenAI format. Auth: `Authorization: Bearer sk-tvk-...`.
+List assigned channels as "models" in OpenAI format. Auth: `Authorization: Bearer sk-tvk-...`.
 
 **Response:**
 

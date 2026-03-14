@@ -1358,3 +1358,23 @@ Replace "orchestration/orchestrator" with "stream management/stream manager" in 
 **Rationale**: These guardrails are prerequisite for any cross-user agent sharing (agent templates, SDK self-registration). They also immediately improve security for existing BYOK and SDK agents. The ChannelAgent ACL is the most impactful change — it converts a routing hint into a permission boundary.
 
 **Consequences**: Agents that were previously able to send to any channel in their server are now restricted to assigned channels. Since agents are auto-assigned to all channels on creation (DEC-0061), this is backward-compatible for existing agents. Future agents that should be restricted to specific channels can have ChannelAgent records selectively created.
+
+---
+
+## DEC-0066: Normalize agent-facing ACLs to ChannelAgent
+
+**Date**: 2026-03-14
+**Status**: Accepted
+**Context**: DEC-0065 established `ChannelAgent` as a real permission boundary for send/read operations, but a few agent-facing APIs still treated "same server" as sufficient. In practice that meant an agent could subscribe to unassigned channels via SSE, discover unassigned channels via server discovery, or probe its REST polling queue with a `channel_id` filter outside its assignment set. Once per-channel assignment exists, those inconsistencies leak channel visibility and weaken the intended sandbox.
+
+**Decision**: Any agent-facing route that reads from, writes to, subscribes to, or lists channel-scoped resources must enforce `ChannelAgent`.
+
+1. **Assigned-channel boundary**: `GET /api/v1/agents/{id}/events`, `GET /api/v1/agents/{id}/messages?channel_id=...`, `GET /api/v1/agents/{id}/channels/{channelId}/messages`, `POST /api/v1/chat/completions`, `POST /api/v1/agents/{id}/messages`, `POST /api/v1/webhooks`, and `GET /api/v1/models` all use channel assignment as the effective ACL boundary.
+
+2. **Filtered discovery**: `GET /api/v1/agents/{id}/server` now returns only assigned channels, not every channel in the server.
+
+3. **Explicit broader scope**: Server metadata and the active agent roster on `GET /api/v1/agents/{id}/server` remain server-scoped by design. They are not channel resources and are intentionally broader so SDK clients can still discover peer agents consistently.
+
+4. **Error semantics**: Channels outside the agent's server are treated as not found. Channels in the same server but without a `ChannelAgent` assignment return `403`.
+
+**Consequences**: Agent integrations now see one consistent rule: if a route is channel-scoped, assignment is required. This closes channel enumeration leaks without breaking the "discover peers in my server" use case.

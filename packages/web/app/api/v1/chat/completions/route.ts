@@ -7,6 +7,7 @@ import {
   fetchChannelSequence,
 } from "@/lib/gateway-client";
 import { getInternalBaseUrl } from "@/lib/internal-auth";
+import { verifyAgentChannelAccess } from "@/lib/agent-channel-acl";
 
 /**
  * POST /api/v1/chat/completions — OpenAI-compatible chat completions (DEC-0046)
@@ -106,39 +107,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Verify channel belongs to agent's server
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: { serverId: true },
-  });
-
-  if (!channel || channel.serverId !== agent.serverId) {
+  const channelAccess = await verifyAgentChannelAccess(agent, channelId);
+  if (!channelAccess.ok) {
     return NextResponse.json(
       {
         error: {
-          message: "Channel not found or not in agent's server",
+          message: channelAccess.error,
           type: "invalid_request_error",
-          code: "channel_not_found",
+          code:
+            channelAccess.status === 404
+              ? "channel_not_found"
+              : "unauthorized_channel",
         },
       },
-      { status: 404 },
-    );
-  }
-
-  // Verify agent is assigned to this channel
-  const channelAgent = await prisma.channelAgent.findFirst({
-    where: { channelId, agentId: agent.agentId },
-  });
-  if (!channelAgent) {
-    return NextResponse.json(
-      {
-        error: {
-          message: "Agent is not assigned to this channel",
-          type: "invalid_request_error",
-          code: "unauthorized_channel",
-        },
-      },
-      { status: 403 },
+      { status: channelAccess.status },
     );
   }
 

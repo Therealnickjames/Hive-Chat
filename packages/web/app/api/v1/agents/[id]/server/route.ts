@@ -5,8 +5,9 @@ import { authenticateAgentRequest } from "@/lib/agent-auth";
 /**
  * GET /api/v1/agents/{id}/server — Server info + channels
  *
- * Returns the server the agent belongs to, including all channels.
- * Lets agents discover their environment after registration.
+ * Returns the server the agent belongs to, including only channels the
+ * agent is assigned to. Server metadata and the active agent roster remain
+ * server-scoped so SDK clients can still discover peers consistently.
  *
  * Auth: Authorization: Bearer sk-tvk-...
  */
@@ -31,6 +32,9 @@ export async function GET(
       name: true,
       iconUrl: true,
       channels: {
+        where: {
+          channelAgents: { some: { agentId: agent.agentId } },
+        },
         select: {
           id: true,
           name: true,
