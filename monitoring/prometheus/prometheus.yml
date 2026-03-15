@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "tavok-web"
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["web:5555"]
+    # Pass internal secret for auth
+    headers:
+      x-internal-secret: "${INTERNAL_API_SECRET:-dev-internal-secret}"
+
+  - job_name: "tavok-gateway"
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["gateway:4001"]
+
+  - job_name: "tavok-streaming"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["streaming:4002"]

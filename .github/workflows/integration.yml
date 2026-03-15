@@ -59,6 +59,9 @@ jobs:
             sleep 1
           done
 
+      - name: Migration smoke test
+        run: bash scripts/db-migrate-test.sh
+
       - name: Register test users
         run: |
           # Register test users via the API (no seed script needed).
@@ -104,6 +107,15 @@ jobs:
 
       - name: Run regression harness
         run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/regression-harness.ps1
+
+      - name: Install k6
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz | tar xz
+          sudo mv k6-v0.49.0-linux-amd64/k6 /usr/local/bin/
+
+      - name: Load test smoke (messaging)
+        run: k6 run --duration 15s --vus 3 tests/load/k6-messaging.js || echo "Load test completed (non-blocking)"
+        continue-on-error: true
 
       - name: Install Playwright browsers
         run: cd packages/web && npx playwright install chromium --with-deps

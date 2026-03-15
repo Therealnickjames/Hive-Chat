@@ -1,0 +1,71 @@
+{
+  "dashboard": {
+    "title": "Tavok Overview",
+    "uid": "tavok-overview",
+    "timezone": "browser",
+    "refresh": "10s",
+    "panels": [
+      {
+        "title": "Active Streams",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [{ "expr": "tavok_streams_active", "legendFormat": "active" }],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 50, "color": "yellow" }, { "value": 100, "color": "red" }] } } }
+      },
+      {
+        "title": "Streams Started (rate/min)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+        "targets": [
+          { "expr": "rate(tavok_streams_started_total[1m]) * 60", "legendFormat": "started/min" },
+          { "expr": "rate(tavok_streams_completed_total[1m]) * 60", "legendFormat": "completed/min" },
+          { "expr": "rate(tavok_streams_errored_total[1m]) * 60", "legendFormat": "errored/min" }
+        ]
+      },
+      {
+        "title": "Tokens Emitted (rate/s)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [{ "expr": "rate(tavok_tokens_emitted_total[1m])", "legendFormat": "tokens/s" }]
+      },
+      {
+        "title": "TTFT p95 (ms)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+        "targets": [{ "expr": "tavok_ttft_ms{quantile=\"0.95\"}", "legendFormat": "p95" }],
+        "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 200, "color": "yellow" }, { "value": 500, "color": "red" }] } } }
+      },
+      {
+        "title": "Gateway BEAM Processes",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [{ "expr": "tavok_gateway_beam_processes", "legendFormat": "processes" }]
+      },
+      {
+        "title": "Web Memory (RSS)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [{ "expr": "tavok_web_memory_rss_bytes", "legendFormat": "RSS" }],
+        "fieldConfig": { "defaults": { "unit": "bytes" } }
+      },
+      {
+        "title": "Gateway Memory",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          { "expr": "tavok_gateway_memory_bytes{type=\"total\"}", "legendFormat": "total" },
+          { "expr": "tavok_gateway_memory_bytes{type=\"processes\"}", "legendFormat": "processes" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "bytes" } }
+      },
+      {
+        "title": "Provider Errors",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [{ "expr": "tavok_provider_errors_total", "legendFormat": "errors" }],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "red" }] } } }
+      }
+    ],
+    "time": { "from": "now-1h", "to": "now" }
+  }
+}

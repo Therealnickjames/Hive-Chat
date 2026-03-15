@@ -57,6 +57,7 @@ type streamRequest struct {
 	AgentID         string                   `json:"agentId"`
 	TriggerMsgID    string                   `json:"triggerMessageId"`
 	ContextMessages []provider.StreamMessage `json:"contextMessages"`
+	RequestID       string                   `json:"requestId,omitempty"`
 }
 
 // Manager tracks all active streams and coordinates lifecycle.
@@ -173,6 +174,16 @@ func (m *Manager) releaseSlot() {
 // the manager executes the tools, feeds results back, and continues streaming.
 // Capped at maxToolIterations to prevent infinite loops. (TASK-0018)
 func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
+	// Scoped logger with correlation ID for cross-service tracing
+	logger := m.logger.With(
+		"messageId", req.MessageID,
+		"channelId", req.ChannelID,
+		"agentId", req.AgentID,
+	)
+	if req.RequestID != "" {
+		logger = logger.With("requestId", req.RequestID)
+	}
+
 	// Register active stream
 	m.mu.Lock()
 	m.active[req.MessageID] = struct{}{}
@@ -189,8 +200,7 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	// 1. Fetch agent config
 	agentConfig, err := m.loader.GetAgent(req.AgentID)
 	if err != nil {
-		m.logger.Error("Failed to load agent config",
-			"agentId", req.AgentID,
+		logger.Error("Failed to load agent config",
 			"error", err,
 		)
 		m.publishError(ctx, req, "", "Failed to load agent configuration", 0, startTime)

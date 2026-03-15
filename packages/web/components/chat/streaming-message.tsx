@@ -1,3 +1,7 @@
+// TODO(TASK-0021): Checkpoint resume UI (onResumeStream, CheckpointResume component)
+// is implemented but the callback is never wired in message-list.tsx.
+// Wire up once TASK-0021 (Stream Rewind + Checkpoints + Resume) is complete.
+// The /api/internal/stream/resume endpoint is also ready but uncalled.
 "use client";
 
 import { useState, useMemo, useCallback } from "react";

@@ -67,6 +67,9 @@ docs/internal/
 *.tsbuildinfo
 uploads/
 
+# === Database backups ===
+backups/
+
 # === Dev tooling directories ===
 .agents/
 .claude/*

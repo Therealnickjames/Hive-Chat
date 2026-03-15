@@ -1,3 +1,6 @@
+// TODO(PROD-READY): Legacy component — replaced by ChatPanel (workspace/chat-panel.tsx).
+// Not imported or mounted anywhere. Retained for reference until ChatPanel is stable.
+// Remove entirely once ChatPanel covers all edge cases. See production-readiness audit.
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";

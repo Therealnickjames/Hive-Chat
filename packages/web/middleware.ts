@@ -22,6 +22,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Correlation ID: use incoming header or generate a new one
+  const requestId =
+    request.headers.get("x-request-id") ?? crypto.randomUUID();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-request-id", requestId);
+
   // Rate limit login attempts (POST to NextAuth credentials callback)
   if (
     pathname.startsWith("/api/auth/callback/credentials") &&
@@ -39,6 +45,7 @@ export async function middleware(request: NextRequest) {
           status: 429,
           headers: {
             "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+            "x-request-id": requestId,
           },
         },
       );
@@ -70,9 +77,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Public route → allow through
+  // Public route → allow through with correlation ID
   if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+    response.headers.set("x-request-id", requestId);
+    return response;
   }
 
   // Unauthenticated → redirect to login
@@ -80,7 +91,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+  response.headers.set("x-request-id", requestId);
+  return response;
 }
 
 export const config = {

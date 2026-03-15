@@ -1378,3 +1378,31 @@ Replace "orchestration/orchestrator" with "stream management/stream manager" in 
 4. **Error semantics**: Channels outside the agent's server are treated as not found. Channels in the same server but without a `ChannelAgent` assignment return `403`.
 
 **Consequences**: Agent integrations now see one consistent rule: if a route is channel-scoped, assignment is required. This closes channel enumeration leaks without breaking the "discover peers in my server" use case.
+
+---
+
+## DEC-0067 — Production Readiness: Observability, Migration Discipline, Release Gates
+
+**Date**: 2026-03-14
+**Status**: Accepted
+**Context**: External audit identified four gaps blocking production-grade status: (1) no backup/restore tooling or migration smoke tests, (2) no cross-service correlation IDs, metrics, dashboards, or runbooks, (3) existing load/failure tests exist but aren't formalized as release gates, (4) several components are built but unmounted or unwired.
+
+**Decision**: Ship four cross-cutting production-readiness improvements (TASK-0040 through TASK-0043):
+
+1. **Migration discipline** (TASK-0040): `db-backup.sh`/`db-restore.sh` scripts with retention, `db-migrate-test.sh` migration smoke test (fresh DB → apply → verify → cleanup), CI integration, and documented rollback path in INSTALL.md. Prisma doesn't generate down-migrations, so backup-before-upgrade is the rollback strategy.
+
+2. **Cross-service observability** (TASK-0041):
+   - `x-request-id` correlation IDs: Web middleware generates/propagates, Gateway's `Plug.RequestId` stores in Logger metadata and `web_client.ex` propagates to outbound calls, Gateway includes `requestId` in Redis stream requests, Go proxy attaches to scoped logger per stream worker
+   - Structured JSON logger for Web (`lib/logger.ts`) matching Go's slog and Elixir's custom formatter
+   - Prometheus `/metrics` endpoints on all 3 services (stream lifecycle counters, TTFT percentiles, BEAM process counts, Node.js memory)
+   - `docker-compose.monitoring.yml` overlay with Prometheus + Grafana
+   - Pre-built Grafana dashboard (Tavok Overview)
+   - 9 operational runbooks in `docs/RUNBOOKS.md`
+
+3. **Release validation gates** (TASK-0042): k6 soak test (10-min sustained load), `docs/RELEASE-GATE.md` with 9-gate checklist (unit → type → migration → integration → backup → load → soak → failure → smoke), k6 smoke run in CI (non-blocking).
+
+4. **Half-built surface audit** (TASK-0043): TODO/TASK annotations on 5 files — `chat-area.tsx` (legacy, replaced by ChatPanel), `bottom-bar.tsx` (unmounted), `/api/servers/discover` (no UI), `streaming-message.tsx` checkpoint resume and `/api/internal/stream/resume` (gated behind TASK-0021).
+
+**Rationale**: These changes add zero new features but make the existing surface production-trustworthy. Correlation IDs enable cross-service debugging. Metrics enable alerting before users notice. Migration tooling prevents data loss during upgrades. Release gates formalize what "ready to deploy" means.
+
+**Consequences**: Operators get backup/restore, monitoring, and runbooks. CI gains migration smoke test and load test smoke. Dead/unwired code is annotated for future cleanup. No behavioral changes to existing features.

@@ -84,6 +84,16 @@ function getInternalApiSecret(): string | undefined {
   return process.env.INTERNAL_API_SECRET;
 }
 
+function internalHeaders(requestId?: string): Record<string, string> {
+  const secret = getInternalApiSecret();
+  if (!secret) throw new Error("INTERNAL_API_SECRET is not configured");
+  const h: Record<string, string> = {
+    "x-internal-secret": secret,
+  };
+  if (requestId) h["x-request-id"] = requestId;
+  return h;
+}
+
 /**
  * Broadcast an event to a Phoenix Channel topic.
  *
@@ -99,19 +109,12 @@ export async function broadcastToChannel<T extends object>(
   topic: string,
   event: string,
   payload: T,
+  requestId?: string,
 ): Promise<void> {
-  const secret = getInternalApiSecret();
-  if (!secret) {
-    throw new Error("INTERNAL_API_SECRET is not configured");
-  }
-
   const gatewayUrl = getGatewayInternalUrl();
   const response = await fetch(`${gatewayUrl}/api/internal/broadcast`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": secret,
-    },
+    headers: { ...internalHeaders(requestId), "Content-Type": "application/json" },
     body: JSON.stringify({ topic, event, payload }),
   });
 
@@ -168,19 +171,15 @@ export async function broadcastTypedMessage(
 /**
  * Fetch the next Gateway-owned monotonic sequence for a channel.
  */
-export async function fetchChannelSequence(channelId: string): Promise<string> {
-  const secret = getInternalApiSecret();
-  if (!secret) {
-    throw new Error("INTERNAL_API_SECRET is not configured");
-  }
-
+export async function fetchChannelSequence(
+  channelId: string,
+  requestId?: string,
+): Promise<string> {
   const gatewayUrl = getGatewayInternalUrl();
   const response = await fetch(
     `${gatewayUrl}/api/internal/sequence?channelId=${encodeURIComponent(channelId)}`,
     {
-      headers: {
-        "x-internal-secret": secret,
-      },
+      headers: internalHeaders(requestId),
     },
   );
 

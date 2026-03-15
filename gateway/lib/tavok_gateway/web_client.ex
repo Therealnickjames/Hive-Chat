@@ -15,6 +15,15 @@ defmodule TavokGateway.WebClient do
     Application.get_env(:tavok_gateway, :internal_api_secret, "dev-internal-secret")
   end
 
+  defp req_headers do
+    base = [{"x-internal-secret", internal_secret()}]
+
+    case Logger.metadata()[:request_id] do
+      nil -> base
+      id -> [{"x-request-id", id} | base]
+    end
+  end
+
   @doc """
   Persist a message via POST /api/internal/messages.
   Returns {:ok, response_body} or {:error, reason}.
@@ -24,7 +33,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.post(url,
            json: body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 201, body: response_body}} ->
@@ -48,7 +57,7 @@ defmodule TavokGateway.WebClient do
     url = "#{web_url()}/api/internal/channels/#{channel_id}/agent"
 
     case Req.get(url,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -77,7 +86,7 @@ defmodule TavokGateway.WebClient do
     url = "#{web_url()}/api/internal/channels/#{channel_id}/agents"
 
     case Req.get(url,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: %{"agents" => agents}}} ->
@@ -105,7 +114,7 @@ defmodule TavokGateway.WebClient do
     url = "#{web_url()}/api/internal/channels/#{channel_id}"
 
     case Req.get(url,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -152,7 +161,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.get(url,
            params: [{"userId", user_id}],
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -187,7 +196,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.get(url,
            params: query_params,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -211,7 +220,7 @@ defmodule TavokGateway.WebClient do
     url = "#{web_url()}/api/internal/messages/#{message_id}"
 
     case Req.get(url,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -240,7 +249,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.put(url,
            json: update_body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -266,7 +275,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.patch(url,
            json: body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -292,7 +301,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.delete(url,
            json: body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -321,7 +330,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.post(url,
            json: payload,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 35_000
          ) do
       {:ok, %Req.Response{status: status, body: response_body}} when status in [200, 201, 202] ->
@@ -355,7 +364,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.post(url,
            json: payload,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 201, body: response_body}} ->
@@ -389,7 +398,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.get(url,
            params: [{"dmId", dm_id}, {"userId", user_id}],
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -417,7 +426,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.post(url,
            json: body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -447,7 +456,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.get(url,
            params: query_params,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -472,7 +481,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.patch(url,
            json: body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -500,7 +509,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.delete(url,
            json: body,
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -528,7 +537,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.get(url,
            params: [{"api_key", api_key}],
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->
@@ -564,7 +573,7 @@ defmodule TavokGateway.WebClient do
 
     case Req.post(url,
            json: %{action: action, userId: user_id},
-           headers: [{"x-internal-secret", internal_secret()}],
+           headers: req_headers(),
            receive_timeout: 10_000
          ) do
       {:ok, %Req.Response{status: 200, body: response_body}} ->

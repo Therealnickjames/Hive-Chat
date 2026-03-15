@@ -1,3 +1,5 @@
+// TODO(PROD-READY): Endpoint is functional but no UI calls it.
+// Wire into a server discovery UI or remove. See production-readiness audit.
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";

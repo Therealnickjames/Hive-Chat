@@ -1,3 +1,6 @@
+// TODO(TASK-0021): Endpoint is complete but never called.
+// Wire up once TASK-0021 (Stream Rewind + Checkpoints + Resume) ships.
+// Frontend callback (onResumeStream in streaming-message.tsx) is also unwired.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateInternalSecret } from "@/lib/internal-auth";

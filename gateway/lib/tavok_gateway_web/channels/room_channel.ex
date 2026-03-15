@@ -1101,13 +1101,16 @@ defmodule TavokGatewayWeb.RoomChannel do
         context_messages = fetch_context_messages(channel_id, trigger_content)
 
         # 7. Publish stream request to Redis for Go Proxy
+        request_id = Logger.metadata()[:request_id] || Ecto.UUID.generate()
+
         stream_request =
           Jason.encode!(%{
             channelId: channel_id,
             messageId: message_id,
             agentId: agent_id,
             triggerMessageId: trigger_message_id,
-            contextMessages: context_messages
+            contextMessages: context_messages,
+            requestId: request_id
           })
 
         case Redix.command(:redix, ["PUBLISH", "hive:stream:request", stream_request]) do

@@ -410,3 +410,73 @@ To check what changed:
 ```bash
 git log --oneline -10
 ```
+
+---
+
+## Backup & Restore
+
+### Create a backup
+
+```bash
+make db-backup
+```
+
+Creates a timestamped compressed backup in `./backups/` (e.g., `backups/tavok_20260314_120000.sql.gz`). Retains the last 10 backups by default (override with `TAVOK_BACKUP_RETAIN=N`).
+
+### Restore from a backup
+
+```bash
+make db-restore FILE=backups/tavok_20260314_120000.sql.gz
+```
+
+**WARNING:** This drops and recreates the database. Services are stopped during restore and restarted after.
+
+### Pre-upgrade backup (recommended)
+
+Before any upgrade, create a backup first:
+
+```bash
+make db-backup
+git pull
+docker compose pull
+docker compose up -d
+make health
+```
+
+---
+
+## Rollback
+
+If an upgrade breaks something:
+
+### 1. Rollback code
+
+```bash
+git log --oneline -5                    # Find the last known-good commit
+git checkout <commit-hash>              # Switch to it
+docker compose up --build -d            # Rebuild with old code
+```
+
+### 2. Rollback database (if migrations broke)
+
+```bash
+make db-restore FILE=backups/tavok_<pre-upgrade>.sql.gz
+docker compose up -d
+make health
+```
+
+### 3. Migration smoke test
+
+To verify migrations apply cleanly without touching production data:
+
+```bash
+make db-migrate-test
+```
+
+This creates a temporary database, applies all migrations, verifies schema integrity, and cleans up. Safe to run anytime — does not affect the running database.
+
+### Rollback limitations
+
+- Prisma does not generate down-migrations. Rollback requires restoring from a backup taken before the upgrade.
+- Always take a backup before upgrading. There is no other way to undo a migration.
+- Redis state (sequences, pubsub) is reconstructed automatically from PostgreSQL on restart.

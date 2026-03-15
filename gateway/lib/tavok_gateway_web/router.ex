@@ -9,6 +9,7 @@ defmodule TavokGatewayWeb.Router do
     pipe_through :api
 
     get "/health", HealthController, :index
+    get "/metrics", MetricsController, :index
   end
 
   # Internal APIs — authenticated by x-internal-secret header (DEC-0044)

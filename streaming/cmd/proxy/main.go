@@ -25,6 +25,7 @@ import (
 	"github.com/TavokAI/Tavok/streaming/internal/config"
 	"github.com/TavokAI/Tavok/streaming/internal/gateway"
 	"github.com/TavokAI/Tavok/streaming/internal/health"
+	"github.com/TavokAI/Tavok/streaming/internal/metrics"
 	"github.com/TavokAI/Tavok/streaming/internal/provider"
 	"github.com/TavokAI/Tavok/streaming/internal/stream"
 	"github.com/TavokAI/Tavok/streaming/internal/tools"
@@ -99,6 +100,7 @@ func main() {
 	// HTTP server for health checks
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", health.Handler)
+	mux.HandleFunc("GET /metrics", metrics.Handler)
 
 	// Debug endpoint: show service info
 	mux.HandleFunc("GET /info", func(w http.ResponseWriter, r *http.Request) {
@@ -111,9 +113,12 @@ func main() {
 		})
 	})
 
+	// Wrap mux with correlation ID middleware
+	handler := correlationIDMiddleware(mux)
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -165,6 +170,18 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// correlationIDMiddleware reads or generates x-request-id and sets it on the response.
+func correlationIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Header.Get("X-Request-Id")
+		if requestID == "" {
+			requestID = fmt.Sprintf("stream-%d", time.Now().UnixNano())
+		}
+		w.Header().Set("X-Request-Id", requestID)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getEnvInt(key string, defaultValue int) int {

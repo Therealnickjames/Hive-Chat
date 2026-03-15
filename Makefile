@@ -2,7 +2,8 @@
 # Run `make help` to see all available commands.
 
 .PHONY: help dev up up-build down logs logs-web logs-gateway logs-stream \
-        db-migrate db-studio clean health build regression-harness \
+        db-migrate db-studio db-reset db-backup db-restore db-migrate-test \
+        clean health build regression-harness \
         test-cli test-web test-gateway test-streaming test-hooks test-unit test-sdk test-e2e test-load test-all demo \
         lint format lint-fix
 
@@ -151,6 +152,15 @@ db-studio: ## Open Prisma Studio (database browser)
 db-reset: ## Reset database (WARNING: destroys all data)
 	docker-compose exec web npx prisma migrate reset --schema=./prisma/schema.prisma
 
+db-backup: ## Create timestamped PostgreSQL backup (./backups/)
+	bash scripts/db-backup.sh
+
+db-restore: ## Restore from backup (usage: make db-restore FILE=backups/tavok_*.sql.gz)
+	bash scripts/db-restore.sh $(FILE)
+
+db-migrate-test: ## Migration smoke test (fresh DB → apply → verify → cleanup)
+	bash scripts/db-migrate-test.sh
+
 # ============================================================
 # HEALTH & STATUS
 # ============================================================
@@ -163,6 +173,16 @@ health: ## Check health of all services
 
 status: ## Show Docker container status
 	docker-compose ps
+
+# ============================================================
+# MONITORING
+# ============================================================
+
+monitoring-up: ## Start Prometheus + Grafana (Grafana at localhost:3001)
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d prometheus grafana
+
+monitoring-down: ## Stop monitoring stack
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml stop prometheus grafana
 
 # ============================================================
 # CLEANUP
