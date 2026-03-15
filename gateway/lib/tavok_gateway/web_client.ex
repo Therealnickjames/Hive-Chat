@@ -33,7 +33,7 @@ defmodule TavokGateway.WebClient do
   end
 
   # Wraps an HTTP call in an OpenTelemetry span.
-  defp traced_call(span_name, attrs \\ [], fun) do
+  defp traced_call(span_name, attrs, fun) do
     Tracer.with_span span_name, %{kind: :client, attributes: attrs} do
       fun.()
     end
