@@ -29,6 +29,7 @@ import (
 	"github.com/TavokAI/Tavok/streaming/internal/provider"
 	"github.com/TavokAI/Tavok/streaming/internal/stream"
 	"github.com/TavokAI/Tavok/streaming/internal/tools"
+	"github.com/TavokAI/Tavok/streaming/internal/tracing"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -38,6 +39,14 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
+
+	// Initialize OpenTelemetry tracing
+	ctx := context.Background()
+	tracingShutdown, err := tracing.Init(ctx)
+	if err != nil {
+		slog.Error("Failed to initialize tracing", "error", err)
+		os.Exit(1)
+	}
 
 	// Configuration from environment
 	port := getEnv("STREAMING_PORT", "4002")
@@ -60,7 +69,6 @@ func main() {
 	health.SetRedisClient(rdb)
 
 	// Verify Redis connection
-	ctx := context.Background()
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		slog.Error("Failed to connect to Redis", "error", err)
 		os.Exit(1)
@@ -88,6 +96,12 @@ func main() {
 	// Create stream manager
 	maxConcurrentStreams := getEnvInt("STREAMING_MAX_CONCURRENT_STREAMS", 32)
 	manager := stream.NewManager(logger, gwClient, loader, registry, toolRegistry, maxConcurrentStreams)
+
+	// Wire readiness: the health check gates on the subscription being live.
+	manager.SetOnReady(func() {
+		health.SetStreamReady()
+		slog.Info("Stream manager subscription confirmed — health check now ready")
+	})
 
 	// Start stream manager in background
 	managerCtx, managerCancel := context.WithCancel(ctx)
@@ -154,6 +168,11 @@ func main() {
 	// Close gateway client pub/sub subscription (ISSUE-009)
 	if err := gwClient.Close(); err != nil {
 		slog.Error("Gateway client close error", "error", err)
+	}
+
+	// Flush remaining traces
+	if err := tracingShutdown(shutdownCtx); err != nil {
+		slog.Error("Tracing shutdown error", "error", err)
 	}
 
 	// Close Redis connection

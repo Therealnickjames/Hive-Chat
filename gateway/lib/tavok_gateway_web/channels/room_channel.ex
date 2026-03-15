@@ -31,23 +31,33 @@ defmodule TavokGatewayWeb.RoomChannel do
   @typing_throttle_ms 2_000
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   @impl true
   def join("room:" <> channel_id, params, socket) do
-    Logger.info(
-      "#{socket.assigns[:author_type] || "USER"} #{socket.assigns.user_id} joining room:#{channel_id}"
-    )
+    Tracer.with_span "channel.join", %{
+      kind: :server,
+      attributes: %{
+        "tavok.channel_id": channel_id,
+        "tavok.user_id": socket.assigns.user_id,
+        "tavok.author_type": socket.assigns[:author_type] || "USER"
+      }
+    } do
+      Logger.info(
+        "#{socket.assigns[:author_type] || "USER"} #{socket.assigns.user_id} joining room:#{channel_id}"
+      )
 
-    case authorize_join(channel_id, socket) do
-      {:ok} ->
-        do_join_room(params, socket, channel_id)
+      case authorize_join(channel_id, socket) do
+        {:ok} ->
+          do_join_room(params, socket, channel_id)
 
-      {:error, reason} ->
-        Logger.warning(
-          "Join rejected: user=#{socket.assigns.user_id} room=#{channel_id} reason=#{inspect(reason)}"
-        )
+        {:error, reason} ->
+          Logger.warning(
+            "Join rejected: user=#{socket.assigns.user_id} room=#{channel_id} reason=#{inspect(reason)}"
+          )
 
-        {:error, %{reason: "unauthorized"}}
+          {:error, %{reason: "unauthorized"}}
+      end
     end
   end
 
@@ -1103,6 +1113,13 @@ defmodule TavokGatewayWeb.RoomChannel do
         # 7. Publish stream request to Redis for Go Proxy
         request_id = Logger.metadata()[:request_id] || Ulid.generate()
 
+        # Extract W3C traceparent from current span for cross-service propagation
+        traceparent =
+          :otel_propagator_text_map.inject([], fn acc, key, value ->
+            [{key, value} | acc]
+          end)
+          |> Enum.find_value("", fn {k, v} -> if k == "traceparent", do: v end)
+
         stream_request =
           Jason.encode!(%{
             channelId: channel_id,
@@ -1110,7 +1127,8 @@ defmodule TavokGatewayWeb.RoomChannel do
             agentId: agent_id,
             triggerMessageId: trigger_message_id,
             contextMessages: context_messages,
-            requestId: request_id
+            requestId: request_id,
+            traceparent: traceparent
           })
 
         case Redix.command(:redix, ["PUBLISH", "hive:stream:request", stream_request]) do

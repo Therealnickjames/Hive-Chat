@@ -1,9 +1,30 @@
 # Observability overlay — run with: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 #
-# Adds Prometheus + Grafana for metrics collection and dashboards.
+# Adds Prometheus + Grafana + OTLP Collector + Tempo for metrics and distributed tracing.
 # Scrapes /metrics from all three Tavok services.
+# Collects OTLP traces from all three services via the collector.
 
 services:
+  # OpenTelemetry Collector — receives OTLP from all services, exports to Tempo + Prometheus
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    volumes:
+      - ./monitoring/otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+    restart: unless-stopped
+
+  # Grafana Tempo — distributed trace storage and query backend
+  tempo:
+    image: grafana/tempo:2.4.1
+    volumes:
+      - ./monitoring/tempo/tempo.yml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    command:
+      - "-config.file=/etc/tempo/tempo.yaml"
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v2.51.0
     volumes:
@@ -30,6 +51,23 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
     restart: unless-stopped
 
+  # Add OTEL_EXPORTER_OTLP_ENDPOINT to each Tavok service
+  web:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: tavok-web
+
+  gateway:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: tavok-gateway
+
+  streaming:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: tavok-streaming
+
 volumes:
   prometheus-data:
   grafana-data:
+  tempo-data:

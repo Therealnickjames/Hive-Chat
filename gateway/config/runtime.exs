@@ -51,3 +51,23 @@ config :tavok_gateway,
 config :tavok_gateway,
        :stream_watchdog_timeout_ms,
        String.to_integer(System.get_env("STREAM_WATCHDOG_TIMEOUT_MS") || "45000")
+
+# OpenTelemetry — distributed tracing
+# OTEL_EXPORTER_OTLP_ENDPOINT enables trace export; unset = tracing disabled.
+otel_endpoint = System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+if otel_endpoint do
+  config :opentelemetry,
+    resource: [
+      service: [
+        name: System.get_env("OTEL_SERVICE_NAME") || "tavok-gateway",
+        version: "0.1.0"
+      ]
+    ],
+    span_processor: :batch,
+    traces_exporter: :otlp
+
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: otel_endpoint
+end

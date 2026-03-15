@@ -112,6 +112,69 @@ func TestDegradedWhenWebUnreachable(t *testing.T) {
 	}
 }
 
+func TestDegradedWhenSubscriptionNotReady(t *testing.T) {
+	// Ensure subscription is not ready (default state)
+	streamReady.Store(false)
+
+	webSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer webSrv.Close()
+
+	os.Setenv("STREAMING_WEB_URL", webSrv.URL)
+	defer os.Unsetenv("STREAMING_WEB_URL")
+
+	SetRedisClient(nil) // redis unhealthy too, but subscription is the new check
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	Handler(rec, req)
+
+	var resp Response
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("JSON decode error: %v", err)
+	}
+	if resp.Status != "degraded" {
+		t.Errorf("Status = %q, want %q", resp.Status, "degraded")
+	}
+	if resp.Checks["subscription"] != "not_subscribed" {
+		t.Errorf("Checks[subscription] = %q, want %q", resp.Checks["subscription"], "not_subscribed")
+	}
+}
+
+func TestHealthyWhenSubscriptionReady(t *testing.T) {
+	// Mark subscription as ready
+	streamReady.Store(true)
+	defer streamReady.Store(false) // reset for other tests
+
+	webSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer webSrv.Close()
+
+	os.Setenv("STREAMING_WEB_URL", webSrv.URL)
+	defer os.Unsetenv("STREAMING_WEB_URL")
+
+	// Redis is nil so still degraded — but subscription check passes
+	SetRedisClient(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	Handler(rec, req)
+
+	var resp Response
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp.Checks["subscription"] != "ok" {
+		t.Errorf("Checks[subscription] = %q, want %q", resp.Checks["subscription"], "ok")
+	}
+	// Still degraded because redis is nil
+	if resp.Status != "degraded" {
+		t.Errorf("Status = %q, want %q (redis still unhealthy)", resp.Status, "degraded")
+	}
+}
+
 func TestRedisNilClientReturnsUnhealthy(t *testing.T) {
 	SetRedisClient(nil)
 	// nil context is fine here because the function returns early before using it
@@ -204,7 +267,7 @@ func TestResponseShape(t *testing.T) {
 	if !ok {
 		t.Fatal("checks is not an object")
 	}
-	for _, key := range []string{"redis", "web"} {
+	for _, key := range []string{"redis", "web", "subscription"} {
 		if _, ok := checks[key]; !ok {
 			t.Errorf("missing checks key %q", key)
 		}
