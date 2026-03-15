@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getRequestCount, getErrorCount } from "@/lib/metrics";
 
 /**
  * GET /api/metrics — Prometheus-format metrics for the Web service.
@@ -6,17 +7,6 @@ import { NextResponse } from "next/server";
  * Exports basic process and application metrics. Protected by
  * INTERNAL_API_SECRET to prevent public scraping.
  */
-
-let requestCount = 0;
-let errorCount = 0;
-
-export function incrementRequestCount() {
-  requestCount++;
-}
-
-export function incrementErrorCount() {
-  errorCount++;
-}
 
 export async function GET(request: Request) {
   const secret = request.headers.get("x-internal-secret");
@@ -27,6 +17,8 @@ export async function GET(request: Request) {
 
   const mem = process.memoryUsage();
   const uptime = process.uptime();
+  const requestCount = getRequestCount();
+  const errorCount = getErrorCount();
 
   const lines = [
     "# HELP tavok_web_uptime_seconds Web service uptime",

@@ -114,7 +114,10 @@ export async function broadcastToChannel<T extends object>(
   const gatewayUrl = getGatewayInternalUrl();
   const response = await fetch(`${gatewayUrl}/api/internal/broadcast`, {
     method: "POST",
-    headers: { ...internalHeaders(requestId), "Content-Type": "application/json" },
+    headers: {
+      ...internalHeaders(requestId),
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ topic, event, payload }),
   });
 

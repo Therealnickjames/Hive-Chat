@@ -23,8 +23,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Correlation ID: use incoming header or generate a new one
-  const requestId =
-    request.headers.get("x-request-id") ?? crypto.randomUUID();
+  const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
 
