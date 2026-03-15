@@ -44,7 +44,7 @@ report "PASS" "Test database created"
 # Step 2: Apply all migrations to the test database
 echo "Step 2: Applying migrations..."
 MIGRATE_OUTPUT=$(docker compose exec -T \
-  -e DATABASE_URL="postgresql://$DB_USER:${POSTGRES_PASSWORD:-tavok}@localhost:5432/$TEST_DB" \
+  -e DATABASE_URL="postgresql://$DB_USER:${POSTGRES_PASSWORD:-tavok}@db:5432/$TEST_DB" \
   web npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1) || {
   echo "$MIGRATE_OUTPUT"
   report "FAIL" "Migration apply"
@@ -106,7 +106,7 @@ fi
 # Step 7: Drop and reapply (idempotency check)
 echo "Step 7: Reapply test (idempotency)..."
 REAPPLY_OUTPUT=$(docker compose exec -T \
-  -e DATABASE_URL="postgresql://$DB_USER:${POSTGRES_PASSWORD:-tavok}@localhost:5432/$TEST_DB" \
+  -e DATABASE_URL="postgresql://$DB_USER:${POSTGRES_PASSWORD:-tavok}@db:5432/$TEST_DB" \
   web npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1) || {
   echo "$REAPPLY_OUTPUT"
   report "FAIL" "Migration reapply"

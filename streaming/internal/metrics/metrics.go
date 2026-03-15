@@ -16,7 +16,7 @@ type Metrics struct {
 	StreamsStarted   int64
 	StreamsCompleted int64
 	StreamsErrored   int64
-	ActiveStreams     int64
+	ActiveStreams    int64
 
 	// Token throughput
 	TokensEmitted int64
