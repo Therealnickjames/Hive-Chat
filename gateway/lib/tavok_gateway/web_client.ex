@@ -44,26 +44,30 @@ defmodule TavokGateway.WebClient do
   Returns {:ok, response_body} or {:error, reason}.
   """
   def post_message(body) do
-    traced_call("web_client.post_message", %{"http.method": "POST", "http.url": "/api/internal/messages"}, fn ->
-      url = "#{web_url()}/api/internal/messages"
+    traced_call(
+      "web_client.post_message",
+      %{"http.method": "POST", "http.url": "/api/internal/messages"},
+      fn ->
+        url = "#{web_url()}/api/internal/messages"
 
-      case Req.post(url,
-             json: body,
-             headers: req_headers(),
-             receive_timeout: 10_000
-           ) do
-        {:ok, %Req.Response{status: 201, body: response_body}} ->
-          {:ok, response_body}
+        case Req.post(url,
+               json: body,
+               headers: req_headers(),
+               receive_timeout: 10_000
+             ) do
+          {:ok, %Req.Response{status: 201, body: response_body}} ->
+            {:ok, response_body}
 
-        {:ok, %Req.Response{status: status, body: response_body}} ->
-          Logger.error("post_message failed: status=#{status} body=#{inspect(response_body)}")
-          {:error, {:http_error, status, response_body}}
+          {:ok, %Req.Response{status: status, body: response_body}} ->
+            Logger.error("post_message failed: status=#{status} body=#{inspect(response_body)}")
+            {:error, {:http_error, status, response_body}}
 
-        {:error, reason} ->
-          Logger.error("post_message request failed: #{inspect(reason)}")
-          {:error, reason}
+          {:error, reason} ->
+            Logger.error("post_message request failed: #{inspect(reason)}")
+            {:error, reason}
+        end
       end
-    end)
+    )
   end
 
   @doc """
@@ -343,32 +347,37 @@ defmodule TavokGateway.WebClient do
   Returns {:ok, response_body} | {:error, reason}.
   """
   def dispatch_webhook(agent_id, payload) do
-    traced_call("web_client.dispatch_webhook", %{"http.method": "POST", "tavok.agent_id": agent_id}, fn ->
-      url = "#{web_url()}/api/internal/agents/#{agent_id}/dispatch"
+    traced_call(
+      "web_client.dispatch_webhook",
+      %{"http.method": "POST", "tavok.agent_id": agent_id},
+      fn ->
+        url = "#{web_url()}/api/internal/agents/#{agent_id}/dispatch"
 
-      case Req.post(url,
-             json: payload,
-             headers: req_headers(),
-             receive_timeout: 35_000
-           ) do
-        {:ok, %Req.Response{status: status, body: response_body}} when status in [200, 201, 202] ->
-          {:ok, response_body}
+        case Req.post(url,
+               json: payload,
+               headers: req_headers(),
+               receive_timeout: 35_000
+             ) do
+          {:ok, %Req.Response{status: status, body: response_body}}
+          when status in [200, 201, 202] ->
+            {:ok, response_body}
 
-        {:ok, %Req.Response{status: status, body: response_body}} ->
-          Logger.error(
-            "dispatch_webhook failed: agent=#{agent_id} status=#{status} body=#{inspect(response_body)}"
-          )
+          {:ok, %Req.Response{status: status, body: response_body}} ->
+            Logger.error(
+              "dispatch_webhook failed: agent=#{agent_id} status=#{status} body=#{inspect(response_body)}"
+            )
 
-          {:error, {:http_error, status, response_body}}
+            {:error, {:http_error, status, response_body}}
 
-        {:error, reason} ->
-          Logger.error(
-            "dispatch_webhook request failed: agent=#{agent_id} reason=#{inspect(reason)}"
-          )
+          {:error, reason} ->
+            Logger.error(
+              "dispatch_webhook request failed: agent=#{agent_id} reason=#{inspect(reason)}"
+            )
 
-          {:error, reason}
+            {:error, reason}
+        end
       end
-    end)
+    )
   end
 
   @doc """
@@ -552,34 +561,38 @@ defmodule TavokGateway.WebClient do
   Returns {:ok, agent_info} or {:error, reason}. (DEC-0040)
   """
   def verify_agent_api_key(api_key) do
-    traced_call("web_client.verify_agent_api_key", %{"http.method": "GET", "http.url": "/api/internal/agents/verify"}, fn ->
-      url = "#{web_url()}/api/internal/agents/verify"
+    traced_call(
+      "web_client.verify_agent_api_key",
+      %{"http.method": "GET", "http.url": "/api/internal/agents/verify"},
+      fn ->
+        url = "#{web_url()}/api/internal/agents/verify"
 
-      case Req.get(url,
-             params: [{"api_key", api_key}],
-             headers: req_headers(),
-             receive_timeout: 10_000
-           ) do
-        {:ok, %Req.Response{status: 200, body: response_body}} ->
-          {:ok, response_body}
+        case Req.get(url,
+               params: [{"api_key", api_key}],
+               headers: req_headers(),
+               receive_timeout: 10_000
+             ) do
+          {:ok, %Req.Response{status: 200, body: response_body}} ->
+            {:ok, response_body}
 
-        {:ok, %Req.Response{status: status, body: response_body}} when status in [401, 404] ->
-          Logger.debug("verify_agent_api_key rejected: status=#{status}")
+          {:ok, %Req.Response{status: status, body: response_body}} when status in [401, 404] ->
+            Logger.debug("verify_agent_api_key rejected: status=#{status}")
 
-          {:error, {:http_error, status, response_body}}
+            {:error, {:http_error, status, response_body}}
 
-        {:ok, %Req.Response{status: status, body: response_body}} ->
-          Logger.warning(
-            "verify_agent_api_key failed: status=#{status} body=#{inspect(response_body)}"
-          )
+          {:ok, %Req.Response{status: status, body: response_body}} ->
+            Logger.warning(
+              "verify_agent_api_key failed: status=#{status} body=#{inspect(response_body)}"
+            )
 
-          {:error, {:http_error, status, response_body}}
+            {:error, {:http_error, status, response_body}}
 
-        {:error, reason} ->
-          Logger.error("verify_agent_api_key request failed: #{inspect(reason)}")
-          {:error, reason}
+          {:error, reason} ->
+            Logger.error("verify_agent_api_key request failed: #{inspect(reason)}")
+            {:error, reason}
+        end
       end
-    end)
+    )
   end
 
   @doc """
