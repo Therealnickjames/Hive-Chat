@@ -6,6 +6,7 @@ defmodule TavokGateway.WebClient do
   """
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   defp web_url do
     Application.get_env(:tavok_gateway, :web_url, "http://localhost:5555")
@@ -18,9 +19,28 @@ defmodule TavokGateway.WebClient do
   defp req_headers do
     base = [{"x-internal-secret", internal_secret()}]
 
-    case Logger.metadata()[:request_id] do
-      nil -> base
-      id -> [{"x-request-id", id} | base]
+    # Inject x-request-id
+    base =
+      case Logger.metadata()[:request_id] do
+        nil -> base
+        id -> [{"x-request-id", id} | base]
+      end
+
+    # Inject W3C traceparent for distributed tracing.
+    # Gracefully no-op when OpenTelemetry SDK is not started (e.g. tests).
+    try do
+      :otel_propagator_text_map.inject(base, fn headers, key, value ->
+        [{key, value} | headers]
+      end)
+    rescue
+      _ -> base
+    end
+  end
+
+  # Wraps an HTTP call in an OpenTelemetry span.
+  defp traced_call(span_name, attrs, fun) do
+    Tracer.with_span span_name, %{kind: :client, attributes: attrs} do
+      fun.()
     end
   end
 
@@ -29,24 +49,30 @@ defmodule TavokGateway.WebClient do
   Returns {:ok, response_body} or {:error, reason}.
   """
   def post_message(body) do
-    url = "#{web_url()}/api/internal/messages"
+    traced_call(
+      "web_client.post_message",
+      %{"http.method": "POST", "http.url": "/api/internal/messages"},
+      fn ->
+        url = "#{web_url()}/api/internal/messages"
 
-    case Req.post(url,
-           json: body,
-           headers: req_headers(),
-           receive_timeout: 10_000
-         ) do
-      {:ok, %Req.Response{status: 201, body: response_body}} ->
-        {:ok, response_body}
+        case Req.post(url,
+               json: body,
+               headers: req_headers(),
+               receive_timeout: 10_000
+             ) do
+          {:ok, %Req.Response{status: 201, body: response_body}} ->
+            {:ok, response_body}
 
-      {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error("post_message failed: status=#{status} body=#{inspect(response_body)}")
-        {:error, {:http_error, status, response_body}}
+          {:ok, %Req.Response{status: status, body: response_body}} ->
+            Logger.error("post_message failed: status=#{status} body=#{inspect(response_body)}")
+            {:error, {:http_error, status, response_body}}
 
-      {:error, reason} ->
-        Logger.error("post_message request failed: #{inspect(reason)}")
-        {:error, reason}
-    end
+          {:error, reason} ->
+            Logger.error("post_message request failed: #{inspect(reason)}")
+            {:error, reason}
+        end
+      end
+    )
   end
 
   @doc """
@@ -326,30 +352,37 @@ defmodule TavokGateway.WebClient do
   Returns {:ok, response_body} | {:error, reason}.
   """
   def dispatch_webhook(agent_id, payload) do
-    url = "#{web_url()}/api/internal/agents/#{agent_id}/dispatch"
+    traced_call(
+      "web_client.dispatch_webhook",
+      %{"http.method": "POST", "tavok.agent_id": agent_id},
+      fn ->
+        url = "#{web_url()}/api/internal/agents/#{agent_id}/dispatch"
 
-    case Req.post(url,
-           json: payload,
-           headers: req_headers(),
-           receive_timeout: 35_000
-         ) do
-      {:ok, %Req.Response{status: status, body: response_body}} when status in [200, 201, 202] ->
-        {:ok, response_body}
+        case Req.post(url,
+               json: payload,
+               headers: req_headers(),
+               receive_timeout: 35_000
+             ) do
+          {:ok, %Req.Response{status: status, body: response_body}}
+          when status in [200, 201, 202] ->
+            {:ok, response_body}
 
-      {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.error(
-          "dispatch_webhook failed: agent=#{agent_id} status=#{status} body=#{inspect(response_body)}"
-        )
+          {:ok, %Req.Response{status: status, body: response_body}} ->
+            Logger.error(
+              "dispatch_webhook failed: agent=#{agent_id} status=#{status} body=#{inspect(response_body)}"
+            )
 
-        {:error, {:http_error, status, response_body}}
+            {:error, {:http_error, status, response_body}}
 
-      {:error, reason} ->
-        Logger.error(
-          "dispatch_webhook request failed: agent=#{agent_id} reason=#{inspect(reason)}"
-        )
+          {:error, reason} ->
+            Logger.error(
+              "dispatch_webhook request failed: agent=#{agent_id} reason=#{inspect(reason)}"
+            )
 
-        {:error, reason}
-    end
+            {:error, reason}
+        end
+      end
+    )
   end
 
   @doc """
@@ -533,32 +566,38 @@ defmodule TavokGateway.WebClient do
   Returns {:ok, agent_info} or {:error, reason}. (DEC-0040)
   """
   def verify_agent_api_key(api_key) do
-    url = "#{web_url()}/api/internal/agents/verify"
+    traced_call(
+      "web_client.verify_agent_api_key",
+      %{"http.method": "GET", "http.url": "/api/internal/agents/verify"},
+      fn ->
+        url = "#{web_url()}/api/internal/agents/verify"
 
-    case Req.get(url,
-           params: [{"api_key", api_key}],
-           headers: req_headers(),
-           receive_timeout: 10_000
-         ) do
-      {:ok, %Req.Response{status: 200, body: response_body}} ->
-        {:ok, response_body}
+        case Req.get(url,
+               params: [{"api_key", api_key}],
+               headers: req_headers(),
+               receive_timeout: 10_000
+             ) do
+          {:ok, %Req.Response{status: 200, body: response_body}} ->
+            {:ok, response_body}
 
-      {:ok, %Req.Response{status: status, body: response_body}} when status in [401, 404] ->
-        Logger.debug("verify_agent_api_key rejected: status=#{status}")
+          {:ok, %Req.Response{status: status, body: response_body}} when status in [401, 404] ->
+            Logger.debug("verify_agent_api_key rejected: status=#{status}")
 
-        {:error, {:http_error, status, response_body}}
+            {:error, {:http_error, status, response_body}}
 
-      {:ok, %Req.Response{status: status, body: response_body}} ->
-        Logger.warning(
-          "verify_agent_api_key failed: status=#{status} body=#{inspect(response_body)}"
-        )
+          {:ok, %Req.Response{status: status, body: response_body}} ->
+            Logger.warning(
+              "verify_agent_api_key failed: status=#{status} body=#{inspect(response_body)}"
+            )
 
-        {:error, {:http_error, status, response_body}}
+            {:error, {:http_error, status, response_body}}
 
-      {:error, reason} ->
-        Logger.error("verify_agent_api_key request failed: #{inspect(reason)}")
-        {:error, reason}
-    end
+          {:error, reason} ->
+            Logger.error("verify_agent_api_key request failed: #{inspect(reason)}")
+            {:error, reason}
+        end
+      end
+    )
   end
 
   @doc """

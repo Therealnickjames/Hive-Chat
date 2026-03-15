@@ -46,6 +46,11 @@ defmodule TavokGateway.MixProject do
       # HTTP client (for calling Next.js internal API)
       {:req, "~> 0.5"},
 
+      # OpenTelemetry — distributed tracing
+      {:opentelemetry_api, "~> 1.3"},
+      {:opentelemetry, "~> 1.4"},
+      {:opentelemetry_exporter, "~> 1.7"},
+
       # Static analysis
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]

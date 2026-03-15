@@ -10,9 +10,10 @@
     {
       "name": "web",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-p", "5555"],
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev"],
       "cwd": "packages/web",
-      "port": 5555
+      "port": 5555,
+      "autoPort": true
     },
     {
       "name": "gateway",

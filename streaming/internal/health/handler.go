@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -27,7 +28,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	redisStatus := checkRedisConnection(r.Context())
 	webStatus := checkWebHealth(r.Context())
 
-	if redisStatus != "ok" || webStatus != "ok" {
+	subStatus := "ok"
+	if !streamReady.Load() {
+		subStatus = "not_subscribed"
+	}
+
+	if redisStatus != "ok" || webStatus != "ok" || subStatus != "ok" {
 		isHealthy = false
 	}
 
@@ -35,8 +41,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		Status:  "ok",
 		Service: "streaming",
 		Checks: map[string]string{
-			"redis": redisStatus,
-			"web":   webStatus,
+			"redis":        redisStatus,
+			"web":          webStatus,
+			"subscription": subStatus,
 		},
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
@@ -56,8 +63,28 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 var redisClient *redis.Client
 
+// streamReady tracks whether the stream manager has established its
+// Redis pub/sub subscription. Until this is true, the proxy cannot
+// process stream requests — so /health must report "not ready" to
+// prevent CI and orchestrators from sending traffic too early.
+// This fixes the flaky integration timeout where stream requests
+// were silently dropped because pub/sub wasn't subscribed yet.
+var streamReady atomic.Bool
+
 func SetRedisClient(client *redis.Client) {
 	redisClient = client
+}
+
+// SetStreamReady marks the stream manager's pub/sub subscription as
+// established. Called once from main after manager.Start confirms the
+// subscription. Health checks will report degraded until this is set.
+func SetStreamReady() {
+	streamReady.Store(true)
+}
+
+// StreamReady returns whether the stream manager subscription is live.
+func StreamReady() bool {
+	return streamReady.Load()
 }
 
 func checkRedisConnection(ctx context.Context) string {

@@ -24,6 +24,11 @@ import (
 	"github.com/TavokAI/Tavok/streaming/internal/gateway"
 	"github.com/TavokAI/Tavok/streaming/internal/provider"
 	"github.com/TavokAI/Tavok/streaming/internal/tools"
+	"github.com/TavokAI/Tavok/streaming/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // maxToolIterations caps the number of tool call → result → continue cycles
@@ -58,6 +63,28 @@ type streamRequest struct {
 	TriggerMsgID    string                   `json:"triggerMessageId"`
 	ContextMessages []provider.StreamMessage `json:"contextMessages"`
 	RequestID       string                   `json:"requestId,omitempty"`
+	Traceparent     string                   `json:"traceparent,omitempty"`
+}
+
+// carrierFromRequest extracts W3C trace context from a stream request for propagation.
+type carrierFromRequest struct {
+	traceparent string
+}
+
+func (c carrierFromRequest) Get(key string) string {
+	if key == "traceparent" {
+		return c.traceparent
+	}
+	return ""
+}
+
+func (c carrierFromRequest) Set(string, string) {}
+
+func (c carrierFromRequest) Keys() []string {
+	if c.traceparent != "" {
+		return []string{"traceparent"}
+	}
+	return nil
 }
 
 // Manager tracks all active streams and coordinates lifecycle.
@@ -72,6 +99,9 @@ type Manager struct {
 	// maxConcurrentStreams caps active stream workers.
 	maxConcurrentStreams int
 	semaphore            chan struct{}
+	// onReady is called once after the Redis pub/sub subscription is confirmed.
+	// Used by the health check to gate readiness.
+	onReady func()
 }
 
 // NewManager creates a new stream manager.
@@ -92,6 +122,11 @@ func NewManager(logger *slog.Logger, gwClient *gateway.Client, loader *config.Lo
 	}
 }
 
+// SetOnReady registers a callback invoked once the pub/sub subscription is live.
+func (m *Manager) SetOnReady(fn func()) {
+	m.onReady = fn
+}
+
 // ActiveCount returns the number of currently active streams.
 func (m *Manager) ActiveCount() int {
 	m.mu.RLock()
@@ -108,6 +143,11 @@ func (m *Manager) Start(ctx context.Context) error {
 	}
 
 	m.logger.Info("Stream manager started — listening for requests")
+
+	// Signal readiness so the health check gates on subscription being live.
+	if m.onReady != nil {
+		m.onReady()
+	}
 
 	for {
 		select {
@@ -174,6 +214,27 @@ func (m *Manager) releaseSlot() {
 // the manager executes the tools, feeds results back, and continues streaming.
 // Capped at maxToolIterations to prevent infinite loops. (TASK-0018)
 func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
+	// Extract W3C trace context from the stream request (propagated via Redis)
+	if req.Traceparent != "" {
+		carrier := carrierFromRequest{traceparent: req.Traceparent}
+		ctx = propagation.TraceContext{}.Extract(ctx, carrier)
+	}
+
+	ctx, span := tracing.Tracer.Start(ctx, "handleStream",
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "redis"),
+			attribute.String("tavok.message_id", req.MessageID),
+			attribute.String("tavok.channel_id", req.ChannelID),
+			attribute.String("tavok.agent_id", req.AgentID),
+		),
+	)
+	defer span.End()
+
+	if req.RequestID != "" {
+		span.SetAttributes(attribute.String("tavok.request_id", req.RequestID))
+	}
+
 	// Scoped logger with correlation ID for cross-service tracing
 	logger := m.logger.With(
 		"messageId", req.MessageID,
@@ -203,6 +264,8 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		logger.Error("Failed to load agent config",
 			"error", err,
 		)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to load agent configuration")
 		m.publishError(ctx, req, "", "Failed to load agent configuration", 0, startTime)
 		return
 	}
@@ -438,6 +501,11 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 	durationMs := time.Since(startTime).Milliseconds()
 	finalContent := allContent.String()
 
+	span.SetAttributes(
+		attribute.Int("tavok.token_count", totalTokenCount),
+		attribute.Int64("tavok.duration_ms", durationMs),
+	)
+
 	// Guard against empty responses (ISSUE-027)
 	if strings.TrimSpace(finalContent) == "" {
 		m.logger.Warn("Stream completed with empty content — using placeholder",
@@ -521,11 +589,24 @@ func (m *Manager) runProviderIteration(
 	tokenHistory *[]tokenHistoryEntry,
 	startTime time.Time,
 ) (string, int, providerResult, bool) {
+	_, llmSpan := tracing.Tracer.Start(streamCtx, "llm.stream",
+		trace.WithAttributes(
+			attribute.String("tavok.message_id", req.MessageID),
+			attribute.String("llm.provider", agentConfig.LLMProvider),
+			attribute.String("llm.model", agentConfig.LLMModel),
+		),
+	)
+	defer llmSpan.End()
+
 	tokens := make(chan provider.Token, 100)
 
 	resultCh := make(chan providerResult, 1)
 	go func() {
 		result, err := m.registry.Get(agentConfig.LLMProvider).Stream(streamCtx, streamReq, tokens)
+		if err != nil {
+			llmSpan.RecordError(err)
+			llmSpan.SetStatus(codes.Error, "LLM stream error")
+		}
 		resultCh <- providerResult{result: result, err: err}
 	}()
 
@@ -647,6 +728,14 @@ func (m *Manager) executeTools(
 	results := make([]tools.ToolCallResult, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
+		_, toolSpan := tracing.Tracer.Start(streamCtx, "tool.execute",
+			trace.WithAttributes(
+				attribute.String("tavok.message_id", req.MessageID),
+				attribute.String("tool.name", tc.Name),
+				attribute.String("tool.call_id", tc.ID),
+			),
+		)
+
 		// Publish tool_call event to frontend
 		callPayload, _ := json.Marshal(map[string]interface{}{
 			"messageId": req.MessageID,
@@ -671,6 +760,11 @@ func (m *Manager) executeTools(
 		}
 		result := m.toolRegistry.Call(streamCtx, toolReq)
 		results = append(results, result)
+
+		if result.IsError {
+			toolSpan.SetStatus(codes.Error, "tool execution failed")
+		}
+		toolSpan.End()
 
 		m.logger.Info("Tool executed",
 			"messageId", req.MessageID,

@@ -1406,3 +1406,27 @@ Replace "orchestration/orchestrator" with "stream management/stream manager" in 
 **Rationale**: These changes add zero new features but make the existing surface production-trustworthy. Correlation IDs enable cross-service debugging. Metrics enable alerting before users notice. Migration tooling prevents data loss during upgrades. Release gates formalize what "ready to deploy" means.
 
 **Consequences**: Operators get backup/restore, monitoring, and runbooks. CI gains migration smoke test and load test smoke. Dead/unwired code is annotated for future cleanup. No behavioral changes to existing features.
+
+---
+
+## DEC-0068 — OpenTelemetry Distributed Tracing Across All Services
+
+**Date**: 2026-03-15
+**Status**: Accepted
+**Context**: DEC-0067/TASK-0041 added x-request-id correlation IDs and Prometheus metrics, but cross-service debugging still requires manual log correlation. There is no way to visualize request flow across Web → Gateway → Go Proxy, measure per-span latency, or trace a streaming lifecycle end-to-end.
+
+**Decision**: Add OpenTelemetry distributed tracing to all three services with W3C Trace Context propagation:
+
+1. **Infrastructure**: OTLP Collector + Grafana Tempo added to `docker-compose.monitoring.yml`. Tempo stores traces; Grafana queries them. Collector receives OTLP from all services and exports to Tempo.
+
+2. **Go Streaming Proxy**: `go.opentelemetry.io/otel` SDK with OTLP gRPC exporter. Spans around `handleStream` (root consumer span), `llm.stream` (LLM API call), and `tool.execute` (per tool call). Trace context extracted from `traceparent` field in Redis stream request payload.
+
+3. **Elixir Gateway**: `:opentelemetry_api`, `:opentelemetry`, `:opentelemetry_exporter` packages. `web_client.ex` injects traceparent on all outbound HTTP calls via `:otel_propagator_text_map.inject/2`. Channel joins wrapped in spans. Stream request Redis payload includes `traceparent` field for Go proxy propagation.
+
+4. **Next.js Web**: `@opentelemetry/sdk-node` with auto-instrumentations for HTTP/fetch and `@prisma/instrumentation` for database queries. Initialized via Next.js `instrumentation.ts` hook. Auto-instrumentation handles traceparent injection on outbound fetch calls.
+
+5. **Propagation**: W3C `traceparent` header alongside existing `x-request-id`. The x-request-id remains for log correlation; traceparent enables distributed trace stitching. For Redis-bridged calls (Gateway → Go), traceparent is serialized as a JSON field in the stream request payload.
+
+**Rationale**: OpenTelemetry is the industry standard. Tempo is already part of the Grafana ecosystem (matches existing Prometheus + Grafana stack). Auto-instrumentation minimizes code changes in the web service. The OTLP Collector decouples services from the trace backend — switching from Tempo to Jaeger requires only a collector config change.
+
+**Consequences**: Operators can visualize full request traces in Grafana. Streaming lifecycle latency breakdown (config load → LLM TTFT → token streaming → tool execution → completion) is visible per-trace. All tracing is opt-in via `OTEL_EXPORTER_OTLP_ENDPOINT` — services run without tracing if the env var is unset. Adds ~5 new dependencies per service.
