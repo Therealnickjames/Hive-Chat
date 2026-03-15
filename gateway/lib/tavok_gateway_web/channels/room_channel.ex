@@ -1101,7 +1101,7 @@ defmodule TavokGatewayWeb.RoomChannel do
         context_messages = fetch_context_messages(channel_id, trigger_content)
 
         # 7. Publish stream request to Redis for Go Proxy
-        request_id = Logger.metadata()[:request_id] || ULID.generate()
+        request_id = Logger.metadata()[:request_id] || Ulid.generate()
 
         stream_request =
           Jason.encode!(%{
