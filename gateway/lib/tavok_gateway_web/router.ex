@@ -18,6 +18,7 @@ defmodule TavokGatewayWeb.Router do
     pipe_through :api
 
     post "/broadcast", BroadcastController, :create
+    post "/stream-resume", StreamResumeController, :create
     get "/sequence", SequenceController, :index
     delete "/cache", CacheController, :invalidate
   end

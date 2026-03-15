@@ -171,6 +171,45 @@ export async function broadcastTypedMessage(
   return broadcastToChannel(`room:${channelId}`, "typed_message", payload);
 }
 
+// ---------------------------------------------------------------------------
+// Stream resume (TASK-0021)
+// ---------------------------------------------------------------------------
+
+export interface StreamResumePayload {
+  channelId: string;
+  originalMessageId: string;
+  agentId: string;
+  agentName: string;
+  checkpointIndex: number;
+  checkpointLabel: string;
+  partialContent: string;
+}
+
+/**
+ * Publish a stream resume request to the Gateway, which forwards it
+ * to Redis (hive:stream:resume) for the Go streaming proxy. (TASK-0021)
+ */
+export async function publishStreamResume(
+  payload: StreamResumePayload,
+): Promise<void> {
+  const gatewayUrl = getGatewayInternalUrl();
+  const response = await fetch(`${gatewayUrl}/api/internal/stream-resume`, {
+    method: "POST",
+    headers: {
+      ...internalHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "unknown");
+    throw new Error(
+      `Gateway stream resume failed: ${response.status} ${response.statusText} — ${body}`,
+    );
+  }
+}
+
 /**
  * Fetch the next Gateway-owned monotonic sequence for a channel.
  */

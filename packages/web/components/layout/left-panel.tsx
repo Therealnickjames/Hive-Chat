@@ -16,6 +16,7 @@ import {
   Server as ServerIcon,
   MessageSquare,
   Settings2,
+  Compass,
 } from "lucide-react";
 import { UserProfileButton } from "@/components/user/user-profile-button";
 import { ServerSettingsOverlay } from "@/components/server-settings/server-settings-overlay";
@@ -143,6 +144,15 @@ export function LeftPanel() {
                     <Plus className="h-3.5 w-3.5" />
                   </div>
                   <span>New Server</span>
+                </button>
+                <button
+                  onClick={() => router.push("/discover")}
+                  className="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[12px] font-medium text-text-dim transition-all hover:bg-white/[0.02] hover:text-text-muted"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-white/6 bg-background-primary/60">
+                    <Compass className="h-3.5 w-3.5" />
+                  </div>
+                  <span>Discover</span>
                 </button>
               </div>
             </div>

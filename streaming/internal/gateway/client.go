@@ -17,8 +17,9 @@ import (
 
 // Client wraps Redis pub/sub for Gateway communication.
 type Client struct {
-	rdb    *redis.Client
-	pubsub *redis.PubSub // stored for cleanup on shutdown (ISSUE-009)
+	rdb          *redis.Client
+	pubsub       *redis.PubSub // stored for cleanup on shutdown (ISSUE-009)
+	resumePubsub *redis.PubSub // TASK-0021: resume subscription
 }
 
 // NewClient creates a new Gateway client.
@@ -49,9 +50,33 @@ func (c *Client) SubscribeStreamRequests(ctx context.Context) (<-chan string, er
 	return ch, nil
 }
 
-// Close cleans up the Redis pub/sub subscription.
+// SubscribeStreamResume subscribes to the stream resume channel. (TASK-0021)
+// Returns a channel of raw JSON messages for resume requests.
+func (c *Client) SubscribeStreamResume(ctx context.Context) (<-chan string, error) {
+	c.resumePubsub = c.rdb.Subscribe(ctx, "hive:stream:resume")
+
+	_, err := c.resumePubsub.Receive(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan string, 100)
+	go func() {
+		defer close(ch)
+		for msg := range c.resumePubsub.Channel() {
+			ch <- msg.Payload
+		}
+	}()
+
+	return ch, nil
+}
+
+// Close cleans up the Redis pub/sub subscriptions.
 // Must be called during shutdown to allow graceful exit. (ISSUE-009)
 func (c *Client) Close() error {
+	if c.resumePubsub != nil {
+		_ = c.resumePubsub.Close()
+	}
 	if c.pubsub != nil {
 		return c.pubsub.Close()
 	}

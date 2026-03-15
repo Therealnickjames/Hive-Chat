@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { validateInternalSecret } from "@/lib/internal-auth";
+import { publishStreamResume } from "@/lib/gateway-client";
 
 /**
- * POST /api/internal/stream/resume
+ * POST /api/stream/resume — User-facing stream resume endpoint (TASK-0021)
  *
- * Validate a checkpoint resume request and return the partial content
- * up to the checkpoint offset. The actual new streaming message is created
- * by the Gateway via the normal stream_start flow. (TASK-0021)
+ * Validates checkpoint, then publishes a resume request to the Gateway
+ * which forwards it to Redis for the Go streaming proxy.
  *
- * Body: { channelId, originalMessageId, checkpointIndex, agentId }
- * Returns: { originalMessageId, channelId, agentId, agentName, checkpointIndex, partialContent }
+ * Body: { messageId, checkpointIndex, agentId }
  */
 export async function POST(request: NextRequest) {
-  if (!validateInternalSecret(request)) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,19 +25,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { channelId, originalMessageId, checkpointIndex, agentId } = body;
+  const { messageId, checkpointIndex, agentId } = body;
 
-  if (
-    !channelId ||
-    !originalMessageId ||
-    checkpointIndex === undefined ||
-    !agentId
-  ) {
+  if (!messageId || checkpointIndex === undefined || !agentId) {
     return NextResponse.json(
-      {
-        error:
-          "Missing required fields: channelId, originalMessageId, checkpointIndex, agentId",
-      },
+      { error: "Missing required fields: messageId, checkpointIndex, agentId" },
       { status: 400 },
     );
   }
@@ -44,7 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     // Validate original message exists and has checkpoints
     const originalMessage = await prisma.message.findUnique({
-      where: { id: originalMessageId },
+      where: { id: messageId },
       select: {
         id: true,
         channelId: true,
@@ -55,15 +48,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!originalMessage) {
-      return NextResponse.json(
-        { error: "Original message not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
 
     if (!originalMessage.checkpoints) {
       return NextResponse.json(
-        { error: "Original message has no checkpoints" },
+        { error: "Message has no checkpoints" },
         { status: 400 },
       );
     }
@@ -79,7 +69,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate agent exists
+    // Validate agent exists and is active
     const agent = await prisma.agent.findUnique({
       where: { id: agentId },
       select: { id: true, name: true, isActive: true },
@@ -92,27 +82,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract partial content up to checkpoint offset
+    // Extract partial content up to checkpoint
     const checkpoint = parsedCheckpoints[checkpointIndex];
     const partialContent =
       originalMessage.content?.substring(0, checkpoint.contentOffset) || "";
 
-    return NextResponse.json({
-      originalMessageId,
-      channelId,
+    // Publish resume request to Gateway → Redis → Go proxy
+    await publishStreamResume({
+      channelId: originalMessage.channelId,
+      originalMessageId: messageId,
       agentId,
       agentName: agent.name,
       checkpointIndex,
       checkpointLabel: checkpoint.label,
       partialContent,
     });
+
+    return NextResponse.json({
+      ok: true,
+      channelId: originalMessage.channelId,
+      checkpointLabel: checkpoint.label,
+    });
   } catch (error) {
-    console.error(
-      "[internal/stream] Failed to validate resume request:",
-      error,
-    );
+    console.error("[stream/resume] Failed to process resume request:", error);
     return NextResponse.json(
-      { error: "Failed to validate resume request" },
+      { error: "Failed to process resume request" },
       { status: 500 },
     );
   }

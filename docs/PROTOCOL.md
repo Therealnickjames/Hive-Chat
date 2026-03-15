@@ -461,6 +461,7 @@ All Redis messages are JSON-encoded strings.
 | `hive:stream:tool_call:{channelId}:{messageId}`   | Go Proxy  | Gateway                      | Tool call requested by LLM (TASK-0018)          |
 | `hive:stream:tool_result:{channelId}:{messageId}` | Go Proxy  | Gateway                      | Tool execution result (TASK-0018)               |
 | `hive:stream:checkpoint:{channelId}:{messageId}`  | Go Proxy  | Gateway                      | Stream checkpoint for rewind/resume (TASK-0021) |
+| `hive:stream:resume`                              | Gateway   | Go Proxy                     | Resume stream from checkpoint (TASK-0021)       |
 
 ### Stream Request Payload
 
@@ -487,6 +488,24 @@ Published by Gateway when a message triggers an AI response:
 
 - `requestId` (optional): correlation ID for structured log tracing (DEC-0067)
 - `traceparent` (optional): W3C Trace Context header for OpenTelemetry distributed tracing (DEC-0068). The Go proxy extracts this to continue the trace started by the Gateway.
+
+### Stream Resume Payload (TASK-0021)
+
+Published by Gateway when a user requests to resume a stream from a checkpoint:
+
+```json
+{
+  "channelId": "01HXY...",
+  "originalMessageId": "01HXY...",
+  "agentId": "01HXY...",
+  "agentName": "Claude",
+  "checkpointIndex": 1,
+  "checkpointLabel": "After tool: search",
+  "partialContent": "Here is what I found so far..."
+}
+```
+
+The Go proxy subscribes to `hive:stream:resume` and restarts the LLM stream from the specified checkpoint, using `partialContent` as context for continuation.
 
 ### Stream Token Payload
 

@@ -22,6 +22,7 @@ function MessageRow({
   currentUserId,
   latestOwnUserMessageId,
   onReactionsChange,
+  onResumeStream,
   canManageMessages,
   onEditMessage,
   onDeleteMessage,
@@ -33,6 +34,11 @@ function MessageRow({
   currentUserId?: string;
   latestOwnUserMessageId: string | null;
   onReactionsChange: (messageId: string, reactions: ReactionData[]) => void;
+  onResumeStream?: (
+    messageId: string,
+    checkpointIndex: number,
+    agentId: string,
+  ) => void;
   canManageMessages?: boolean;
   onEditMessage?: (messageId: string, content: string) => Promise<boolean>;
   onDeleteMessage?: (messageId: string) => void;
@@ -77,6 +83,7 @@ function MessageRow({
         message={message}
         isGrouped={isGrouped}
         onReactionsChange={onReactionsChange}
+        onResumeStream={onResumeStream}
         currentUserId={currentUserId}
         canManageMessages={canManageMessages}
         onDelete={onDeleteMessage}
@@ -112,6 +119,12 @@ interface MessageListProps {
   canManageMessages?: boolean;
   onEditMessage?: (messageId: string, content: string) => Promise<boolean>;
   onDeleteMessage?: (messageId: string) => void;
+  /** TASK-0021: callback to resume a stream from a checkpoint */
+  onResumeStream?: (
+    messageId: string,
+    checkpointIndex: number,
+    agentId: string,
+  ) => void;
   /** TASK-0016: sequence of last message the user has read (for divider placement) */
   lastReadSeq?: string | null;
   /** TASK-0012: number of concurrently active streams */
@@ -133,6 +146,7 @@ export function MessageList({
   canManageMessages,
   onEditMessage,
   onDeleteMessage,
+  onResumeStream,
   lastReadSeq,
   activeStreamCount = 0,
   hasAgents = false,
@@ -434,6 +448,7 @@ export function MessageList({
           currentUserId={currentUserId}
           latestOwnUserMessageId={latestOwnUserMessageId}
           onReactionsChange={onReactionsChange}
+          onResumeStream={onResumeStream}
           canManageMessages={canManageMessages}
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}

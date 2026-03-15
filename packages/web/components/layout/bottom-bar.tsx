@@ -1,6 +1,3 @@
-// TODO(PROD-READY): Fully implemented but never mounted in (app)/layout.tsx.
-// Wire into layout once operational dashboard features are prioritized.
-// See production-readiness audit.
 "use client";
 
 import React, { useMemo } from "react";

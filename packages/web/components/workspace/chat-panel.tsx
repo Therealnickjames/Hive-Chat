@@ -89,6 +89,26 @@ export function ChatPanel({ panel }: ChatPanelProps) {
     return deleteMessage(deleteTarget.id);
   }, [deleteTarget, deleteMessage]);
 
+  // TASK-0021: Resume stream from checkpoint
+  const handleResumeStream = useCallback(
+    async (messageId: string, checkpointIndex: number, agentId: string) => {
+      try {
+        const res = await fetch("/api/stream/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageId, checkpointIndex, agentId }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error("[stream/resume] Failed:", data.error);
+        }
+      } catch (err) {
+        console.error("[stream/resume] Error:", err);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     void ensureServerScopedData(panel.serverId);
   }, [panel.serverId, ensureServerScopedData]);
@@ -580,6 +600,7 @@ export function ChatPanel({ panel }: ChatPanelProps) {
           canManageMessages={canManageMessages}
           onEditMessage={editMessage}
           onDeleteMessage={handleDeleteRequest}
+          onResumeStream={handleResumeStream}
           activeStreamCount={activeStreamCount}
           hasAgents={
             !!(

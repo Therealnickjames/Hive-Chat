@@ -66,6 +66,17 @@ type streamRequest struct {
 	Traceparent     string                   `json:"traceparent,omitempty"`
 }
 
+// resumeRequest is the JSON payload from Redis hive:stream:resume (TASK-0021)
+type resumeRequest struct {
+	ChannelID         string `json:"channelId"`
+	OriginalMessageID string `json:"originalMessageId"`
+	AgentID           string `json:"agentId"`
+	AgentName         string `json:"agentName"`
+	CheckpointIndex   int    `json:"checkpointIndex"`
+	CheckpointLabel   string `json:"checkpointLabel"`
+	PartialContent    string `json:"partialContent"`
+}
+
 // carrierFromRequest extracts W3C trace context from a stream request for propagation.
 type carrierFromRequest struct {
 	traceparent string
@@ -134,7 +145,7 @@ func (m *Manager) ActiveCount() int {
 	return len(m.active)
 }
 
-// Start begins listening for stream requests on Redis.
+// Start begins listening for stream requests and resume requests on Redis.
 // Blocks until context is cancelled.
 func (m *Manager) Start(ctx context.Context) error {
 	requests, err := m.gwClient.SubscribeStreamRequests(ctx)
@@ -142,7 +153,13 @@ func (m *Manager) Start(ctx context.Context) error {
 		return fmt.Errorf("subscribe to stream requests: %w", err)
 	}
 
-	m.logger.Info("Stream manager started — listening for requests")
+	// Subscribe to resume requests (TASK-0021)
+	resumes, err := m.gwClient.SubscribeStreamResume(ctx)
+	if err != nil {
+		return fmt.Errorf("subscribe to stream resume: %w", err)
+	}
+
+	m.logger.Info("Stream manager started — listening for requests and resume")
 
 	// Signal readiness so the health check gates on subscription being live.
 	if m.onReady != nil {
@@ -188,6 +205,39 @@ func (m *Manager) Start(ctx context.Context) error {
 					"maxStreams", m.maxConcurrentStreams,
 				)
 				m.publishError(ctx, req, "", "Stream concurrency limit reached", 0, time.Now())
+			}
+
+		case rawMsg, ok := <-resumes:
+			if !ok {
+				m.logger.Info("Stream resume channel closed")
+				continue
+			}
+
+			var rr resumeRequest
+			if err := json.Unmarshal([]byte(rawMsg), &rr); err != nil {
+				m.logger.Error("Failed to decode resume request", "error", err, "raw", rawMsg)
+				continue
+			}
+
+			m.logger.Info("Stream resume request received",
+				"channelId", rr.ChannelID,
+				"originalMessageId", rr.OriginalMessageID,
+				"agentId", rr.AgentID,
+				"checkpointIndex", rr.CheckpointIndex,
+			)
+
+			if m.tryAcquireSlot() {
+				go func(rr resumeRequest) {
+					defer m.releaseSlot()
+					m.handleResume(ctx, rr)
+				}(rr)
+			} else {
+				m.logger.Warn("Resume request rejected: concurrency limit reached",
+					"channelId", rr.ChannelID,
+					"agentId", rr.AgentID,
+					"activeStreams", m.ActiveCount(),
+					"maxStreams", m.maxConcurrentStreams,
+				)
 			}
 		}
 	}
@@ -574,6 +624,54 @@ func (m *Manager) handleStream(ctx context.Context, req streamRequest) {
 		"tokenCount", totalTokenCount,
 		"durationMs", durationMs,
 	)
+}
+
+// handleResume processes a stream resume request. (TASK-0021)
+// It converts the resume into a new stream request with the partial content
+// from the checkpoint as context, then delegates to handleStream.
+func (m *Manager) handleResume(ctx context.Context, rr resumeRequest) {
+	ctx, span := tracing.Tracer.Start(ctx, "handleResume",
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("tavok.original_message_id", rr.OriginalMessageID),
+			attribute.String("tavok.channel_id", rr.ChannelID),
+			attribute.String("tavok.agent_id", rr.AgentID),
+			attribute.Int("tavok.checkpoint_index", rr.CheckpointIndex),
+		),
+	)
+	defer span.End()
+
+	m.logger.Info("Handling stream resume",
+		"channelId", rr.ChannelID,
+		"originalMessageId", rr.OriginalMessageID,
+		"agentId", rr.AgentID,
+		"checkpointIndex", rr.CheckpointIndex,
+		"checkpointLabel", rr.CheckpointLabel,
+	)
+
+	// Build context messages from the partial content up to the checkpoint.
+	// The agent will continue generating from where the checkpoint left off.
+	contextMessages := []provider.StreamMessage{
+		{
+			Role:    "assistant",
+			Content: rr.PartialContent,
+		},
+		{
+			Role:    "user",
+			Content: fmt.Sprintf("[System: Resuming from checkpoint #%d (%s). Continue from where you left off.]", rr.CheckpointIndex+1, rr.CheckpointLabel),
+		},
+	}
+
+	// Create a synthetic stream request for the resumed stream.
+	// The Gateway will create a new message placeholder via the normal stream_start flow.
+	req := streamRequest{
+		ChannelID:       rr.ChannelID,
+		MessageID:       rr.OriginalMessageID + ":resume",
+		AgentID:         rr.AgentID,
+		ContextMessages: contextMessages,
+	}
+
+	m.handleStream(ctx, req)
 }
 
 // runProviderIteration runs a single provider stream iteration,
